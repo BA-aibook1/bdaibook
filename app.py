@@ -45,7 +45,7 @@ for folder in [VIDEO_DIR, IMAGE_DIR, PROFILE_DIR]:
 
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_FILE, check_special_connect=False if hasattr(sqlite3, 'check_special_connect') else False, check_same_thread=False)
+    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
