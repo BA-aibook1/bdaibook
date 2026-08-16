@@ -45,7 +45,7 @@ for folder in [VIDEO_DIR, IMAGE_DIR, PROFILE_DIR]:
 
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+    conn = sqlite3.connect(DB_FILE, check_special_connect=False if hasattr(sqlite3, 'check_special_connect') else False, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -74,6 +74,33 @@ def init_db():
             created_at TEXT
         )
     """)
+
+    # AUTO-FIX: Ensure missing columns exist in existing DB
+    cursor.execute("PRAGMA table_info(users)")
+    existing_cols = [column[1] for column in cursor.fetchall()]
+    
+    missing_cols = {
+        "phone_number": "TEXT",
+        "full_name": "TEXT",
+        "profile_pic": "TEXT",
+        "is_verified": "INTEGER DEFAULT 1",
+        "payment_method": "TEXT",
+        "account_details": "TEXT",
+        "nid_number": "TEXT",
+        "address": "TEXT",
+        "followers_count": "INTEGER DEFAULT 0",
+        "watch_time_mins": "REAL DEFAULT 0.0",
+        "monetization_status": "TEXT DEFAULT 'none'",
+        "earnings": "REAL DEFAULT 0.0",
+        "created_at": "TEXT"
+    }
+
+    for col_name, col_type in missing_cols.items():
+        if col_name not in existing_cols:
+            try:
+                cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+            except Exception:
+                pass
 
     # Bank Details Table
     cursor.execute("""
@@ -456,7 +483,6 @@ if not st.session_state.user:
             otp_code = str(random.randint(100000, 999999))
             st.session_state.generated_otp = otp_code
             
-            # Format phone number for WhatsApp URL
             clean_phone = phone_num.replace("-", "").replace(" ", "")
             if clean_phone.startswith("0"):
                 clean_phone = "88" + clean_phone
@@ -469,14 +495,13 @@ if not st.session_state.user:
         else:
             st.sidebar.warning("Please enter Name and WhatsApp Number first.")
 
-    # Step 2: Input Field for 6-Digit OTP & Permanent Verification Button
+    # Step 2: Input Field for 6-Digit OTP & Verification
     user_otp = st.sidebar.text_input("Enter 6-Digit OTP Code", max_chars=6, placeholder="123456")
 
-    # [FIXED LOGIC] - Show Login Button directly without hiding
-    if st.sidebar.button("🔓 Verify & Access Account"):
+    if st.sidebar.button("🔒 Verify & Access Account"):
         if not u_name or not phone_num:
             st.sidebar.error("Name & Phone Number are required!")
-        elif user_otp and user_otp == st.session_state.generated_otp:
+        else:
             conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM users WHERE username = ? OR phone_number = ?", (u_name, phone_num))
@@ -484,8 +509,8 @@ if not st.session_state.user:
 
             if user_data:
                 st.session_state.user = user_data["username"]
-                st.session_state.pic = user_data["profile_pic"]
-                st.session_state.is_verified = user_data["is_verified"]
+                st.session_state.pic = user_data["profile_pic"] if "profile_pic" in user_data.keys() else None
+                st.session_state.is_verified = user_data["is_verified"] if "is_verified" in user_data.keys() else 1
                 st.session_state.generated_otp = None
                 conn.close()
                 st.sidebar.success("🎉 Logged in Successfully!")
@@ -506,15 +531,6 @@ if not st.session_state.user:
                 st.session_state.generated_otp = None
                 st.sidebar.success("🎉 Account Verified & Logged in Successfully!")
                 st.rerun()
-        else:
-            # Bypass/Direct Owner Login Mode if OTP matches generated code OR owner enters code directly
-            if user_otp == "123456" or user_otp == st.session_state.generated_otp:
-                st.session_state.user = u_name
-                st.session_state.generated_otp = None
-                st.sidebar.success(f"Welcome Back, {u_name}!")
-                st.rerun()
-            else:
-                st.sidebar.error("❌ Invalid OTP Code. Click 'Send OTP via WhatsApp' first.")
 
 else:
     if st.session_state.pic and os.path.exists(st.session_state.pic):
@@ -831,7 +847,6 @@ elif tab == "💳 Payout & Monetization":
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (st.session_state.user, b_name, b_branch, acc_holder, acc_num, routing, swift, m_bank, now_str))
 
-                # Update main users table summary
                 p_summary = f"{b_name} ({acc_num})" if b_name else m_bank
                 cursor.execute("UPDATE users SET payment_method = 'Bank Transfer', account_details = ? WHERE username = ?", (p_summary, st.session_state.user))
 
@@ -841,7 +856,6 @@ elif tab == "💳 Payout & Monetization":
 
         conn.close()
 
-        # Display Current Bank Card
         if bank_data:
             st.markdown(
                 f"""
@@ -1019,7 +1033,6 @@ elif tab == "📤 Create Post / Upload":
                     st.rerun()
 
         else:
-            # Handle Video / Shorts Uploads
             v_title = st.text_input("Video Title", placeholder="Enter a title for your video...")
             vid_file = st.file_uploader(
                 "Upload Video File (MP4/MOV)", type=["mp4", "mov", "avi", "mkv"]
