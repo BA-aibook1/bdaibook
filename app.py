@@ -1,4 +1,3 @@
-import base64
 from datetime import datetime
 import os
 import random
@@ -45,7 +44,7 @@ for folder in [VIDEO_DIR, IMAGE_DIR, PROFILE_DIR]:
 
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+    conn = sqlite3.connect(DB_FILE, check_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -78,7 +77,7 @@ def init_db():
     # AUTO-FIX: Ensure missing columns exist in existing DB
     cursor.execute("PRAGMA table_info(users)")
     existing_cols = [column[1] for column in cursor.fetchall()]
-    
+
     missing_cols = {
         "phone_number": "TEXT",
         "full_name": "TEXT",
@@ -92,32 +91,60 @@ def init_db():
         "watch_time_mins": "REAL DEFAULT 0.0",
         "monetization_status": "TEXT DEFAULT 'none'",
         "earnings": "REAL DEFAULT 0.0",
-        "created_at": "TEXT"
+        "created_at": "TEXT",
     }
 
     for col_name, col_type in missing_cols.items():
         if col_name not in existing_cols:
             try:
-                cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+                cursor.execute(
+                    f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"
+                )
             except Exception:
                 pass
 
-    # Bank Details Table
+    # Bank Details Table (Global & Card Support)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS bank_details (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
+            payment_type TEXT DEFAULT 'Bank Transfer',
             bank_name TEXT,
             branch_name TEXT,
             account_name TEXT,
             account_number TEXT,
             routing_number TEXT,
             swift_code TEXT,
+            card_number TEXT,
+            card_holder TEXT,
+            card_expiry TEXT,
+            global_wallet TEXT,
             mobile_banking TEXT,
+            country TEXT,
             updated_at TEXT,
             FOREIGN KEY (username) REFERENCES users (username)
         )
     """)
+
+    # PRAGMA Auto Migration for bank_details
+    cursor.execute("PRAGMA table_info(bank_details)")
+    existing_bank_cols = [col[1] for col in cursor.fetchall()]
+    bank_new_cols = {
+        "payment_type": "TEXT DEFAULT 'Bank Transfer'",
+        "card_number": "TEXT",
+        "card_holder": "TEXT",
+        "card_expiry": "TEXT",
+        "global_wallet": "TEXT",
+        "country": "TEXT",
+    }
+    for c_name, c_type in bank_new_cols.items():
+        if c_name not in existing_bank_cols:
+            try:
+                cursor.execute(
+                    f"ALTER TABLE bank_details ADD COLUMN {c_name} {c_type}"
+                )
+            except Exception:
+                pass
 
     # Videos Table
     cursor.execute("""
@@ -171,7 +198,7 @@ init_db()
 
 
 # ==========================================
-# 3. DATABASE HELPER FUNCTIONS
+# 3. HELPER FUNCTIONS
 # ==========================================
 def register_or_get_user(username):
     conn = get_db_connection()
@@ -397,7 +424,7 @@ st.markdown(
 )
 
 # ==========================================
-# 5. MAIN HEADER LOGO SECTION
+# 5. MAIN HEADER & SESSION INITIALIZATION
 # ==========================================
 if os.path.exists("logo.jpg"):
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -416,7 +443,6 @@ else:
 
 st.divider()
 
-# Session State Initialization
 if "user" not in st.session_state:
     st.session_state.user = None
     st.session_state.pic = None
@@ -429,14 +455,15 @@ if "active_tab" not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
 
 # ==========================================
-# 6. SIDEBAR NAVIGATION & SEARCH & AUTH
+# 6. SIDEBAR NAVIGATION
 # ==========================================
 if os.path.exists("logo.jpg"):
     st.sidebar.image("logo.jpg", use_container_width=True)
 
-# 🔍 User Search Bar
 st.sidebar.header("🔍 Search User")
-search_query = st.sidebar.text_input("Type name or username...", placeholder="Search creators...")
+search_query = st.sidebar.text_input(
+    "Type name or username...", placeholder="Search creators..."
+)
 
 if search_query.strip():
     conn = get_db_connection()
@@ -455,7 +482,9 @@ if search_query.strip():
             st.sidebar.markdown(
                 f"👤 **{u_disp}** (@{u['username']})  \n👥 Followers: {u.get('followers_count', 0)}"
             )
-            if st.sidebar.button(f"➕ Follow @{u['username']}", key=f"s_fol_{u['username']}"):
+            if st.sidebar.button(
+                f"➕ Follow @{u['username']}", key=f"s_fol_{u['username']}"
+            ):
                 conn = get_db_connection()
                 c = conn.cursor()
                 c.execute(
@@ -470,36 +499,41 @@ if search_query.strip():
     else:
         st.sidebar.info("No user found with this name.")
 
-# --- Global WhatsApp Phone OTP Login System ---
 st.sidebar.header("📱 Phone & WhatsApp Auth")
 
 if not st.session_state.user:
-    u_name = st.sidebar.text_input("Your Name / Username", placeholder="e.g. MDRANA")
-    phone_num = st.sidebar.text_input("WhatsApp Number with Country Code", placeholder="e.g. +8801722003172 or +14155552671")
+    u_name = st.sidebar.text_input(
+        "Your Name / Username", placeholder="e.g. MDRANA"
+    )
+    phone_num = st.sidebar.text_input(
+        "WhatsApp Number with Country Code",
+        placeholder="e.g. +8801722003172 or +14155552671",
+    )
 
-    # Step 1: Generate OTP Button
     if st.sidebar.button("📲 Send OTP via WhatsApp"):
         if u_name and phone_num:
             otp_code = str(random.randint(100000, 999999))
             st.session_state.generated_otp = otp_code
-            
-            # Clean non-digit characters
             clean_phone = "".join(filter(str.isdigit, phone_num))
-            
-            # Backup for BD users typing local 017... format
             if phone_num.strip().startswith("0"):
                 clean_phone = "88" + clean_phone
-            
+
             msg = f"Your BD AI Book Login OTP Code is: {otp_code}"
-            wa_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(msg)}"
-            
+            wa_url = (
+                f"https://wa.me/{clean_phone}?text={urllib.parse.quote(msg)}"
+            )
+
             st.sidebar.success(f"OTP Code: **{otp_code}**")
-            st.sidebar.markdown(f"[👉 Click to Send OTP via WhatsApp]({wa_url})", unsafe_allow_html=True)
+            st.sidebar.markdown(
+                f"[👉 Click to Send OTP via WhatsApp]({wa_url})",
+                unsafe_allow_html=True,
+            )
         else:
             st.sidebar.warning("Please enter Name and WhatsApp Number first.")
 
-    # Step 2: Input Field for 6-Digit OTP & Verification
-    user_otp = st.sidebar.text_input("Enter 6-Digit OTP Code", max_chars=6, placeholder="123456")
+    user_otp = st.sidebar.text_input(
+        "Enter 6-Digit OTP Code", max_chars=6, placeholder="123456"
+    )
 
     if st.sidebar.button("🔒 Verify & Access Account"):
         if not u_name or not phone_num:
@@ -507,13 +541,24 @@ if not st.session_state.user:
         else:
             conn = get_db_connection()
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM users WHERE username = ? OR phone_number = ?", (u_name, phone_num))
+            cursor.execute(
+                "SELECT * FROM users WHERE username = ? OR phone_number = ?",
+                (u_name, phone_num),
+            )
             user_data = cursor.fetchone()
 
             if user_data:
                 st.session_state.user = user_data["username"]
-                st.session_state.pic = user_data["profile_pic"] if "profile_pic" in user_data.keys() else None
-                st.session_state.is_verified = user_data["is_verified"] if "is_verified" in user_data.keys() else 1
+                st.session_state.pic = (
+                    user_data["profile_pic"]
+                    if "profile_pic" in user_data.keys()
+                    else None
+                )
+                st.session_state.is_verified = (
+                    user_data["is_verified"]
+                    if "is_verified" in user_data.keys()
+                    else 1
+                )
                 st.session_state.generated_otp = None
                 conn.close()
                 st.sidebar.success("🎉 Logged in Successfully!")
@@ -532,7 +577,9 @@ if not st.session_state.user:
                 st.session_state.pic = None
                 st.session_state.is_verified = 1
                 st.session_state.generated_otp = None
-                st.sidebar.success("🎉 Account Verified & Logged in Successfully!")
+                st.sidebar.success(
+                    "🎉 Account Verified & Logged in Successfully!"
+                )
                 st.rerun()
 
 else:
@@ -547,7 +594,6 @@ else:
         st.session_state.generated_otp = None
         st.rerun()
 
-# Navigation Tabs
 nav_tabs = [
     "🌍 World Feed",
     "📱 Scrolle Shorts Feed",
@@ -569,7 +615,6 @@ st.session_state.active_tab = tab
 # 7. TAB IMPLEMENTATIONS
 # ==========================================
 
-# --- World Feed ---
 if tab == "🌍 World Feed":
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -694,7 +739,6 @@ if tab == "🌍 World Feed":
     finally:
         conn.close()
 
-# --- Shorts Feed ---
 elif tab == "📱 Scrolle Shorts Feed":
     st.subheader("📱 TikTok & Shorts Vertical Scroll Feed")
     conn = get_db_connection()
@@ -763,7 +807,6 @@ elif tab == "📱 Scrolle Shorts Feed":
                     conn.close()
                     st.toast("Followed Creator!")
 
-# --- WhatsApp Support Desk ---
 elif tab == "💬 WhatsApp Support Desk":
     st.subheader("💬 Official WhatsApp Support Desk")
     st.caption("Contact us directly to ask questions or resolve issues.")
@@ -800,11 +843,11 @@ elif tab == "💬 WhatsApp Support Desk":
         unsafe_allow_html=True,
     )
 
-# --- Payout & Monetization ---
+# --- PAYOUT & MONETIZATION (UPDATED WITH GLOBAL BANK & CARD SUPPORT) ---
 elif tab == "💳 Payout & Monetization":
-    st.subheader("🏦 Global Monetization & Bank Setup")
+    st.subheader("🏦 Global Monetization, Card & Bank Setup")
     st.info(
-        "Select your preferred payment method and submit bank/account details to receive earnings."
+        "Select your payout method: Visa/Mastercard (Global), Bank Transfer, or Mobile Banking to receive earnings."
     )
 
     if not st.session_state.user:
@@ -812,49 +855,175 @@ elif tab == "💳 Payout & Monetization":
     else:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM bank_details WHERE username = ?", (st.session_state.user,))
+        cursor.execute(
+            "SELECT * FROM bank_details WHERE username = ?",
+            (st.session_state.user,),
+        )
         existing_bank = cursor.fetchone()
 
         bank_data = dict(existing_bank) if existing_bank else {}
 
         with st.form("bank_setup_form"):
-            st.markdown("### 🏦 Official Bank Account Details")
+            st.markdown("### 🌍 Select Preferred Payment Method")
 
-            b_name = st.text_input("Bank Name", value=bank_data.get("bank_name", ""), placeholder="e.g., Islami Bank, Dutch Bangla Bank, City Bank")
-            b_branch = st.text_input("Branch Name", value=bank_data.get("branch_name", ""), placeholder="e.g., Dhaka Main Branch")
-            acc_holder = st.text_input("Account Holder Name", value=bank_data.get("account_name", ""), placeholder="Name matching bank records")
-            acc_num = st.text_input("Account Number / IBAN", value=bank_data.get("account_number", ""), placeholder="e.g., 2050123456789")
-            
+            pay_method = st.selectbox(
+                "Payment Category",
+                [
+                    "💳 Visa / Mastercard / Debit Card (Worldwide)",
+                    "🏦 Direct Bank Transfer (Local / IBAN)",
+                    "🌐 Global Wallets (Payoneer / Wise / PayPal)",
+                    "📱 Mobile Banking (Bangladesh: bKash/Nagad/Rocket)",
+                ],
+                index=0,
+            )
+
+            user_country = st.text_input(
+                "Country / দেশ",
+                value=bank_data.get("country", "Bangladesh"),
+                placeholder="e.g. Bangladesh, USA, UAE, UK",
+            )
+
+            # --- Visa / Mastercard Details ---
+            st.markdown(
+                "#### 💳 Visa / Mastercard / Debit Card Details (Global)"
+            )
+            c_num = st.text_input(
+                "Card Number / কার্ড নম্বর",
+                value=bank_data.get("card_number", ""),
+                placeholder="16-digit card number (e.g. 4111 2222 3333 4444)",
+            )
+            col_c1, col_c2 = st.columns(2)
+            with col_c1:
+                c_holder = st.text_input(
+                    "Card Holder Name",
+                    value=bank_data.get("card_holder", ""),
+                    placeholder="Name printed on card",
+                )
+            with col_c2:
+                c_exp = st.text_input(
+                    "Expiry Date (MM/YY)",
+                    value=bank_data.get("card_expiry", ""),
+                    placeholder="MM/YY",
+                )
+
+            # --- Bank Account Details ---
+            st.markdown("#### 🏦 Official Bank Account Details")
+            b_name = st.text_input(
+                "Bank Name",
+                value=bank_data.get("bank_name", ""),
+                placeholder="e.g. Islami Bank, City Bank, Chase, HSBC",
+            )
+            b_branch = st.text_input(
+                "Branch Name",
+                value=bank_data.get("branch_name", ""),
+                placeholder="e.g. Dhaka Main Branch / NYC Branch",
+            )
+            acc_holder = st.text_input(
+                "Account Holder Name",
+                value=bank_data.get("account_name", ""),
+                placeholder="Name matching bank records",
+            )
+            acc_num = st.text_input(
+                "Account Number / IBAN",
+                value=bank_data.get("account_number", ""),
+                placeholder="e.g. 2050123456789 or GB82 WEST 1234 5698 7654 32",
+            )
+
             c_r1, c_r2 = st.columns(2)
             with c_r1:
-                routing = st.text_input("Routing Number", value=bank_data.get("routing_number", ""), placeholder="e.g., 125263718")
+                routing = st.text_input(
+                    "Routing / ABA / Sort Code",
+                    value=bank_data.get("routing_number", ""),
+                    placeholder="e.g. 125263718",
+                )
             with c_r2:
-                swift = st.text_input("SWIFT / BIC Code", value=bank_data.get("swift_code", ""), placeholder="e.g., IBBLBDDH")
+                swift = st.text_input(
+                    "SWIFT / BIC Code",
+                    value=bank_data.get("swift_code", ""),
+                    placeholder="e.g. IBBLBDDH or CHASUS33",
+                )
 
-            st.markdown("### 📱 Mobile Banking Setup (Alternative)")
-            m_bank = st.text_input("bKash / Nagad / Rocket Number", value=bank_data.get("mobile_banking", ""), placeholder="e.g., 017xxxxxxxx (bKash Personal)")
+            # --- Global Wallets & Mobile Banking ---
+            st.markdown("#### 🌐 Global Wallet / Mobile Banking")
+            g_wallet = st.text_input(
+                "Payoneer / Wise Email / PayPal",
+                value=bank_data.get("global_wallet", ""),
+                placeholder="e.g. user@gmail.com",
+            )
+            m_bank = st.text_input(
+                "bKash / Nagad / Rocket Number (BD Only)",
+                value=bank_data.get("mobile_banking", ""),
+                placeholder="e.g. 017xxxxxxxx",
+            )
 
-            save_bank_btn = st.form_submit_button("💾 Save Bank & Payout Information")
+            save_bank_btn = st.form_submit_button(
+                "💾 Save Payout Information"
+            )
 
             if save_bank_btn:
                 now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
                 if existing_bank:
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         UPDATE bank_details 
-                        SET bank_name = ?, branch_name = ?, account_name = ?, account_number = ?, routing_number = ?, swift_code = ?, mobile_banking = ?, updated_at = ?
+                        SET payment_type = ?, country = ?, card_number = ?, card_holder = ?, card_expiry = ?,
+                            bank_name = ?, branch_name = ?, account_name = ?, account_number = ?, routing_number = ?, swift_code = ?,
+                            global_wallet = ?, mobile_banking = ?, updated_at = ?
                         WHERE username = ?
-                    """, (b_name, b_branch, acc_holder, acc_num, routing, swift, m_bank, now_str, st.session_state.user))
+                    """,
+                        (
+                            pay_method,
+                            user_country,
+                            c_num,
+                            c_holder,
+                            c_exp,
+                            b_name,
+                            b_branch,
+                            acc_holder,
+                            acc_num,
+                            routing,
+                            swift,
+                            g_wallet,
+                            m_bank,
+                            now_str,
+                            st.session_state.user,
+                        ),
+                    )
                 else:
-                    cursor.execute("""
-                        INSERT INTO bank_details (username, bank_name, branch_name, account_name, account_number, routing_number, swift_code, mobile_banking, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (st.session_state.user, b_name, b_branch, acc_holder, acc_num, routing, swift, m_bank, now_str))
+                    cursor.execute(
+                        """
+                        INSERT INTO bank_details (username, payment_type, country, card_number, card_holder, card_expiry, bank_name, branch_name, account_name, account_number, routing_number, swift_code, global_wallet, mobile_banking, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                        (
+                            st.session_state.user,
+                            pay_method,
+                            user_country,
+                            c_num,
+                            c_holder,
+                            c_exp,
+                            b_name,
+                            b_branch,
+                            acc_holder,
+                            acc_num,
+                            routing,
+                            swift,
+                            g_wallet,
+                            m_bank,
+                            now_str,
+                        ),
+                    )
 
-                p_summary = f"{b_name} ({acc_num})" if b_name else m_bank
-                cursor.execute("UPDATE users SET payment_method = 'Bank Transfer', account_details = ? WHERE username = ?", (p_summary, st.session_state.user))
+                p_summary = f"{pay_method} ({c_num[-4:] if c_num else b_name or m_bank or g_wallet})"
+                cursor.execute(
+                    "UPDATE users SET payment_method = ?, account_details = ? WHERE username = ?",
+                    (pay_method, p_summary, st.session_state.user),
+                )
 
                 conn.commit()
-                st.success("✅ Bank details saved and updated successfully!")
+                st.success(
+                    "✅ Global Payout & Card details saved successfully!"
+                )
                 st.rerun()
 
         conn.close()
@@ -863,19 +1032,20 @@ elif tab == "💳 Payout & Monetization":
             st.markdown(
                 f"""
                 <div class="bank-card">
-                    <h3 style="margin-top:0; color:#ffffff;">💳 Saved Bank Card Profile</h3>
+                    <h3 style="margin-top:0; color:#ffffff;">💳 Active Global Payout Profile</h3>
+                    <p><b>Method:</b> {bank_data.get('payment_type', 'Card / Bank Transfer')} | <b>Country:</b> {bank_data.get('country', 'N/A')}</p>
+                    <p><b>Card Ending:</b> **** **** **** {bank_data.get('card_number', '')[-4:] if bank_data.get('card_number') else 'N/A'} ({bank_data.get('card_holder', 'N/A')})</p>
                     <p><b>Bank:</b> {bank_data.get('bank_name', 'N/A')} ({bank_data.get('branch_name', 'N/A')})</p>
-                    <p><b>Account Holder:</b> {bank_data.get('account_name', 'N/A')}</p>
-                    <p><b>Account Number:</b> {bank_data.get('account_number', 'N/A')}</p>
-                    <p><b>Routing Number:</b> {bank_data.get('routing_number', 'N/A')} | <b>SWIFT:</b> {bank_data.get('swift_code', 'N/A')}</p>
-                    <p><b>Mobile Wallet:</b> {bank_data.get('mobile_banking', 'N/A')}</p>
+                    <p><b>Account/IBAN:</b> {bank_data.get('account_number', 'N/A')}</p>
+                    <p><b>SWIFT/BIC:</b> {bank_data.get('swift_code', 'N/A')} | <b>Routing:</b> {bank_data.get('routing_number', 'N/A')}</p>
+                    <p><b>Global Wallet/Wise:</b> {bank_data.get('global_wallet', 'N/A')} | <b>Mobile BD:</b> {bank_data.get('mobile_banking', 'N/A')}</p>
                     <small>Last Updated: {bank_data.get('updated_at', 'N/A')}</small>
                 </div>
                 """,
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
 
-# --- My Profile & Earnings ---
+# --- MY PROFILE & EARNINGS ---
 elif tab == "👤 My Profile & Earnings":
     if not st.session_state.user:
         st.warning("Please login to view your profile.")
@@ -938,7 +1108,9 @@ elif tab == "👤 My Profile & Earnings":
             f"📹 Videos/Shorts: **{len(my_videos)}** | 🖼️ Posts: **{len(my_posts)}** | ❤️ Likes: **{format_value(total_likes)}** | 👁️ Views: **{format_value(total_views)}** | 👥 Followers: **{followers}/300**"
         )
 
-        st.markdown("#### 📊 Monetization Progress (Requirements: 300 Followers & 3000 Hours)")
+        st.markdown(
+            "#### 📊 Monetization Progress (Requirements: 300 Followers & 3000 Hours)"
+        )
         col_p1, col_p2 = st.columns(2)
         with col_p1:
             st.write(f"👥 Followers Goal: **{followers}/300**")
@@ -978,7 +1150,7 @@ elif tab == "👤 My Profile & Earnings":
 
         conn.close()
 
-# --- Upload Section ---
+# --- UPLOAD SECTION ---
 elif tab == "📤 Create Post / Upload":
     if not st.session_state.user:
         st.warning("Please login to create a post or upload content.")
@@ -1036,9 +1208,12 @@ elif tab == "📤 Create Post / Upload":
                     st.rerun()
 
         else:
-            v_title = st.text_input("Video Title", placeholder="Enter a title for your video...")
+            v_title = st.text_input(
+                "Video Title", placeholder="Enter a title for your video..."
+            )
             vid_file = st.file_uploader(
-                "Upload Video File (MP4/MOV)", type=["mp4", "mov", "avi", "mkv"]
+                "Upload Video File (MP4/MOV)",
+                type=["mp4", "mov", "avi", "mkv"],
             )
 
             is_short = upload_type == "📱 Short Video"
@@ -1046,7 +1221,9 @@ elif tab == "📤 Create Post / Upload":
 
             if st.button("🚀 Publish Video"):
                 if not vid_file or not v_title.strip():
-                    st.warning("Please provide a video title and select a video file!")
+                    st.warning(
+                        "Please provide a video title and select a video file!"
+                    )
                 else:
                     vid_filename = f"vid_{uuid.uuid4()}.mp4"
                     vid_path = os.path.join(VIDEO_DIR, vid_filename)
@@ -1054,7 +1231,9 @@ elif tab == "📤 Create Post / Upload":
                     with open(vid_path, "wb") as f:
                         f.write(vid_file.getvalue())
 
-                    user_info_record = register_or_get_user(st.session_state.user)
+                    user_info_record = register_or_get_user(
+                        st.session_state.user
+                    )
                     today_str = datetime.now().strftime("%Y-%m-%d %H:%M")
 
                     conn = get_db_connection()
