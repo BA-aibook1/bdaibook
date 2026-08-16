@@ -1,2 +1,0 @@
-# bdaibook
-my-python-app
