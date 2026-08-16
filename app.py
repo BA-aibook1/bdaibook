@@ -45,7 +45,6 @@ for folder in [VIDEO_DIR, IMAGE_DIR, PROFILE_DIR]:
 
 
 def get_db_connection():
-    # সংশোধিত: check_thread এর জায়গায় check_same_thread=False হবে
     conn = sqlite3.connect(str(DB_FILE), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
@@ -63,6 +62,7 @@ def init_db():
             phone_number TEXT,
             full_name TEXT,
             profile_pic TEXT,
+            bio TEXT,
             is_verified INTEGER DEFAULT 1,
             payment_method TEXT,
             account_details TEXT,
@@ -84,6 +84,7 @@ def init_db():
         "phone_number": "TEXT",
         "full_name": "TEXT",
         "profile_pic": "TEXT",
+        "bio": "TEXT",
         "is_verified": "INTEGER DEFAULT 1",
         "payment_method": "TEXT",
         "account_details": "TEXT",
@@ -105,7 +106,7 @@ def init_db():
             except Exception:
                 pass
 
-    # Bank Details Table (Global & Card Support)
+    # Bank Details Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS bank_details (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -551,11 +552,7 @@ if not st.session_state.user:
 
             if user_data:
                 st.session_state.user = user_data["username"]
-                st.session_state.pic = (
-                    user_data["profile_pic"]
-                    if "profile_pic" in user_data.keys()
-                    else None
-                )
+                st.session_state.pic = user_data["profile_pic"]
                 st.session_state.is_verified = (
                     user_data["is_verified"]
                     if "is_verified" in user_data.keys()
@@ -585,6 +582,18 @@ if not st.session_state.user:
                 st.rerun()
 
 else:
+    # Sync current profile pic from DB
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "SELECT profile_pic FROM users WHERE username = ?",
+        (st.session_state.user,),
+    )
+    res = c.fetchone()
+    if res and res["profile_pic"]:
+        st.session_state.pic = res["profile_pic"]
+    conn.close()
+
     if st.session_state.pic and os.path.exists(st.session_state.pic):
         st.sidebar.image(st.session_state.pic, width=90)
 
@@ -667,7 +676,19 @@ if tab == "🌍 World Feed":
         for index, item in enumerate(combined_feed):
             item_id = str(item["id"])
             uploader_name = item.get("uploader_name", "Unknown User")
-            uploader_pic = item.get("uploader_pic", None)
+
+            # Uploader Pic dynamic fetching
+            cursor.execute(
+                "SELECT profile_pic FROM users WHERE username = ?",
+                (uploader_name,),
+            )
+            u_pic_res = cursor.fetchone()
+            uploader_pic = (
+                u_pic_res["profile_pic"]
+                if u_pic_res and u_pic_res["profile_pic"]
+                else item.get("uploader_pic")
+            )
+
             created_at = item.get("created_at", "Recently")
 
             st.markdown('<div class="feed-card">', unsafe_allow_html=True)
@@ -749,18 +770,30 @@ elif tab == "📱 Scrolle Shorts Feed":
         "SELECT * FROM videos WHERE video_type = 'short' ORDER BY created_at DESC"
     )
     short_vids = [dict(r) for r in cursor.fetchall()]
-    conn.close()
 
     if not short_vids:
         st.info("No shorts videos found.")
+        conn.close()
     else:
         for idx, sv in enumerate(short_vids):
             st.markdown("---")
             col_main, col_side = st.columns([3, 1])
+
+            cursor.execute(
+                "SELECT profile_pic FROM users WHERE username = ?",
+                (sv.get("uploader_name"),),
+            )
+            u_pic_res = cursor.fetchone()
+            uploader_pic = (
+                u_pic_res["profile_pic"]
+                if u_pic_res and u_pic_res["profile_pic"]
+                else sv.get("uploader_pic")
+            )
+
             with col_main:
                 show_verified_profile(
                     sv.get("uploader_name", "User"),
-                    profile_pic_path=sv.get("uploader_pic"),
+                    profile_pic_path=uploader_pic,
                     subtitle="Official Shorts Creator",
                     is_verified=True,
                 )
@@ -768,14 +801,11 @@ elif tab == "📱 Scrolle Shorts Feed":
                 if os.path.exists(sv["video_url"]):
                     st.video(sv["video_url"], format="video/mp4")
 
-                conn = get_db_connection()
-                cursor = conn.cursor()
                 cursor.execute(
                     "UPDATE videos SET views = views + 1, views_count = views_count + 1 WHERE id = ?",
                     (sv["id"],),
                 )
                 conn.commit()
-                conn.close()
 
                 render_comments_section(sv["id"])
 
@@ -785,29 +815,24 @@ elif tab == "📱 Scrolle Shorts Feed":
                     f"❤️ {format_value(sv.get('likes', 0))}",
                     key=f"sh_like_{sv['id']}",
                 ):
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
                     cursor.execute(
                         "UPDATE videos SET likes = likes + 1 WHERE id = ?",
                         (sv["id"],),
                     )
                     conn.commit()
-                    conn.close()
                     st.toast("Liked!")
                     st.rerun()
 
                 st.caption(f"👁️ {format_value(sv.get('views', 0))}")
 
                 if st.button("➕ Follow", key=f"sh_fol_{sv['id']}"):
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
                     cursor.execute(
                         "UPDATE users SET followers_count = followers_count + 1 WHERE username = ?",
                         (sv.get("uploader_name"),),
                     )
                     conn.commit()
-                    conn.close()
                     st.toast("Followed Creator!")
+        conn.close()
 
 elif tab == "💬 WhatsApp Support Desk":
     st.subheader("💬 Official WhatsApp Support Desk")
@@ -1058,6 +1083,46 @@ elif tab == "👤 My Profile & Earnings":
         raw_user = cursor.fetchone()
         user_info = dict(raw_user) if raw_user else {}
 
+        display_name = user_info.get("full_name") or st.session_state.user
+        pic_path = user_info.get("profile_pic", st.session_state.pic)
+
+        # ----------------------------------------
+        # PROFILE EDIT SECTION (ছবি ও তথ্য সেভ)
+        # ----------------------------------------
+        with st.expander("⚙️ Edit Profile & Upload Profile Picture", expanded=False):
+            with st.form("edit_profile_form"):
+                st.markdown("### 🖼️ Update Profile Information")
+                new_full_name = st.text_input("Full Name", value=user_info.get("full_name") or "")
+                new_bio = st.text_area("Bio / Short Description", value=user_info.get("bio") or "")
+                new_nid = st.text_input("NID Card Number", value=user_info.get("nid_number") or "")
+                new_address = st.text_input("Address", value=user_info.get("address") or "")
+                
+                uploaded_pic = st.file_uploader("Choose Profile Picture (JPG/PNG)", type=["jpg", "png", "jpeg"])
+                
+                save_profile_btn = st.form_submit_button("💾 Save Profile Details")
+                
+                if save_profile_btn:
+                    saved_pic_path = pic_path
+                    if uploaded_pic:
+                        saved_pic_path = os.path.join(PROFILE_DIR, f"pic_{st.session_state.user}_{uuid.uuid4()}.jpg")
+                        with open(saved_pic_path, "wb") as f:
+                            f.write(uploaded_pic.getvalue())
+                        st.session_state.pic = saved_pic_path
+                        
+                        # Update pic in existing videos and posts
+                        cursor.execute("UPDATE videos SET uploader_pic = ? WHERE uploader_name = ?", (saved_pic_path, st.session_state.user))
+                        cursor.execute("UPDATE posts SET uploader_pic = ? WHERE uploader_name = ?", (saved_pic_path, st.session_state.user))
+
+                    cursor.execute("""
+                        UPDATE users 
+                        SET full_name = ?, bio = ?, nid_number = ?, address = ?, profile_pic = ?
+                        WHERE username = ?
+                    """, (new_full_name, new_bio, new_nid, new_address, saved_pic_path, st.session_state.user))
+                    
+                    conn.commit()
+                    st.success("✅ Profile updated successfully!")
+                    st.rerun()
+
         cursor.execute(
             "SELECT * FROM videos WHERE uploader_name = ?",
             (st.session_state.user,),
@@ -1074,9 +1139,6 @@ elif tab == "👤 My Profile & Earnings":
             [p.get("likes", 0) for p in my_posts]
         )
         total_views = sum([v.get("views", 0) for v in my_videos])
-
-        display_name = user_info.get("full_name") or st.session_state.user
-        pic_path = user_info.get("profile_pic", st.session_state.pic)
 
         followers = user_data_merged["followers_count"]
         watch_hours = user_data_merged["watch_time_mins"] / 60.0
@@ -1097,7 +1159,7 @@ elif tab == "👤 My Profile & Earnings":
         show_verified_profile(
             display_name,
             profile_pic_path=pic_path,
-            subtitle=f"Creator | Monetization: {monetization_badge}",
+            subtitle=f"{user_info.get('bio') or 'Creator'} | Monetization: {monetization_badge}",
             is_verified=True,
         )
 
@@ -1128,22 +1190,54 @@ elif tab == "👤 My Profile & Earnings":
             unsafe_allow_html=True,
         )
 
-        st.markdown("### 📽️ My Content List")
-        for mv in my_videos:
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.caption(
-                    f"Type: {mv.get('video_type', 'long')} | Title: {mv.get('title')}"
-                )
-            with col2:
-                if st.button("🗑️ Delete", key=f"del_v_{mv['id']}"):
-                    cursor.execute(
-                        "DELETE FROM videos WHERE id = ?", (mv["id"],)
-                    )
-                    conn.commit()
-                    conn.close()
-                    st.toast("Video deleted successfully!")
-                    st.rerun()
+        # ----------------------------------------
+        # DELETE POSTS & VIDEOS SECTION (মাই কন্টেন্ট)
+        # ----------------------------------------
+        st.markdown("### 📽️ My Content Management")
+        
+        tab_v, tab_p = st.tabs(["🎥 My Videos & Shorts", "🖼️ My Image/Text Posts"])
+
+        with tab_v:
+            if not my_videos:
+                st.caption("No videos uploaded yet.")
+            for mv in my_videos:
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.markdown(f"**{mv.get('title')}** `[{mv.get('video_type', 'long')}]`")
+                    st.caption(f"👁️ {mv.get('views', 0)} Views | ❤️ {mv.get('likes', 0)} Likes | Created: {mv.get('created_at')}")
+                with col2:
+                    if st.button("🗑️ Delete Video", key=f"del_v_{mv['id']}"):
+                        if mv.get("video_url") and os.path.exists(mv.get("video_url")):
+                            try:
+                                os.remove(mv.get("video_url"))
+                            except Exception:
+                                pass
+                        cursor.execute("DELETE FROM videos WHERE id = ?", (mv["id"],))
+                        cursor.execute("DELETE FROM comments WHERE post_id = ?", (mv["id"],))
+                        conn.commit()
+                        st.toast("Video deleted successfully!")
+                        st.rerun()
+
+        with tab_p:
+            if not my_posts:
+                st.caption("No text/image posts created yet.")
+            for mp in my_posts:
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.markdown(f"**Post:** {mp.get('content') or 'Image Post'}")
+                    st.caption(f"❤️ {mp.get('likes', 0)} Likes | Created: {mp.get('created_at')}")
+                with col2:
+                    if st.button("🗑️ Delete Post", key=f"del_p_{mp['id']}"):
+                        if mp.get("image_url") and os.path.exists(mp.get("image_url")):
+                            try:
+                                os.remove(mp.get("image_url"))
+                            except Exception:
+                                pass
+                        cursor.execute("DELETE FROM posts WHERE id = ?", (mp["id"],))
+                        cursor.execute("DELETE FROM comments WHERE post_id = ?", (mp["id"],))
+                        conn.commit()
+                        st.toast("Post deleted successfully!")
+                        st.rerun()
 
         conn.close()
 
