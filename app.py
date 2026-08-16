@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime
 import os
 import random
@@ -44,7 +45,8 @@ for folder in [VIDEO_DIR, IMAGE_DIR, PROFILE_DIR]:
 
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_FILE, check_thread=False)
+    # সংশোধিত: check_thread এর জায়গায় check_same_thread=False হবে
+    conn = sqlite3.connect(str(DB_FILE), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -843,7 +845,6 @@ elif tab == "💬 WhatsApp Support Desk":
         unsafe_allow_html=True,
     )
 
-# --- PAYOUT & MONETIZATION (UPDATED WITH GLOBAL BANK & CARD SUPPORT) ---
 elif tab == "💳 Payout & Monetization":
     st.subheader("🏦 Global Monetization, Card & Bank Setup")
     st.info(
@@ -883,7 +884,6 @@ elif tab == "💳 Payout & Monetization":
                 placeholder="e.g. Bangladesh, USA, UAE, UK",
             )
 
-            # --- Visa / Mastercard Details ---
             st.markdown(
                 "#### 💳 Visa / Mastercard / Debit Card Details (Global)"
             )
@@ -906,7 +906,6 @@ elif tab == "💳 Payout & Monetization":
                     placeholder="MM/YY",
                 )
 
-            # --- Bank Account Details ---
             st.markdown("#### 🏦 Official Bank Account Details")
             b_name = st.text_input(
                 "Bank Name",
@@ -943,7 +942,6 @@ elif tab == "💳 Payout & Monetization":
                     placeholder="e.g. IBBLBDDH or CHASUS33",
                 )
 
-            # --- Global Wallets & Mobile Banking ---
             st.markdown("#### 🌐 Global Wallet / Mobile Banking")
             g_wallet = st.text_input(
                 "Payoneer / Wise Email / PayPal",
@@ -1045,7 +1043,6 @@ elif tab == "💳 Payout & Monetization":
                 unsafe_allow_html=True,
             )
 
-# --- MY PROFILE & EARNINGS ---
 elif tab == "👤 My Profile & Earnings":
     if not st.session_state.user:
         st.warning("Please login to view your profile.")
@@ -1150,7 +1147,6 @@ elif tab == "👤 My Profile & Earnings":
 
         conn.close()
 
-# --- UPLOAD SECTION ---
 elif tab == "📤 Create Post / Upload":
     if not st.session_state.user:
         st.warning("Please login to create a post or upload content.")
