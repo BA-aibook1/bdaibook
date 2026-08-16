@@ -470,12 +470,12 @@ if search_query.strip():
     else:
         st.sidebar.info("No user found with this name.")
 
-# --- WhatsApp Phone OTP Login System ---
+# --- Global WhatsApp Phone OTP Login System ---
 st.sidebar.header("📱 Phone & WhatsApp Auth")
 
 if not st.session_state.user:
     u_name = st.sidebar.text_input("Your Name / Username", placeholder="e.g. MDRANA")
-    phone_num = st.sidebar.text_input("WhatsApp Number", placeholder="e.g. 01722003172")
+    phone_num = st.sidebar.text_input("WhatsApp Number with Country Code", placeholder="e.g. +8801722003172 or +14155552671")
 
     # Step 1: Generate OTP Button
     if st.sidebar.button("📲 Send OTP via WhatsApp"):
@@ -483,15 +483,18 @@ if not st.session_state.user:
             otp_code = str(random.randint(100000, 999999))
             st.session_state.generated_otp = otp_code
             
-            clean_phone = phone_num.replace("-", "").replace(" ", "")
-            if clean_phone.startswith("0"):
+            # Clean non-digit characters
+            clean_phone = "".join(filter(str.isdigit, phone_num))
+            
+            # Backup for BD users typing local 017... format
+            if phone_num.strip().startswith("0"):
                 clean_phone = "88" + clean_phone
             
             msg = f"Your BD AI Book Login OTP Code is: {otp_code}"
             wa_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(msg)}"
             
             st.sidebar.success(f"OTP Code: **{otp_code}**")
-            st.sidebar.markdown(f"[👉 Click to Send via WhatsApp]({wa_url})", unsafe_allow_html=True)
+            st.sidebar.markdown(f"[👉 Click to Send OTP via WhatsApp]({wa_url})", unsafe_allow_html=True)
         else:
             st.sidebar.warning("Please enter Name and WhatsApp Number first.")
 
