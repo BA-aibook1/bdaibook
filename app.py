@@ -54,16 +54,17 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Users Table
+    # Users Table with Password Support
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
-            phone_number TEXT,
+            phone_number TEXT UNIQUE NOT NULL,
+            password TEXT,
             full_name TEXT,
             profile_pic TEXT,
             bio TEXT,
-            is_verified INTEGER DEFAULT 1,
+            is_verified INTEGER DEFAULT 0,
             payment_method TEXT,
             account_details TEXT,
             nid_number TEXT,
@@ -76,16 +77,17 @@ def init_db():
         )
     """)
 
-    # AUTO-FIX: Ensure missing columns exist in existing DB
+    # Ensure missing columns exist in existing DB
     cursor.execute("PRAGMA table_info(users)")
     existing_cols = [column[1] for column in cursor.fetchall()]
 
     missing_cols = {
+        "password": "TEXT",
         "phone_number": "TEXT",
         "full_name": "TEXT",
         "profile_pic": "TEXT",
         "bio": "TEXT",
-        "is_verified": "INTEGER DEFAULT 1",
+        "is_verified": "INTEGER DEFAULT 0",
         "payment_method": "TEXT",
         "account_details": "TEXT",
         "nid_number": "TEXT",
@@ -128,26 +130,6 @@ def init_db():
             FOREIGN KEY (username) REFERENCES users (username)
         )
     """)
-
-    # PRAGMA Auto Migration for bank_details
-    cursor.execute("PRAGMA table_info(bank_details)")
-    existing_bank_cols = [col[1] for col in cursor.fetchall()]
-    bank_new_cols = {
-        "payment_type": "TEXT DEFAULT 'Bank Transfer'",
-        "card_number": "TEXT",
-        "card_holder": "TEXT",
-        "card_expiry": "TEXT",
-        "global_wallet": "TEXT",
-        "country": "TEXT",
-    }
-    for c_name, c_type in bank_new_cols.items():
-        if c_name not in existing_bank_cols:
-            try:
-                cursor.execute(
-                    f"ALTER TABLE bank_details ADD COLUMN {c_name} {c_type}"
-                )
-            except Exception:
-                pass
 
     # Videos Table
     cursor.execute("""
@@ -201,36 +183,18 @@ init_db()
 
 
 # ==========================================
-# 3. HELPER FUNCTIONS
+# 3. HELPER FUNCTIONS & PHONE MASKING
 # ==========================================
-def register_or_get_user(username):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute(
-        "SELECT id, username, followers_count, watch_time_mins, monetization_status, earnings FROM users WHERE username = ?",
-        (username,),
-    )
-    user = c.fetchone()
-    if not user:
-        c.execute(
-            "INSERT INTO users (username, created_at) VALUES (?, ?)",
-            (username, datetime.now().strftime("%Y-%m-%d")),
-        )
-        conn.commit()
-        c.execute(
-            "SELECT id, username, followers_count, watch_time_mins, monetization_status, earnings FROM users WHERE username = ?",
-            (username,),
-        )
-        user = c.fetchone()
-    conn.close()
-    return {
-        "id": user["id"],
-        "username": user["username"],
-        "followers_count": user["followers_count"] or 0,
-        "watch_time_mins": user["watch_time_mins"] or 0.0,
-        "monetization_status": user["monetization_status"] or "none",
-        "earnings": user["earnings"] or 0.0,
-    }
+def mask_phone_number(phone):
+    """Hide middle digits of phone number to protect privacy"""
+    if not phone:
+        return ""
+    clean_p = "".join(filter(str.isdigit, phone))
+    if len(clean_p) >= 11:
+        return clean_p[:3] + "****" + clean_p[-4:]
+    elif len(clean_p) > 4:
+        return clean_p[:2] + "****" + clean_p[-2:]
+    return clean_p
 
 
 def format_value(value):
@@ -448,17 +412,20 @@ st.divider()
 
 if "user" not in st.session_state:
     st.session_state.user = None
+    st.session_state.user_phone = None
     st.session_state.pic = None
-    st.session_state.is_verified = 1
+    st.session_state.is_verified = 0
 
 if "generated_otp" not in st.session_state:
     st.session_state.generated_otp = None
+if "otp_sent_to" not in st.session_state:
+    st.session_state.otp_sent_to = None
 
 if "active_tab" not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
 
 # ==========================================
-# 6. SIDEBAR NAVIGATION
+# 6. SIDEBAR AUTHENTICATION (ONCE OTP, THEN PASSWORD)
 # ==========================================
 if os.path.exists("logo.jpg"):
     st.sidebar.image("logo.jpg", use_container_width=True)
@@ -502,106 +469,172 @@ if search_query.strip():
     else:
         st.sidebar.info("No user found with this name.")
 
-st.sidebar.header("📱 Phone & WhatsApp Auth")
+st.sidebar.header("📱 User Authentication")
 
 if not st.session_state.user:
-    u_name = st.sidebar.text_input(
-        "Your Name / Username", placeholder="e.g. MDRANA"
-    )
-    phone_num = st.sidebar.text_input(
-        "WhatsApp Number with Country Code",
-        placeholder="e.g. +8801722003172 or +14155552671",
+    phone_num_input = st.sidebar.text_input(
+        "WhatsApp / Phone Number",
+        placeholder="e.g. 01722003172",
+        key="auth_phone",
     )
 
-    if st.sidebar.button("📲 Send OTP via WhatsApp"):
-        if u_name and phone_num:
-            otp_code = str(random.randint(100000, 999999))
-            st.session_state.generated_otp = otp_code
-            clean_phone = "".join(filter(str.isdigit, phone_num))
-            if phone_num.strip().startswith("0"):
-                clean_phone = "88" + clean_phone
+    if phone_num_input.strip():
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM users WHERE phone_number = ?",
+            (phone_num_input.strip(),),
+        )
+        user_db_record = cursor.fetchone()
+        conn.close()
 
-            msg = f"Your BD AI Book Login OTP Code is: {otp_code}"
-            wa_url = (
-                f"https://wa.me/{clean_phone}?text={urllib.parse.quote(msg)}"
+        # Case 1: Phone number is already VERIFIED -> Password Login Only (No OTP)
+        if (
+            user_db_record
+            and user_db_record["is_verified"] == 1
+            and user_db_record["password"]
+        ):
+            st.sidebar.success(
+                f"✅ Verified Account: **{mask_phone_number(phone_num_input)}**"
+            )
+            login_pass = st.sidebar.text_input(
+                "Password", type="password", key="login_pass"
             )
 
-            st.sidebar.success(f"OTP Code: **{otp_code}**")
-            st.sidebar.markdown(
-                f"[👉 Click to Send OTP via WhatsApp]({wa_url})",
-                unsafe_allow_html=True,
-            )
+            if st.sidebar.button("🔓 Login with Password"):
+                if login_pass == user_db_record["password"]:
+                    st.session_state.user = user_db_record["username"]
+                    st.session_state.user_phone = user_db_record["phone_number"]
+                    st.session_state.pic = user_db_record["profile_pic"]
+                    st.session_state.is_verified = 1
+                    st.sidebar.success("🎉 Logged in Successfully!")
+                    st.rerun()
+                else:
+                    st.sidebar.error("❌ Incorrect Password! Try again.")
+
+        # Case 2: New Number or Unverified -> Send OTP once & set password
         else:
-            st.sidebar.warning("Please enter Name and WhatsApp Number first.")
-
-    user_otp = st.sidebar.text_input(
-        "Enter 6-Digit OTP Code", max_chars=6, placeholder="123456"
-    )
-
-    if st.sidebar.button("🔒 Verify & Access Account"):
-        if not u_name or not phone_num:
-            st.sidebar.error("Name & Phone Number are required!")
-        else:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT * FROM users WHERE username = ? OR phone_number = ?",
-                (u_name, phone_num),
+            st.sidebar.info(
+                "🆕 First-Time Verification Required (OTP needed once)"
             )
-            user_data = cursor.fetchone()
 
-            if user_data:
-                st.session_state.user = user_data["username"]
-                st.session_state.pic = user_data["profile_pic"]
-                st.session_state.is_verified = (
-                    user_data["is_verified"]
-                    if "is_verified" in user_data.keys()
-                    else 1
-                )
-                st.session_state.generated_otp = None
-                conn.close()
-                st.sidebar.success("🎉 Logged in Successfully!")
-                st.rerun()
-            else:
-                today_str = datetime.now().strftime("%Y-%m-%d")
-                cursor.execute(
-                    """INSERT INTO users (username, phone_number, full_name, is_verified, created_at) 
-                       VALUES (?, ?, ?, ?, ?)""",
-                    (u_name, phone_num, u_name, 1, today_str),
-                )
-                conn.commit()
-                conn.close()
+            if st.sidebar.button("📲 Send WhatsApp OTP"):
+                otp_code = str(random.randint(100000, 999999))
+                st.session_state.generated_otp = otp_code
+                st.session_state.otp_sent_to = phone_num_input.strip()
 
-                st.session_state.user = u_name
-                st.session_state.pic = None
-                st.session_state.is_verified = 1
-                st.session_state.generated_otp = None
-                st.sidebar.success(
-                    "🎉 Account Verified & Logged in Successfully!"
+                clean_phone = "".join(filter(str.isdigit, phone_num_input))
+                if phone_num_input.strip().startswith("0"):
+                    clean_phone = "88" + clean_phone
+
+                msg = f"Your BD AI Book Account Verification OTP is: {otp_code}"
+                wa_url = f"https://wa.me/{clean_phone}?text={urllib.parse.quote(msg)}"
+
+                st.sidebar.success(f"OTP Code Generated: **{otp_code}**")
+                st.sidebar.markdown(
+                    f"[👉 Click to Send OTP via WhatsApp]({wa_url})",
+                    unsafe_allow_html=True,
                 )
-                st.rerun()
+
+            if (
+                st.session_state.generated_otp
+                and st.session_state.otp_sent_to == phone_num_input.strip()
+            ):
+                entered_otp = st.sidebar.text_input(
+                    "Enter 6-Digit OTP", max_chars=6
+                )
+                desired_username = st.sidebar.text_input(
+                    "Username", placeholder="e.g. SohelRana"
+                )
+                new_password = st.sidebar.text_input(
+                    "Create New Password", type="password"
+                )
+
+                if st.sidebar.button("🔒 Verify OTP & Create Account"):
+                    if entered_otp != st.session_state.generated_otp:
+                        st.sidebar.error("❌ Invalid OTP Code!")
+                    elif not desired_username.strip() or not new_password:
+                        st.sidebar.error(
+                            "❌ Please provide Username and Password!"
+                        )
+                    else:
+                        conn = get_db_connection()
+                        cursor = conn.cursor()
+                        today_str = datetime.now().strftime("%Y-%m-%d")
+
+                        try:
+                            if user_db_record:
+                                cursor.execute(
+                                    """UPDATE users SET username=?, password=?, is_verified=1 WHERE phone_number=?""",
+                                    (
+                                        desired_username.strip(),
+                                        new_password,
+                                        phone_num_input.strip(),
+                                    ),
+                                )
+                            else:
+                                cursor.execute(
+                                    """INSERT INTO users (username, phone_number, password, full_name, is_verified, created_at)
+                                       VALUES (?, ?, ?, ?, 1, ?)""",
+                                    (
+                                        desired_username.strip(),
+                                        phone_num_input.strip(),
+                                        new_password,
+                                        desired_username.strip(),
+                                        today_str,
+                                    ),
+                                )
+                            conn.commit()
+                            conn.close()
+
+                            st.session_state.user = desired_username.strip()
+                            st.session_state.user_phone = phone_num_input.strip()
+                            st.session_state.pic = None
+                            st.session_state.is_verified = 1
+                            st.session_state.generated_otp = None
+                            st.session_state.otp_sent_to = None
+
+                            st.sidebar.success(
+                                "🎉 Verified & Password Set Successfully!"
+                            )
+                            st.rerun()
+                        except sqlite3.IntegrityError:
+                            conn.close()
+                            st.sidebar.error(
+                                "❌ Username already taken! Choose another."
+                            )
 
 else:
     # Sync current profile pic from DB
     conn = get_db_connection()
     c = conn.cursor()
     c.execute(
-        "SELECT profile_pic FROM users WHERE username = ?",
+        "SELECT profile_pic, phone_number FROM users WHERE username = ?",
         (st.session_state.user,),
     )
     res = c.fetchone()
-    if res and res["profile_pic"]:
-        st.session_state.pic = res["profile_pic"]
+    if res:
+        if res["profile_pic"]:
+            st.session_state.pic = res["profile_pic"]
+        if res["phone_number"]:
+            st.session_state.user_phone = res["phone_number"]
     conn.close()
 
     if st.session_state.pic and os.path.exists(st.session_state.pic):
         st.sidebar.image(st.session_state.pic, width=90)
 
+    masked_active_phone = mask_phone_number(
+        st.session_state.user_phone or ""
+    )
     st.sidebar.markdown(f"Welcome, **{st.session_state.user}** ✔️")
-    if st.sidebar.button("Logout"):
+    if masked_active_phone:
+        st.sidebar.caption(f"📱 Phone: {masked_active_phone}")
+
+    if st.sidebar.button("🚪 Logout"):
         st.session_state.user = None
+        st.session_state.user_phone = None
         st.session_state.pic = None
-        st.session_state.is_verified = 1
+        st.session_state.is_verified = 0
         st.session_state.generated_otp = None
         st.rerun()
 
@@ -677,7 +710,6 @@ if tab == "🌍 World Feed":
             item_id = str(item["id"])
             uploader_name = item.get("uploader_name", "Unknown User")
 
-            # Uploader Pic dynamic fetching
             cursor.execute(
                 "SELECT profile_pic FROM users WHERE username = ?",
                 (uploader_name,),
@@ -838,17 +870,19 @@ elif tab == "💬 WhatsApp Support Desk":
     st.subheader("💬 Official WhatsApp Support Desk")
     st.caption("Contact us directly to ask questions or resolve issues.")
 
-    WA_NUMBER = "8801722003172"
-    default_msg = "Hello! I am contacting you from BD AI Book App."
-    encoded_msg = urllib.parse.quote(default_msg)
-    wa_link = f"https://wa.me/{WA_NUMBER}?text={encoded_msg}"
+    # Using masked display for safety in text
+    masked_wa = mask_phone_number("8801722003172")
+    encoded_msg = urllib.parse.quote(
+        "Hello! I am contacting you from BD AI Book App."
+    )
+    wa_link = f"https://wa.me/8801722003172?text={encoded_msg}"
 
     st.markdown(
         f"""
         <div style="background: linear-gradient(135deg, #075E54, #128C7E); padding: 25px; border-radius: 15px; color: white; text-align: center; border: 1px solid #25D366; margin: 20px 0;">
             <h2 style="margin-top:0; color: #ffffff;">🌐 Official WhatsApp Support</h2>
             <p style="font-size: 15px; color: #e0e0e0; margin-bottom: 20px;">
-                Click below to send messages, feedback, or screenshots directly to our team.
+                Click below to send messages or feedback directly to our team.
             </p>
             <a href="{wa_link}" target="_blank" style="
                 background-color: #25D366; 
@@ -863,7 +897,7 @@ elif tab == "💬 WhatsApp Support Desk":
                 📲 Send WhatsApp Message / Photo
             </a>
             <p style="font-size: 12px; color: #ffeb3b; margin-top: 20px; margin-bottom: 0;">
-                ⚠️ <b>Note:</b> Only text messages and file sharing are supported. Direct voice calls are not available.
+                ⚠️ <b>Note:</b> Only text messages and file sharing are supported.
             </p>
         </div>
         """,
@@ -872,9 +906,6 @@ elif tab == "💬 WhatsApp Support Desk":
 
 elif tab == "💳 Payout & Monetization":
     st.subheader("🏦 Global Monetization, Card & Bank Setup")
-    st.info(
-        "Select your payout method: Visa/Mastercard (Global), Bank Transfer, or Mobile Banking to receive earnings."
-    )
 
     if not st.session_state.user:
         st.warning("Please login to manage your Bank and Payout details.")
@@ -886,7 +917,6 @@ elif tab == "💳 Payout & Monetization":
             (st.session_state.user,),
         )
         existing_bank = cursor.fetchone()
-
         bank_data = dict(existing_bank) if existing_bank else {}
 
         with st.form("bank_setup_form"):
@@ -913,9 +943,9 @@ elif tab == "💳 Payout & Monetization":
                 "#### 💳 Visa / Mastercard / Debit Card Details (Global)"
             )
             c_num = st.text_input(
-                "Card Number / কার্ড নম্বর",
+                "Card Number",
                 value=bank_data.get("card_number", ""),
-                placeholder="16-digit card number (e.g. 4111 2222 3333 4444)",
+                placeholder="16-digit card number",
             )
             col_c1, col_c2 = st.columns(2)
             with col_c1:
@@ -935,22 +965,17 @@ elif tab == "💳 Payout & Monetization":
             b_name = st.text_input(
                 "Bank Name",
                 value=bank_data.get("bank_name", ""),
-                placeholder="e.g. Islami Bank, City Bank, Chase, HSBC",
+                placeholder="e.g. Islami Bank, City Bank, Chase",
             )
             b_branch = st.text_input(
-                "Branch Name",
-                value=bank_data.get("branch_name", ""),
-                placeholder="e.g. Dhaka Main Branch / NYC Branch",
+                "Branch Name", value=bank_data.get("branch_name", "")
             )
             acc_holder = st.text_input(
-                "Account Holder Name",
-                value=bank_data.get("account_name", ""),
-                placeholder="Name matching bank records",
+                "Account Holder Name", value=bank_data.get("account_name", "")
             )
             acc_num = st.text_input(
                 "Account Number / IBAN",
                 value=bank_data.get("account_number", ""),
-                placeholder="e.g. 2050123456789 or GB82 WEST 1234 5698 7654 32",
             )
 
             c_r1, c_r2 = st.columns(2)
@@ -958,25 +983,20 @@ elif tab == "💳 Payout & Monetization":
                 routing = st.text_input(
                     "Routing / ABA / Sort Code",
                     value=bank_data.get("routing_number", ""),
-                    placeholder="e.g. 125263718",
                 )
             with c_r2:
                 swift = st.text_input(
-                    "SWIFT / BIC Code",
-                    value=bank_data.get("swift_code", ""),
-                    placeholder="e.g. IBBLBDDH or CHASUS33",
+                    "SWIFT / BIC Code", value=bank_data.get("swift_code", "")
                 )
 
             st.markdown("#### 🌐 Global Wallet / Mobile Banking")
             g_wallet = st.text_input(
                 "Payoneer / Wise Email / PayPal",
                 value=bank_data.get("global_wallet", ""),
-                placeholder="e.g. user@gmail.com",
             )
             m_bank = st.text_input(
-                "bKash / Nagad / Rocket Number (BD Only)",
+                "bKash / Nagad / Rocket Number",
                 value=bank_data.get("mobile_banking", ""),
-                placeholder="e.g. 017xxxxxxxx",
             )
 
             save_bank_btn = st.form_submit_button(
@@ -1044,36 +1064,15 @@ elif tab == "💳 Payout & Monetization":
                 )
 
                 conn.commit()
-                st.success(
-                    "✅ Global Payout & Card details saved successfully!"
-                )
+                st.success("✅ Payout Information Saved!")
                 st.rerun()
 
         conn.close()
-
-        if bank_data:
-            st.markdown(
-                f"""
-                <div class="bank-card">
-                    <h3 style="margin-top:0; color:#ffffff;">💳 Active Global Payout Profile</h3>
-                    <p><b>Method:</b> {bank_data.get('payment_type', 'Card / Bank Transfer')} | <b>Country:</b> {bank_data.get('country', 'N/A')}</p>
-                    <p><b>Card Ending:</b> **** **** **** {bank_data.get('card_number', '')[-4:] if bank_data.get('card_number') else 'N/A'} ({bank_data.get('card_holder', 'N/A')})</p>
-                    <p><b>Bank:</b> {bank_data.get('bank_name', 'N/A')} ({bank_data.get('branch_name', 'N/A')})</p>
-                    <p><b>Account/IBAN:</b> {bank_data.get('account_number', 'N/A')}</p>
-                    <p><b>SWIFT/BIC:</b> {bank_data.get('swift_code', 'N/A')} | <b>Routing:</b> {bank_data.get('routing_number', 'N/A')}</p>
-                    <p><b>Global Wallet/Wise:</b> {bank_data.get('global_wallet', 'N/A')} | <b>Mobile BD:</b> {bank_data.get('mobile_banking', 'N/A')}</p>
-                    <small>Last Updated: {bank_data.get('updated_at', 'N/A')}</small>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
 
 elif tab == "👤 My Profile & Earnings":
     if not st.session_state.user:
         st.warning("Please login to view your profile.")
     else:
-        user_data_merged = register_or_get_user(st.session_state.user)
-
         conn = get_db_connection()
         cursor = conn.cursor()
 
@@ -1085,40 +1084,89 @@ elif tab == "👤 My Profile & Earnings":
 
         display_name = user_info.get("full_name") or st.session_state.user
         pic_path = user_info.get("profile_pic", st.session_state.pic)
+        masked_phone = mask_phone_number(user_info.get("phone_number", ""))
 
         # ----------------------------------------
-        # PROFILE EDIT SECTION (ছবি ও তথ্য সেভ)
+        # PROFILE EDIT SECTION (নাম, ছবি, পাসওয়ার্ড ইত্যাদি)
         # ----------------------------------------
-        with st.expander("⚙️ Edit Profile & Upload Profile Picture", expanded=False):
+        with st.expander(
+            "⚙️ Edit Profile & Change Picture / Password", expanded=False
+        ):
             with st.form("edit_profile_form"):
-                st.markdown("### 🖼️ Update Profile Information")
-                new_full_name = st.text_input("Full Name", value=user_info.get("full_name") or "")
-                new_bio = st.text_area("Bio / Short Description", value=user_info.get("bio") or "")
-                new_nid = st.text_input("NID Card Number", value=user_info.get("nid_number") or "")
-                new_address = st.text_input("Address", value=user_info.get("address") or "")
-                
-                uploaded_pic = st.file_uploader("Choose Profile Picture (JPG/PNG)", type=["jpg", "png", "jpeg"])
-                
-                save_profile_btn = st.form_submit_button("💾 Save Profile Details")
-                
+                st.markdown("### 🖼️ Personal Information & Picture")
+                new_full_name = st.text_input(
+                    "Full Name", value=user_info.get("full_name") or ""
+                )
+                new_bio = st.text_area(
+                    "Bio / Description", value=user_info.get("bio") or ""
+                )
+                new_nid = st.text_input(
+                    "NID Card Number",
+                    value=user_info.get("nid_number") or "",
+                )
+                new_address = st.text_input(
+                    "Address", value=user_info.get("address") or ""
+                )
+
+                st.markdown("### 🔑 Change Password")
+                new_pass_val = st.text_input(
+                    "New Password (leave empty to keep current)",
+                    type="password",
+                )
+
+                uploaded_pic = st.file_uploader(
+                    "Upload Profile Picture (JPG/PNG)",
+                    type=["jpg", "png", "jpeg"],
+                )
+
+                save_profile_btn = st.form_submit_button(
+                    "💾 Save All Profile Details"
+                )
+
                 if save_profile_btn:
                     saved_pic_path = pic_path
                     if uploaded_pic:
-                        saved_pic_path = os.path.join(PROFILE_DIR, f"pic_{st.session_state.user}_{uuid.uuid4()}.jpg")
+                        saved_pic_path = os.path.join(
+                            PROFILE_DIR,
+                            f"pic_{st.session_state.user}_{uuid.uuid4()}.jpg",
+                        )
                         with open(saved_pic_path, "wb") as f:
                             f.write(uploaded_pic.getvalue())
                         st.session_state.pic = saved_pic_path
-                        
-                        # Update pic in existing videos and posts
-                        cursor.execute("UPDATE videos SET uploader_pic = ? WHERE uploader_name = ?", (saved_pic_path, st.session_state.user))
-                        cursor.execute("UPDATE posts SET uploader_pic = ? WHERE uploader_name = ?", (saved_pic_path, st.session_state.user))
 
-                    cursor.execute("""
+                        # Update pic in existing uploaded items
+                        cursor.execute(
+                            "UPDATE videos SET uploader_pic = ? WHERE uploader_name = ?",
+                            (saved_pic_path, st.session_state.user),
+                        )
+                        cursor.execute(
+                            "UPDATE posts SET uploader_pic = ? WHERE uploader_name = ?",
+                            (saved_pic_path, st.session_state.user),
+                        )
+
+                    pass_to_update = (
+                        new_pass_val.strip()
+                        if new_pass_val.strip()
+                        else user_info.get("password")
+                    )
+
+                    cursor.execute(
+                        """
                         UPDATE users 
-                        SET full_name = ?, bio = ?, nid_number = ?, address = ?, profile_pic = ?
+                        SET full_name = ?, bio = ?, nid_number = ?, address = ?, profile_pic = ?, password = ?
                         WHERE username = ?
-                    """, (new_full_name, new_bio, new_nid, new_address, saved_pic_path, st.session_state.user))
-                    
+                    """,
+                        (
+                            new_full_name,
+                            new_bio,
+                            new_nid,
+                            new_address,
+                            saved_pic_path,
+                            pass_to_update,
+                            st.session_state.user,
+                        ),
+                    )
+
                     conn.commit()
                     st.success("✅ Profile updated successfully!")
                     st.rerun()
@@ -1140,8 +1188,8 @@ elif tab == "👤 My Profile & Earnings":
         )
         total_views = sum([v.get("views", 0) for v in my_videos])
 
-        followers = user_data_merged["followers_count"]
-        watch_hours = user_data_merged["watch_time_mins"] / 60.0
+        followers = user_info.get("followers_count", 0)
+        watch_hours = user_info.get("watch_time_mins", 0.0) / 60.0
 
         is_eligible = (followers >= 300) and (watch_hours >= 3000.0)
 
@@ -1150,7 +1198,7 @@ elif tab == "👤 My Profile & Earnings":
             est_earnings = (
                 (total_views * 0.002)
                 + (total_likes * 0.005)
-                + user_data_merged["earnings"]
+                + user_info.get("earnings", 0.0)
             )
         else:
             monetization_badge = "🔒 Locked (Requirements not met)"
@@ -1159,7 +1207,7 @@ elif tab == "👤 My Profile & Earnings":
         show_verified_profile(
             display_name,
             profile_pic_path=pic_path,
-            subtitle=f"{user_info.get('bio') or 'Creator'} | Monetization: {monetization_badge}",
+            subtitle=f"{user_info.get('bio') or 'Creator'} | Phone: {masked_phone}",
             is_verified=True,
         )
 
@@ -1191,11 +1239,13 @@ elif tab == "👤 My Profile & Earnings":
         )
 
         # ----------------------------------------
-        # DELETE POSTS & VIDEOS SECTION (মাই কন্টেন্ট)
+        # DELETE POSTS & VIDEOS SECTION
         # ----------------------------------------
         st.markdown("### 📽️ My Content Management")
-        
-        tab_v, tab_p = st.tabs(["🎥 My Videos & Shorts", "🖼️ My Image/Text Posts"])
+
+        tab_v, tab_p = st.tabs(
+            ["🎥 My Videos & Shorts", "🖼️ My Image/Text Posts"]
+        )
 
         with tab_v:
             if not my_videos:
@@ -1203,17 +1253,28 @@ elif tab == "👤 My Profile & Earnings":
             for mv in my_videos:
                 col1, col2 = st.columns([4, 1])
                 with col1:
-                    st.markdown(f"**{mv.get('title')}** `[{mv.get('video_type', 'long')}]`")
-                    st.caption(f"👁️ {mv.get('views', 0)} Views | ❤️ {mv.get('likes', 0)} Likes | Created: {mv.get('created_at')}")
+                    st.markdown(
+                        f"**{mv.get('title')}** `[{mv.get('video_type', 'long')}]`"
+                    )
+                    st.caption(
+                        f"👁️ {mv.get('views', 0)} Views | ❤️ {mv.get('likes', 0)} Likes | Created: {mv.get('created_at')}"
+                    )
                 with col2:
                     if st.button("🗑️ Delete Video", key=f"del_v_{mv['id']}"):
-                        if mv.get("video_url") and os.path.exists(mv.get("video_url")):
+                        if mv.get("video_url") and os.path.exists(
+                            mv.get("video_url")
+                        ):
                             try:
                                 os.remove(mv.get("video_url"))
                             except Exception:
                                 pass
-                        cursor.execute("DELETE FROM videos WHERE id = ?", (mv["id"],))
-                        cursor.execute("DELETE FROM comments WHERE post_id = ?", (mv["id"],))
+                        cursor.execute(
+                            "DELETE FROM videos WHERE id = ?", (mv["id"],)
+                        )
+                        cursor.execute(
+                            "DELETE FROM comments WHERE post_id = ?",
+                            (mv["id"],),
+                        )
                         conn.commit()
                         st.toast("Video deleted successfully!")
                         st.rerun()
@@ -1225,16 +1286,25 @@ elif tab == "👤 My Profile & Earnings":
                 col1, col2 = st.columns([4, 1])
                 with col1:
                     st.markdown(f"**Post:** {mp.get('content') or 'Image Post'}")
-                    st.caption(f"❤️ {mp.get('likes', 0)} Likes | Created: {mp.get('created_at')}")
+                    st.caption(
+                        f"❤️ {mp.get('likes', 0)} Likes | Created: {mp.get('created_at')}"
+                    )
                 with col2:
                     if st.button("🗑️ Delete Post", key=f"del_p_{mp['id']}"):
-                        if mp.get("image_url") and os.path.exists(mp.get("image_url")):
+                        if mp.get("image_url") and os.path.exists(
+                            mp.get("image_url")
+                        ):
                             try:
                                 os.remove(mp.get("image_url"))
                             except Exception:
                                 pass
-                        cursor.execute("DELETE FROM posts WHERE id = ?", (mp["id"],))
-                        cursor.execute("DELETE FROM comments WHERE post_id = ?", (mp["id"],))
+                        cursor.execute(
+                            "DELETE FROM posts WHERE id = ?", (mp["id"],)
+                        )
+                        cursor.execute(
+                            "DELETE FROM comments WHERE post_id = ?",
+                            (mp["id"],),
+                        )
                         conn.commit()
                         st.toast("Post deleted successfully!")
                         st.rerun()
@@ -1321,13 +1391,18 @@ elif tab == "📤 Create Post / Upload":
                     with open(vid_path, "wb") as f:
                         f.write(vid_file.getvalue())
 
-                    user_info_record = register_or_get_user(
-                        st.session_state.user
-                    )
                     today_str = datetime.now().strftime("%Y-%m-%d %H:%M")
 
                     conn = get_db_connection()
                     cursor = conn.cursor()
+
+                    cursor.execute(
+                        "SELECT id FROM users WHERE username = ?",
+                        (st.session_state.user,),
+                    )
+                    u_rec = cursor.fetchone()
+                    u_id = u_rec["id"] if u_rec else None
+
                     cursor.execute(
                         """
                         INSERT INTO videos (
@@ -1338,7 +1413,7 @@ elif tab == "📤 Create Post / Upload":
                         """,
                         (
                             str(uuid.uuid4()),
-                            user_info_record["id"],
+                            u_id,
                             vid_path,
                             st.session_state.user,
                             st.session_state.pic,
