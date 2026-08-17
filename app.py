@@ -943,17 +943,85 @@ elif tab == "📤 Create Post / Upload":
 
 elif tab == "🔐 Owner Control Panel":
     if st.session_state.role != 'owner':
-        st.error("🚫 Access Denied!")
+        st.error("🚫 Access Denied! Only the System Owner can view this control panel.")
     else:
-        st.title("👑 Owner Master Dashboard")
-        st.success("System Administrator Access Active")
-        current_info = get_owner_payment_info()
-        new_info = st.text_area("Edit Manual Payment Details:", value=current_info)
-        if st.button("Save Global Payment Info"):
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("UPDATE users SET account_details = ? WHERE role = 'owner'", (new_info,))
-            conn.commit()
-            conn.close()
-            st.success("✅ Updated!")
-            st.rerun()
+        st.title("👑 Owner Master Dashboard & Live Monitoring")
+        st.success("System Administrator Access Active — Live Analytics & User Overview")
+        
+        # Live Metrics Overview
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT COUNT(*) FROM users")
+        total_users = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM advertisements")
+        total_ads = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT SUM(amount) FROM advertisements")
+        total_earnings_res = cursor.fetchone()[0]
+        total_earnings = total_earnings_res if total_earnings_res else 0.0
+        
+        cursor.execute("SELECT COUNT(*) FROM videos")
+        total_videos = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        # Display Metrics Cards
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("👥 Total Users", format_value(total_users))
+        m2.metric("📢 Total Ad Orders", format_value(total_ads))
+        m3.metric("💰 Total Revenue", f"{total_earnings:,.2f} BDT")
+        m4.metric("🎥 Total Videos", format_value(total_videos))
+        
+        st.divider()
+        
+        # Comprehensive Live Users & Financial Tracking Table for Owner
+        st.subheader("📊 Live User Database & Transaction Monitor")
+        st.markdown("এখানে প্ল্যাটফর্মের সকল ইউজারের তথ্য, ফোন নম্বর, অ্যাকাউন্ট রোল, ট্রানজাকশন ডিটেইলস এবং অ্যাড্রেসসহ লাইভ দেখতে পাবেন।")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Fetch all registered users with their details
+        cursor.execute("""
+            SELECT id, username, phone_number, role, full_name, address, nid_number, created_at 
+            FROM users 
+            ORDER BY id DESC
+        """)
+        all_users_data = [dict(row) for row in cursor.fetchall()]
+        
+        # Fetch advertisement transactions
+        cursor.execute("""
+            SELECT advertiser_email, ad_type, region, payment_method, amount, trx_id, status 
+            FROM advertisements 
+            ORDER BY id DESC
+        """)
+        all_ads_data = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        tab_o1, tab_o2, tab_o3 = st.tabs(["👤 All Registered Users Table", "💳 Revenue & Ad Transactions", "⚙️ Manual Payment Settings"])
+        
+        with tab_o1:
+            if all_users_data:
+                st.dataframe(all_users_data, use_container_width=True)
+            else:
+                st.info("No registered users found.")
+                
+        with tab_o2:
+            if all_ads_data:
+                st.dataframe(all_ads_data, use_container_width=True)
+            else:
+                st.info("No transaction records found.")
+                
+        with tab_o3:
+            current_info = get_owner_payment_info()
+            new_info = st.text_area("Edit Manual Payment Details:", value=current_info)
+            if st.button("Save Global Payment Info"):
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("UPDATE users SET account_details = ? WHERE role = 'owner'", (new_info,))
+                conn.commit()
+                conn.close()
+                st.success("✅ Payment info updated successfully!")
+                st.rerun()
