@@ -177,7 +177,7 @@ def init_db():
         )
     """)
 
-    # Secure Owner Account Setup
+    # Secure Owner Account Setup & Permanent Logo Fix
     owner_email = "owner_admin_system"
     hashed_pw = hashlib.sha256("S$s123456789112233".encode()).hexdigest()
     owner_pic = "logo.jpg" if os.path.exists("logo.jpg") else None
@@ -244,7 +244,7 @@ def get_owner_payment_info():
     if row and row['account_details']:
         return row['account_details']
     return """
-    🏦 Official Manual Payment Details:
+    🏦 Official Secure Payment Details (Hidden for Public):
     • bKash Personal: 01302134435 (Send Money)
     • Nagad Personal: 01722003172 (Send Money)
     • Islami Bank Bangladesh: A/C 20502530202612312 (MD. SOHEL RANA, Lalmonirhat Branch)
@@ -292,12 +292,17 @@ def show_google_guidelines_box():
                 <li><b>Daily Upload Limit:</b> 1 Long Video (10-20 min), 1 Short Video, and up to 10 Posts per 24 hours.</li>
                 <li><b>Safety & Policy:</b> Sexual, adult, violent, or copyrighted content is strictly prohibited. Violations lead to permanent account suspension.</li>
                 <li><b>Global Support:</b> Sign up and use with any international country code (+1, +44, +880, +91, etc.).</li>
-                <li><b>Manual Payment System:</b> View direct numbers/accounts below, transfer funds manually, and submit your Transaction ID for fast approval.</li>
+                <li><b>Secured Payment System:</b> Direct account numbers are hidden and visible only inside the Advertiser Hub after verification.</li>
             </ul>
         </div>
     """, unsafe_allow_html=True)
 
 def show_verified_profile(display_name, profile_pic_path=None, subtitle="Official Global Verified Creator", is_verified=True):
+    # Fallback to permanent logo if profile pic is missing
+    if not profile_pic_path or not os.path.exists(profile_pic_path):
+        if os.path.exists("logo.jpg"):
+            profile_pic_path = "logo.jpg"
+
     b64_img = get_image_base64(profile_pic_path)
     if b64_img:
         img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #1877F2;">'
@@ -405,10 +410,11 @@ if not st.session_state.splash_shown:
         </div>
     """, unsafe_allow_html=True)
     
-    if os.path.exists("logo.jpg"):
+    logo_path = "logo.jpg" if os.path.exists("logo.jpg") else None
+    if logo_path:
         col_s1, col_s2, col_s3 = st.columns([1, 2, 1])
         with col_s2:
-            st.image("logo.jpg", use_container_width=True)
+            st.image(logo_path, use_container_width=True)
     
     if st.button("🚀 Enter Platform"):
         st.session_state.splash_shown = True
@@ -418,10 +424,11 @@ if not st.session_state.splash_shown:
 # ==========================================
 # 6. MAIN HEADER & SESSION INITIALIZATION
 # ==========================================
-if os.path.exists("logo.jpg"):
+logo_path = "logo.jpg" if os.path.exists("logo.jpg") else None
+if logo_path:
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
     with col_l2:
-        st.image("logo.jpg", use_container_width=True)
+        st.image(logo_path, use_container_width=True)
 else:
     st.markdown("""
         <div style="text-align: center; padding: 10px 0;">
@@ -435,7 +442,7 @@ st.divider()
 if 'user' not in st.session_state:
     st.session_state.user = None
     st.session_state.user_phone = None
-    st.session_state.pic = None
+    st.session_state.pic = logo_path
     st.session_state.is_verified = 0
     st.session_state.role = 'user'
 
@@ -454,8 +461,8 @@ show_google_guidelines_box()
 # ==========================================
 # 7. SIDEBAR AUTHENTICATION & NAVIGATION
 # ==========================================
-if os.path.exists("logo.jpg"):
-    st.sidebar.image("logo.jpg", use_container_width=True)
+if logo_path:
+    st.sidebar.image(logo_path, use_container_width=True)
 
 st.sidebar.header("🔍 Search Global Creators")
 search_query = st.sidebar.text_input("Type name or username...", placeholder="Search creators globally...")
@@ -520,7 +527,7 @@ if not st.session_state.user:
                 if user_record['password'] == login_pass or user_record['password'] == hashed_input:
                     st.session_state.user = user_record['username']
                     st.session_state.user_phone = user_record['phone_number']
-                    st.session_state.pic = user_record['profile_pic']
+                    st.session_state.pic = user_record['profile_pic'] or logo_path
                     st.session_state.is_verified = 1
                     st.session_state.role = user_record['role']
                     st.session_state.show_reset_mode = False
@@ -562,7 +569,7 @@ if not st.session_state.user:
                             
                             st.session_state.user = user_record['username']
                             st.session_state.user_phone = user_record['phone_number']
-                            st.session_state.pic = user_record['profile_pic']
+                            st.session_state.pic = user_record['profile_pic'] or logo_path
                             st.session_state.is_verified = 1
                             st.session_state.role = user_record['role']
                             st.session_state.generated_otp = None
@@ -611,7 +618,7 @@ if not st.session_state.user:
                             
                             st.session_state.user = desired_username.strip()
                             st.session_state.user_phone = phone_input.strip()
-                            st.session_state.pic = None
+                            st.session_state.pic = logo_path
                             st.session_state.is_verified = 1
                             st.session_state.role = 'user'
                             st.session_state.generated_otp = None
@@ -636,8 +643,9 @@ else:
         st.session_state.role = res['role']
     conn.close()
 
-    if st.session_state.pic and os.path.exists(st.session_state.pic):
-        st.sidebar.image(st.session_state.pic, width=90)
+    active_sidebar_pic = st.session_state.pic if (st.session_state.pic and os.path.exists(st.session_state.pic)) else logo_path
+    if active_sidebar_pic and os.path.exists(active_sidebar_pic):
+        st.sidebar.image(active_sidebar_pic, width=90)
         
     masked_active_phone = mask_phone_number(st.session_state.user_phone or "")
     st.sidebar.markdown(f"Welcome, **{st.session_state.user}** ✔️")
@@ -647,7 +655,7 @@ else:
     if st.sidebar.button("🚪 Logout"):
         st.session_state.user = None
         st.session_state.user_phone = None
-        st.session_state.pic = None
+        st.session_state.pic = logo_path
         st.session_state.is_verified = 0
         st.session_state.role = 'user'
         st.session_state.generated_otp = None
@@ -719,8 +727,8 @@ if tab == "🌍 World Feed":
             u_res = cursor.fetchone()
             uploader_pic = u_res['profile_pic'] if u_res and u_res['profile_pic'] else item.get('uploader_pic')
             
-            if u_res and u_res['role'] == 'owner' and os.path.exists("logo.jpg"):
-                uploader_pic = "logo.jpg"
+            if u_res and u_res['role'] == 'owner' and logo_path:
+                uploader_pic = logo_path
             
             created_at = item.get("created_at", "Recently")
 
@@ -795,8 +803,8 @@ elif tab == "📱 Scrolle Shorts Feed":
             cursor.execute("SELECT profile_pic, role FROM users WHERE username = ?", (sv.get('uploader_name'),))
             u_res = cursor.fetchone()
             uploader_pic = u_res['profile_pic'] if u_res and u_res['profile_pic'] else sv.get('uploader_pic')
-            if u_res and u_res['role'] == 'owner' and os.path.exists("logo.jpg"):
-                uploader_pic = "logo.jpg"
+            if u_res and u_res['role'] == 'owner' and logo_path:
+                uploader_pic = logo_path
 
             with col_main:
                 show_verified_profile(sv.get("uploader_name", "User"), profile_pic_path=uploader_pic, subtitle="Official Shorts Creator", is_verified=True)
@@ -836,10 +844,10 @@ elif tab == "📢 Advertiser Hub":
     
     if not st.session_state.user:
         st.error("🔒 **Advertiser Access Restricted!**")
-        st.warning("Please sign up or login with your mobile number to submit ad requests or view official payment details.")
+        st.warning("Please sign up or login with your mobile number to view secure payment details and submit ad requests.")
     else:
-        st.info("Direct Manual Payment Accounts for Advertisers (Send funds directly using the details below before submitting):")
-        st.markdown(f"**🏦 Official Manual Payment Accounts:**\n\n{get_owner_payment_info()}")
+        st.info("Secured Manual Payment Accounts for Verified Advertisers:")
+        st.markdown(f"**🏦 Official Payment Channels:**\n\n{get_owner_payment_info()}")
         st.divider()
 
         st.write("Select your region, choose payment method, transfer funds manually, and fill out the form below.")
@@ -1030,8 +1038,8 @@ elif tab == "👤 My Profile & Earnings":
         pic_path = user_info.get("profile_pic", st.session_state.pic)
         masked_phone = mask_phone_number(user_info.get("phone_number", ""))
         
-        if user_info.get('role') == 'owner' and os.path.exists("logo.jpg"):
-            pic_path = "logo.jpg"
+        if user_info.get('role') == 'owner' and logo_path:
+            pic_path = logo_path
         
         with st.expander("⚙️ Edit Profile & Change Picture / Password", expanded=False):
             with st.form("edit_profile_form"):
