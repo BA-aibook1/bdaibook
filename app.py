@@ -198,7 +198,6 @@ init_db()
 def normalize_phone(phone_str):
     if not phone_str:
         return ""
-    # Retains '+' for International E.164 Global format
     cleaned = "".join([c for c in str(phone_str) if c.isdigit() or c == '+'])
     return cleaned
 
@@ -239,9 +238,9 @@ def get_owner_payment_info():
     if row and row['account_details']:
         return row['account_details']
     return """
-    🏦 Official Payment Account Details:
-    • bKash Personal: 01302134435
-    • Nagad Personal: 01722003172
+    🏦 Official Manual Payment Details:
+    • bKash Personal: 01302134435 (Send Money)
+    • Nagad Personal: 01722003172 (Send Money)
     • Islami Bank Bangladesh: A/C 20502530202612312 (MD. SOHEL RANA, Lalmonirhat Branch)
     • USDT TRC20: TM6DAbNuF2kaMaRoC8HKi2G8Gi5hVWnbCP
     """
@@ -282,12 +281,12 @@ def record_daily_upload(username, content_type):
 def show_google_guidelines_box():
     st.markdown("""
         <div style="background-color: #1e293b; border-left: 5px solid #00c853; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h4 style="color: #00c853; margin-top: 0;">📜 Google Platform & Global Guidelines</h4>
+            <h4 style="color: #00c853; margin-top: 0;">📜 Platform & Global Guidelines</h4>
             <ul style="color: #cbd5e1; font-size: 13px; margin-bottom: 0; padding-left: 20px;">
-                <li><b>দৈনিক আপলোড সীমা:</b> ১টি লং ভিডিও (১০-২০ মি:), ১টি শর্টস এবং সর্বোচ্চ ১০টি পোস্ট প্রতি ২৪ ঘণ্টায় অনুমোদিত।</li>
-                <li><b>নিরাপত্তা ও গাইডলাইন:</b> যৌন, প্রাপ্তবয়স্ক, সহিংস বা কপিরাইটযুক্ত উপাদান সম্পূর্ণ নিষিদ্ধ। লঙ্ঘন করলে অ্যাকাউন্ট স্থায়ীভাবে ব্যান হবে।</li>
-                <li><b>সারা বিশ্বব্যাপী সাপোর্ট:</b> যেকোনো আন্তর্জাতিক কান্ট্রি কোড সহ (+1, +44, +880, +91 ইত্যাদি) মোবাইল নম্বরে সাইন-আপ ও ব্যবহার সম্ভব।</li>
-                <li><b>নিরাপদ লেনদেন:</b> অ্যাডভার্টাইজারগণ অ্যাকাউন্ট না খুলে সার্ভিস বিষয়ে সরাসরি প্রশ্ন করতে পারবেন না; শুধুমাত্র প্রদত্ত বিবরণ দেখে সরাসরি টাকা জমা প্রদান করতে পারবেন।</li>
+                <li><b>Daily Upload Limit:</b> 1 Long Video (10-20 min), 1 Short Video, and up to 10 Posts per 24 hours.</li>
+                <li><b>Safety & Policy:</b> Sexual, adult, violent, or copyrighted content is strictly prohibited. Violations lead to permanent account suspension.</li>
+                <li><b>Global Support:</b> Sign up and use with any international country code (+1, +44, +880, +91, etc.).</li>
+                <li><b>Manual Payment System:</b> View direct numbers/accounts below, transfer funds manually, and submit your Transaction ID for fast approval.</li>
             </ul>
         </div>
     """, unsafe_allow_html=True)
@@ -365,7 +364,7 @@ def render_comments_section(post_id):
                         st.warning("Comment cannot be empty!")
                         conn.close()
         else:
-            st.info("🔒 মন্তব্য করতে প্রথমে আপনার অ্যাকাউন্ট দিয়ে লগইন করুন।")
+            st.info("🔒 Please login with your account to comment.")
             conn.close()
 
 # ==========================================
@@ -420,7 +419,6 @@ if 'show_reset_mode' not in st.session_state:
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
 
-# Display Global Policy Box
 show_google_guidelines_box()
 
 # ==========================================
@@ -642,7 +640,6 @@ if tab == "🌍 World Feed":
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Active Ad Display
     cursor.execute("SELECT content_link, ad_type FROM advertisements WHERE status = 'Active'")
     active_ads = cursor.fetchall()
     if active_ads:
@@ -730,7 +727,7 @@ if tab == "🌍 World Feed":
                         conn.commit()
                         st.rerun()
                     else:
-                        st.toast("🔒 লাইক দিতে প্রথমে সাইন ইন করুন!")
+                        st.toast("🔒 Please sign in to like posts!")
             with c2:
                 if st.button("➕ Follow", key=f"fl_{item_id}_{index}"):
                     if st.session_state.user:
@@ -738,7 +735,7 @@ if tab == "🌍 World Feed":
                         conn.commit()
                         st.toast(f"Followed {uploader_name} successfully!")
                     else:
-                        st.toast("🔒 ফলো করতে প্রথমে সাইন ইন করুন!")
+                        st.toast("🔒 Please sign in to follow users!")
 
             render_comments_section(item_id)
 
@@ -787,7 +784,7 @@ elif tab == "📱 Scrolle Shorts Feed":
                         st.toast("Liked!")
                         st.rerun()
                     else:
-                        st.toast("🔒 লাইক করতে লগইন করুন!")
+                        st.toast("🔒 Please login to like!")
                 
                 st.caption(f"👁️ {format_value(sv.get('views', 0))}")
 
@@ -797,28 +794,27 @@ elif tab == "📱 Scrolle Shorts Feed":
                         conn.commit()
                         st.toast("Followed Creator!")
                     else:
-                        st.toast("🔒 ফলো করতে লগইন করুন!")
+                        st.toast("🔒 Please login to follow!")
         conn.close()
 
 elif tab == "📢 Advertiser Hub":
     st.title("📢 Advertiser Ad Network Portal")
     
-    # GUEST RESTRICTION: Locked until logged in
     if not st.session_state.user:
-        st.error("🔒 **অ্যাডভারটাইজার অ্যাক্সেস সীমাবদ্ধ!**")
-        st.warning("যেকোনো ধরনের বিজ্ঞাপন আবেদন, পেমেন্ট সাবমিশন বা প্রশ্ন করার জন্য প্রথমে আপনার মোবাইল নম্বর দিয়ে সাইন-আপ বা লগইন করুন। অ্যাকাউন্ট না খোলা পর্যন্ত এখানে কোনো অপশন দেখতে বা প্রশ্ন করতে পারবেন না।")
+        st.error("🔒 **Advertiser Access Restricted!**")
+        st.warning("Please sign up or login with your mobile number to submit ad requests or view official payment details.")
     else:
-        st.info("অ্যাডভারটাইজারদের জন্য সরাসরি ওনার পেমেন্ট ডিটেইলস (এখানে কোনো প্রশ্ন করার প্রয়োজন নেই, সরাসরি টাকা পাঠাতে পারবেন):")
-        st.markdown(f"**🏦 Official Direct Payment Accounts:**\n\n{get_owner_payment_info()}")
+        st.info("Direct Manual Payment Accounts for Advertisers (Send funds directly using the details below before submitting):")
+        st.markdown(f"**🏦 Official Manual Payment Accounts:**\n\n{get_owner_payment_info()}")
         st.divider()
 
-        st.write("আপনার বিজ্ঞাপনের ধরন এবং স্থান অনুযায়ী পেমেন্ট করে নিচের ফর্মটি ফিলাপ করুন।")
-        region = st.selectbox("Select Your Region / দেশের ধরণ", ["Bangladesh (BD)", "International (Global)"])
+        st.write("Select your region, choose payment method, transfer funds manually, and fill out the form below.")
+        region = st.selectbox("Select Your Region", ["Bangladesh (BD)", "International (Global)"])
         
         if "Bangladesh" in region:
             currency = "BDT"
             price_per_month = 1000
-            st.info("💰 **বাংলাদেশ মূল্য নির্ধারণ:** ১ মাসের বিজ্ঞাপনের জন্য ৳১,০০০ টাকা।")
+            st.info("💰 **Bangladesh Pricing:** ৳1,000 BDT per month.")
         else:
             currency = "USD"
             price_per_month = 30
@@ -829,14 +825,14 @@ elif tab == "📢 Advertiser Hub":
         st.metric(label="Total Payable Amount", value=f"{total_amount} {currency}")
 
         st.markdown("---")
-        st.subheader("💳 Select Payment Method & Transfer Money")
+        st.subheader("💳 Select Payment Method & Transfer Manually")
 
         pay_method = st.radio("Choose Method:", ["bKash", "Nagad", "Bank Transfer (Islami Bank)", "Crypto Wallet (USDT)"])
 
         if pay_method == "bKash":
-            st.success("📱 **bKash Personal Number:** `01302134435` (Send Money)")
+            st.success("📱 **bKash Personal Number:** `01302134435` (Send Money manually)")
         elif pay_method == "Nagad":
-            st.warning("📱 **Nagad Personal Number:** `01722003172` (Send Money)")
+            st.warning("📱 **Nagad Personal Number:** `01722003172` (Send Money manually)")
         elif pay_method == "Bank Transfer (Islami Bank)":
             st.code("""
 Bank Name: Islami Bank Bangladesh Limited
@@ -851,7 +847,7 @@ USDT (BSC BEP20 Network): 0x53052be072029dd76e02b01d925e29b03c5294ad
             """)
 
         st.markdown("---")
-        st.subheader("📝 Submit Ad Details")
+        st.subheader("📝 Submit Ad Details & Transaction ID")
         adv_email = st.text_input("Your Contact Phone / Email", value=st.session_state.user)
         ad_type = st.selectbox("Ad Type", ["Short Video (10 Sec)", "Long Video", "Image Post / Banner"])
         content_link = st.text_input("Ad Content Link (Video / Image URL)")
@@ -868,16 +864,16 @@ USDT (BSC BEP20 Network): 0x53052be072029dd76e02b01d925e29b03c5294ad
                 ''', (adv_email, ad_type, content_link, duration, region, pay_method, total_amount, trx_id))
                 conn.commit()
                 conn.close()
-                st.success("✅ আপনার বিজ্ঞাপন আবেদনটি সফলভাবে জমা হয়েছে! পেমেন্ট যাচাই করে অ্যাডমিন শীঘ্রই লাইভ করবে।")
+                st.success("✅ Your ad request has been submitted successfully! Admin will verify the manual payment and approve shortly.")
             else:
-                st.error("দয়া করে সমস্ত ফিল্ড সঠিকভাবে পূরণ করুন।")
+                st.error("Please fill in all required fields properly.")
 
 elif tab == "💬 WhatsApp Support Desk":
     st.subheader("💬 Official WhatsApp Support Desk")
     st.caption("Contact us directly from anywhere in the world to ask questions or resolve issues.")
     
     if not st.session_state.user:
-        st.warning("🔒 যেকোনো সাপোর্ট বা প্রশ্ন করার আগে ফোন নম্বর দিয়ে সাইন-আপ বা লগইন করুন।")
+        st.warning("🔒 Please sign up or login with your phone number before asking support questions.")
     else:
         encoded_msg = urllib.parse.quote(f"Hello! I am logged in as {st.session_state.user} on BD AI Book App.")
         wa_link = f"https://wa.me/8801722003172?text={encoded_msg}"
@@ -932,7 +928,7 @@ elif tab == "💳 Payout & Monetization":
                 index=0
             )
             
-            user_country = st.text_input("Country / দেশ", value=bank_data.get("country", ""), placeholder="e.g. USA, UK, UAE, Bangladesh, India, Canada...")
+            user_country = st.text_input("Country", value=bank_data.get("country", ""), placeholder="e.g. USA, UK, UAE, Bangladesh, India, Canada...")
             
             st.markdown("#### 💳 Visa / Mastercard / Debit Card Details (Global)")
             c_num = st.text_input("Card Number", value=bank_data.get("card_number", ""), placeholder="16-digit card number")
@@ -1134,7 +1130,7 @@ elif tab == "📤 Create Post / Upload":
         st.warning("Please login to create a post or upload content.")
     else:
         st.subheader("📤 Upload Content (Daily Limits Applied)")
-        st.info("📌 **দৈনিক আপলোড নিয়মাবলী:** ১টি লং ভিডিও (১০-২০ মি:), ১টি শর্ট ভিডিও, এবং ১০টি ফটো/টেক্সট পোস্ট প্রতি ২৪ ঘণ্টায় অনুমোদিত।")
+        st.info("📌 **Daily Upload Rules:** 1 Long Video (10-20 min), 1 Short Video, and 10 Posts allowed per 24 hours.")
         
         st.warning("⚠️ **Global Community Guidelines:** Sexual, adult, or violent content is strictly prohibited. Violating terms will lead to immediate account suspension and loss of earnings.")
         
@@ -1142,14 +1138,14 @@ elif tab == "📤 Create Post / Upload":
         
         if upload_type == "📝 Post/Photo":
             can_upload, current_cnt, max_limit = check_daily_upload_limit(st.session_state.user, "post")
-            st.caption(f"📊 আজকের পোস্ট আপলোড অবস্থা: **{current_cnt}/{max_limit}**")
+            st.caption(f"📊 Today's Post Upload Status: **{current_cnt}/{max_limit}**")
             
             post_text = st.text_area("What's on your mind?")
             img_file = st.file_uploader("Upload Photo (JPG/PNG)", type=["jpg", "png", "jpeg"])
             
             if st.button("🚀 Publish Post"):
                 if not can_upload:
-                    st.error("❌ আপনার আজকের ১০টি পোস্ট করার দৈনিক সীমা অতিক্রম করেছে! আগামীকাল আবার চেষ্টা করুন।")
+                    st.error("❌ You have exceeded your daily limit of 10 posts! Try again tomorrow.")
                 elif not post_text and not img_file:
                     st.warning("Please enter text or attach an image!")
                 else:
@@ -1178,7 +1174,7 @@ elif tab == "📤 Create Post / Upload":
             c_type_key = "short_video" if is_short else "long_video"
             
             can_upload, current_cnt, max_limit = check_daily_upload_limit(st.session_state.user, c_type_key)
-            st.caption(f"📊 আজকের {upload_type} আপলোড অবস্থা: **{current_cnt}/{max_limit}**")
+            st.caption(f"📊 Today's {upload_type} Upload Status: **{current_cnt}/{max_limit}**")
             
             v_title = st.text_input("Video Title", placeholder="Enter a title for your video...")
             vid_file = st.file_uploader("Upload Video File (MP4/MOV)", type=["mp4", "mov", "avi", "mkv"])
@@ -1187,7 +1183,7 @@ elif tab == "📤 Create Post / Upload":
             
             if st.button("🚀 Publish Video"):
                 if not can_upload:
-                    st.error(f"❌ আপনার আজকের ১টি {upload_type} আপলোড করার সীমা শেষ! আগামী ২৪ ঘন্টা পর আবার চেষ্টা করুন।")
+                    st.error(f"❌ You have reached your daily limit of 1 {upload_type}! Try again after 24 hours.")
                 elif not vid_file or not v_title.strip():
                     st.warning("Please provide a video title and select a video file!")
                 else:
@@ -1227,10 +1223,9 @@ elif tab == "🔐 Owner Control Panel":
         st.title("👑 Owner Master Dashboard & Financial Accounts")
         st.success(f"Logged in as Owner Admin")
 
-        # Section to Update Global Payment Details
-        st.subheader("🏦 Update Global Payment Information")
+        st.subheader("🏦 Update Global Manual Payment Information")
         current_info = get_owner_payment_info()
-        new_info = st.text_area("Edit Payment Details (bKash/Nagad/Bank details for advertisers):", value=current_info)
+        new_info = st.text_area("Edit Manual Payment Details (bKash/Nagad/Bank details for advertisers):", value=current_info)
         
         if st.button("Save Global Payment Info"):
             conn = get_db_connection()
@@ -1294,6 +1289,6 @@ elif tab == "🔐 Owner Control Panel":
                         conn.commit()
                         st.rerun()
         else:
-            st.info("কোনো পেন্ডিং বা অ্যাক্টিভ অ্যাড পাওয়া যায়নি।")
+            st.info("No pending or active advertisements found.")
         
         conn.close()
