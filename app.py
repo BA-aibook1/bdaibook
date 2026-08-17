@@ -4,6 +4,7 @@ import random
 import uuid
 import base64
 import urllib.parse
+import hashlib
 from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
@@ -54,8 +55,8 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
-            phone_number TEXT UNIQUE NOT NULL,
-            clean_phone TEXT UNIQUE NOT NULL,
+            phone_number TEXT UNIQUE,
+            clean_phone TEXT UNIQUE,
             password TEXT NOT NULL,
             full_name TEXT,
             profile_pic TEXT,
@@ -69,6 +70,7 @@ def init_db():
             watch_time_mins REAL DEFAULT 0.0,
             monetization_status TEXT DEFAULT 'none',
             earnings REAL DEFAULT 0.0,
+            role TEXT DEFAULT 'user',
             created_at TEXT
         )
     """)
@@ -80,8 +82,29 @@ def init_db():
             cursor.execute("ALTER TABLE users ADD COLUMN clean_phone TEXT")
         except Exception:
             pass
+    if "role" not in existing_cols:
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
+        except Exception:
+            pass
 
-    # 2. Bank Details Table
+    # 2. Advertisements Table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS advertisements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            advertiser_email TEXT,
+            ad_type TEXT,
+            content_link TEXT,
+            duration_months INTEGER,
+            region TEXT,
+            payment_method TEXT,
+            amount REAL,
+            trx_id TEXT,
+            status TEXT DEFAULT 'Pending'
+        )
+    """)
+
+    # 3. Bank Details Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS bank_details (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,7 +127,7 @@ def init_db():
         )
     """)
 
-    # 3. Videos Table
+    # 4. Videos Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS videos (
             id TEXT PRIMARY KEY,
@@ -123,7 +146,7 @@ def init_db():
         )
     """)
 
-    # 4. Posts Table
+    # 5. Posts Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS posts (
             id TEXT PRIMARY KEY,
@@ -136,7 +159,7 @@ def init_db():
         )
     """)
 
-    # 5. Comments Table
+    # 6. Comments Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS comments (
             id TEXT PRIMARY KEY,
@@ -148,13 +171,23 @@ def init_db():
         )
     """)
 
+    # Ensure Owner Account Exists securely
+    owner_email = "rasohel1234@gmail.com"
+    hashed_pw = hashlib.sha256("S$s123456789112233".encode()).hexdigest()
+    cursor.execute("SELECT * FROM users WHERE username = ?", (owner_email,))
+    if not cursor.fetchone():
+        cursor.execute("""
+            INSERT INTO users (username, phone_number, clean_phone, password, full_name, role, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (owner_email, "01722003172", "01722003172", hashed_pw, "MD. SOHEL RANA", "owner", datetime.now().strftime("%Y-%m-%d")))
+
     conn.commit()
     conn.close()
 
 init_db()
 
 # ==========================================
-# 3. HELPER FUNCTIONS & GLOBAL PHONE SANITIZER
+# 3. HELPER FUNCTIONS
 # ==========================================
 def normalize_phone(phone_str):
     if not phone_str:
@@ -305,6 +338,7 @@ if 'user' not in st.session_state:
     st.session_state.user_phone = None
     st.session_state.pic = None
     st.session_state.is_verified = 0
+    st.session_state.role = 'user'
 
 if 'generated_otp' not in st.session_state:
     st.session_state.generated_otp = None
@@ -317,7 +351,7 @@ if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
 
 # ==========================================
-# 6. SIDEBAR AUTHENTICATION (WITH FORGOT PASSWORD RESET)
+# 6. SIDEBAR AUTHENTICATION
 # ==========================================
 if os.path.exists("logo.jpg"):
     st.sidebar.image("logo.jpg", use_container_width=True)
@@ -354,8 +388,8 @@ st.sidebar.header("📱 User Authentication")
 
 if not st.session_state.user:
     phone_input = st.sidebar.text_input(
-        "International Phone / WhatsApp Number", 
-        placeholder="e.g. +1..., +44..., 017...", 
+        "Phone / Email", 
+        placeholder="e.g. rasohel1234@gmail.com or 017...", 
         key="auth_phone"
     )
     
@@ -367,31 +401,28 @@ if not st.session_state.user:
         
         cursor.execute("""
             SELECT * FROM users 
-            WHERE clean_phone = ? 
+            WHERE username = ?
+               OR clean_phone = ? 
                OR clean_phone LIKE ? 
                OR phone_number = ?
-        """, (clean_input, f"%{clean_input[-10:]}", phone_input.strip()))
+        """, (phone_input.strip(), clean_input, f"%{clean_input[-10:]}", phone_input.strip()))
         
         user_record = cursor.fetchone()
         conn.close()
         
-        # কেস ১: ইউজার ডাটাবেজে রয়েছে
         if user_record:
             st.sidebar.success(f"✅ User Found: **{user_record['username']}**")
-            st.sidebar.caption(f"📱 Phone: {mask_phone_number(user_record['phone_number'])}")
             
             login_pass = st.sidebar.text_input("Enter Password to Login", type="password", key="login_pass")
             
-            col_l1, col_l2 = st.columns(2)
-            with col_l1:
-                login_click = st.sidebar.button("🔓 Login Now")
-            
-            if login_click:
-                if user_record['password'] and login_pass == user_record['password']:
+            if st.sidebar.button("🔓 Login Now"):
+                hashed_input = hashlib.sha256(login_pass.encode()).hexdigest()
+                if user_record['password'] == login_pass or user_record['password'] == hashed_input:
                     st.session_state.user = user_record['username']
                     st.session_state.user_phone = user_record['phone_number']
                     st.session_state.pic = user_record['profile_pic']
                     st.session_state.is_verified = 1
+                    st.session_state.role = user_record['role']
                     st.session_state.show_reset_mode = False
                     st.sidebar.success("🎉 Logged in Successfully.")
                     st.rerun()
@@ -399,7 +430,6 @@ if not st.session_state.user:
                     st.sidebar.error("❌ Incorrect Password!")
                     st.session_state.show_reset_mode = True
 
-            # পাসওয়ার্ড ভুলে গেলে রিসেট করার অপশন
             if st.session_state.show_reset_mode or st.sidebar.checkbox("🔑 Forgot / Reset Password?"):
                 st.sidebar.warning("🔐 Password Recovery via WhatsApp OTP")
                 
@@ -434,13 +464,13 @@ if not st.session_state.user:
                             st.session_state.user_phone = user_record['phone_number']
                             st.session_state.pic = user_record['profile_pic']
                             st.session_state.is_verified = 1
+                            st.session_state.role = user_record['role']
                             st.session_state.generated_otp = None
                             st.session_state.show_reset_mode = False
                             
                             st.sidebar.success("🎉 Password Updated & Logged in!")
                             st.rerun()
 
-        # কেস ২: একদম নতুন ইউজার (রেজিস্ট্রেশন)
         else:
             st.sidebar.info("🆕 New User Registration")
             
@@ -483,6 +513,7 @@ if not st.session_state.user:
                             st.session_state.user_phone = phone_input.strip()
                             st.session_state.pic = None
                             st.session_state.is_verified = 1
+                            st.session_state.role = 'user'
                             st.session_state.generated_otp = None
                             st.session_state.otp_sent_to = None
                             
@@ -493,16 +524,16 @@ if not st.session_state.user:
                             st.sidebar.error("❌ Phone number or Username already registered!")
 
 else:
-    # লগইন অবস্থায় থাকা সাইডবার ভিউ
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT profile_pic, phone_number FROM users WHERE username = ?", (st.session_state.user,))
+    c.execute("SELECT profile_pic, phone_number, role FROM users WHERE username = ?", (st.session_state.user,))
     res = c.fetchone()
     if res:
         if res['profile_pic']:
             st.session_state.pic = res['profile_pic']
         if res['phone_number']:
             st.session_state.user_phone = res['phone_number']
+        st.session_state.role = res['role']
     conn.close()
 
     if st.session_state.pic and os.path.exists(st.session_state.pic):
@@ -518,11 +549,15 @@ else:
         st.session_state.user_phone = None
         st.session_state.pic = None
         st.session_state.is_verified = 0
+        st.session_state.role = 'user'
         st.session_state.generated_otp = None
         st.session_state.show_reset_mode = False
         st.rerun()
 
-nav_tabs = ["🌍 World Feed", "📱 Scrolle Shorts Feed", "💬 WhatsApp Support Desk", "💳 Payout & Monetization", "👤 My Profile & Earnings", "📤 Create Post / Upload"]
+nav_tabs = ["🌍 World Feed", "📱 Scrolle Shorts Feed", "📢 Advertiser Hub", "💬 WhatsApp Support Desk", "💳 Payout & Monetization", "👤 My Profile & Earnings", "📤 Create Post / Upload"]
+if st.session_state.role == 'owner':
+    nav_tabs.append("🔐 Owner Control Panel")
+
 tab = st.sidebar.radio("Navigation", nav_tabs, index=nav_tabs.index(st.session_state.active_tab) if st.session_state.active_tab in nav_tabs else 0)
 st.session_state.active_tab = tab
 
@@ -534,6 +569,15 @@ if tab == "🌍 World Feed":
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # Active Ad Display
+    cursor.execute("SELECT content_link, ad_type FROM advertisements WHERE status = 'Active'")
+    active_ads = cursor.fetchall()
+    if active_ads:
+        st.subheader("📢 Sponsored Ads")
+        for ad in active_ads:
+            st.success(f"Sponsored ({ad['ad_type']}): {ad['content_link']}")
+        st.divider()
+
     try:
         cursor.execute("SELECT * FROM videos WHERE video_type = 'short' ORDER BY created_at DESC")
         short_videos = [dict(r) for r in cursor.fetchall()]
@@ -670,6 +714,69 @@ elif tab == "📱 Scrolle Shorts Feed":
                     conn.commit()
                     st.toast("Followed Creator!")
         conn.close()
+
+elif tab == "📢 Advertiser Hub":
+    st.title("📢 Advertiser Ad Network Portal")
+    st.write("আপনার বিজ্ঞাপনের ধরন এবং স্থান অনুযায়ী পেমেন্ট করে ফর্মটি ফিলাপ করুন।")
+
+    region = st.selectbox("Select Your Region / দেশের ধরণ", ["Bangladesh (BD)", "International (Global)"])
+    
+    if "Bangladesh" in region:
+        currency = "BDT"
+        price_per_month = 1000
+        st.info("💰 **বাংলাদেশ মূল্য নির্ধারণ:** ১ মাসের বিজ্ঞাপনের জন্য ৳১,০০০ টাকা।")
+    else:
+        currency = "USD"
+        price_per_month = 30
+        st.info("🌐 **International Pricing:** $30 USD per month.")
+
+    duration = st.number_input("Duration (Months)", min_value=1, value=1)
+    total_amount = price_per_month * duration
+    st.metric(label="Total Payable Amount", value=f"{total_amount} {currency}")
+
+    st.markdown("---")
+    st.subheader("💳 Select Payment Method & Transfer Money")
+
+    pay_method = st.radio("Choose Method:", ["bKash", "Nagad", "Bank Transfer (Islami Bank)", "Crypto Wallet (USDT)"])
+
+    if pay_method == "bKash":
+        st.success("📱 **bKash Personal Number:** `01302134435` (Send Money)")
+    elif pay_method == "Nagad":
+        st.warning("📱 **Nagad Personal Number:** `01722003172` (Send Money)")
+    elif pay_method == "Bank Transfer (Islami Bank)":
+        st.code("""
+Bank Name: Islami Bank Bangladesh Limited
+Branch: Lalmonirhat Branch
+Account Name: MD. SOHEL RANA
+Account Number: 20502530202612312
+        """)
+    elif pay_method == "Crypto Wallet (USDT)":
+        st.code("""
+USDT (TRC20 Network): TM6DAbNuF2kaMaRoC8HKi2G8Gi5hVWnbCP
+USDT (BSC BEP20 Network): 0x53052be072029dd76e02b01d925e29b03c5294ad
+        """)
+
+    st.markdown("---")
+    st.subheader("📝 Submit Ad Details")
+    adv_email = st.text_input("Your Email Address")
+    ad_type = st.selectbox("Ad Type", ["Short Video (10 Sec)", "Long Video", "Image Post / Banner"])
+    content_link = st.text_input("Ad Content Link (Video / Image URL)")
+    trx_id = st.text_input("Transaction ID / Reference Number (TrxID)")
+
+    if st.button("Submit Advertisement for Review"):
+        if adv_email and content_link and trx_id:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO advertisements 
+                (advertiser_email, ad_type, content_link, duration_months, region, payment_method, amount, trx_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (adv_email, ad_type, content_link, duration, region, pay_method, total_amount, trx_id))
+            conn.commit()
+            conn.close()
+            st.success("✅ আপনার বিজ্ঞাপন আবেদনটি সফলভাবে জমা হয়েছে! পেমেন্ট যাচাই করে অ্যাডমিন শীঘ্রই লাইভ করবে।")
+        else:
+            st.error("দয়া করে সমস্ত ফিল্ড সঠিকভাবে পূরণ করুন।")
 
 elif tab == "💬 WhatsApp Support Desk":
     st.subheader("💬 Official WhatsApp Support Desk")
@@ -999,3 +1106,65 @@ elif tab == "📤 Create Post / Upload":
                     
                     st.toast(f"🎉 {upload_type} published successfully!")
                     st.rerun()
+
+elif tab == "🔐 Owner Control Panel":
+    if st.session_state.role != 'owner':
+        st.error("🚫 Access Denied! Only the Owner can access this panel.")
+    else:
+        st.title("👑 Owner Master Dashboard & Financial Accounts")
+        st.success(f"Logged in as Owner: {st.session_state.user}")
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT payment_method, SUM(amount) FROM advertisements WHERE status = 'Active' GROUP BY payment_method")
+        revenue_data = cursor.fetchall()
+
+        bkash_total = sum(item[1] for item in revenue_data if item[0] == 'bKash')
+        nagad_total = sum(item[1] for item in revenue_data if item[0] == 'Nagad')
+        bank_total = sum(item[1] for item in revenue_data if item[0] == 'Bank Transfer (Islami Bank)')
+        crypto_total = sum(item[1] for item in revenue_data if item[0] == 'Crypto Wallet (USDT)')
+
+        st.subheader("💰 Real-Time Revenue Metrics")
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("bKash Total", f"৳{bkash_total}")
+        col2.metric("Nagad Total", f"৳{nagad_total}")
+        col3.metric("Bank Total", f"৳{bank_total}")
+        col4.metric("Crypto (Global)", f"${crypto_total} USD")
+
+        st.markdown("---")
+        st.subheader("📋 Pending Advertisements for Approval")
+
+        cursor.execute("SELECT id, advertiser_email, ad_type, content_link, amount, payment_method, trx_id, status FROM advertisements")
+        ads = cursor.fetchall()
+
+        if ads:
+            for ad in ads:
+                ad_id = ad['id']
+                email = ad['advertiser_email']
+                a_type = ad['ad_type']
+                link = ad['content_link']
+                amt = ad['amount']
+                method = ad['payment_method']
+                trx = ad['trx_id']
+                status = ad['status']
+                
+                with st.expander(f"Ad #{ad_id} | {email} | Status: {status}"):
+                    st.write(f"**Type:** {a_type} | **Amount:** {amt} | **Method:** {method}")
+                    st.write(f"**TrxID:** `{trx}`")
+                    st.write(f"**Link:** {link}")
+
+                    c1, c2 = st.columns(2)
+                    if status != 'Active':
+                        if c1.button(f"Approve Ad #{ad_id}", key=f"app_{ad_id}"):
+                            cursor.execute("UPDATE advertisements SET status = 'Active' WHERE id = ?", (ad_id,))
+                            conn.commit()
+                            st.rerun()
+                    if c2.button(f"Delete Ad #{ad_id}", key=f"del_{ad_id}"):
+                        cursor.execute("DELETE FROM advertisements WHERE id = ?", (ad_id,))
+                        conn.commit()
+                        st.rerun()
+        else:
+            st.info("কোনো পেন্ডিং বা অ্যাক্টিভ অ্যাড পাওয়া যায়নি।")
+        
+        conn.close()
