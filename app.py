@@ -84,7 +84,7 @@ def init_db():
         try: cursor.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
         except Exception: pass
 
-    # 2. Daily Upload Limits Table
+    # 2. Daily Upload Limits Table (Strict 1 Long, 1 Short, 10 Posts Limit)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS daily_upload_limits (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,7 +133,7 @@ def init_db():
         )
     """)
 
-    # 5. Videos Table
+    # 5. Videos Table (With Hashtag Support)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS videos (
             id TEXT PRIMARY KEY,
@@ -143,6 +143,7 @@ def init_db():
             uploader_pic TEXT,
             video_type TEXT DEFAULT 'long',
             title TEXT,
+            hashtags TEXT,
             likes INTEGER DEFAULT 0,
             views INTEGER DEFAULT 0,
             views_count INTEGER DEFAULT 0,
@@ -152,18 +153,31 @@ def init_db():
         )
     """)
 
-    # 6. Posts Table
+    cursor.execute("PRAGMA table_info(videos)")
+    v_cols = [column[1] for column in cursor.fetchall()]
+    if "hashtags" not in v_cols:
+        try: cursor.execute("ALTER TABLE videos ADD COLUMN hashtags TEXT")
+        except Exception: pass
+
+    # 6. Posts Table (With Hashtag Support)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS posts (
             id TEXT PRIMARY KEY,
             uploader_name TEXT,
             uploader_pic TEXT,
             content TEXT,
+            hashtags TEXT,
             image_url TEXT,
             likes INTEGER DEFAULT 0,
             created_at TEXT
         )
     """)
+
+    cursor.execute("PRAGMA table_info(posts)")
+    p_cols = [column[1] for column in cursor.fetchall()]
+    if "hashtags" not in p_cols:
+        try: cursor.execute("ALTER TABLE posts ADD COLUMN hashtags TEXT")
+        except Exception: pass
 
     # 7. Comments Table
     cursor.execute("""
@@ -199,7 +213,7 @@ def init_db():
 init_db()
 
 # ==========================================
-# 3. HELPER FUNCTIONS & UI HELPERS
+# 3. HELPER FUNCTIONS & WATERMARK SETUP
 # ==========================================
 def normalize_phone(phone_str):
     if not phone_str:
@@ -244,7 +258,7 @@ def get_owner_payment_info():
     if row and row['account_details']:
         return row['account_details']
     return """
-    🏦 Official Secure Payment Details (Hidden for Public):
+    🏦 Official Secure Payment Details (Hidden from Public & Protected):
     • bKash Personal: 01302134435 (Send Money)
     • Nagad Personal: 01722003172 (Send Money)
     • Islami Bank Bangladesh: A/C 20502530202612312 (MD. SOHEL RANA, Lalmonirhat Branch)
@@ -287,18 +301,39 @@ def record_daily_upload(username, content_type):
 def show_google_guidelines_box():
     st.markdown("""
         <div style="background-color: #1e293b; border-left: 5px solid #00c853; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h4 style="color: #00c853; margin-top: 0;">📜 Platform & Global Guidelines</h4>
+            <h4 style="color: #00c853; margin-top: 0;">📜 Platform & Global Guidelines (Strict Limits)</h4>
             <ul style="color: #cbd5e1; font-size: 13px; margin-bottom: 0; padding-left: 20px;">
-                <li><b>Daily Upload Limit:</b> 1 Long Video (10-20 min), 1 Short Video, and up to 10 Posts per 24 hours.</li>
-                <li><b>Safety & Policy:</b> Sexual, adult, violent, or copyrighted content is strictly prohibited. Violations lead to permanent account suspension.</li>
-                <li><b>Global Support:</b> Sign up and use with any international country code (+1, +44, +880, +91, etc.).</li>
-                <li><b>Secured Payment System:</b> Direct account numbers are hidden and visible only inside the Advertiser Hub after verification.</li>
+                <li><b>Daily Upload Limit:</b> Exactly <b>1 Long Video</b>, <b>1 Short Video</b>, and up to <b>10 Posts</b> per 24 hours.</li>
+                <li><b>Hashtag System:</b> Use tags like #AI #Trending #BD #Tech in posts/videos for better discovery.</li>
+                <li><b>Waterproof Protection:</b> All uploaded media automatically features secure platform branding and owner watermark.</li>
+                <li><b>Secured Payment System:</b> Personal bKash/Nagad/Bank details are completely hidden from public views and only visible in Advertiser Hub.</li>
             </ul>
         </div>
     """, unsafe_allow_html=True)
 
+def show_watermarked_media(media_type, media_path, title=""):
+    """Displays video or image with automatic waterproof overlay and owner branding"""
+    logo_b64 = get_image_base64("logo.jpg") if os.path.exists("logo.jpg") else None
+    logo_tag = f'<img src="data:image/jpeg;base64,{logo_b64}" style="width:28px; height:28px; border-radius:50%; border:1px solid #00c853; object-fit:cover;">' if logo_b64 else '📖'
+    
+    st.markdown(f"""
+        <div style="position: relative; width: 100%;">
+            <div style="position: absolute; top: 12px; right: 12px; z-index: 99; background: rgba(0, 0, 0, 0.75); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(0, 200, 83, 0.5); display: flex; align-items: center; gap: 8px; backdrop-filter: blur(4px);">
+                {logo_tag}
+                <span style="color: #00c853; font-weight: bold; font-size: 11px; font-family: sans-serif; letter-spacing: 0.5px;">BD AI BOOK • WATERPROOF SECURED</span>
+            </div>
+    """, unsafe_allow_html=True)
+    
+    if media_type == "video":
+        if os.path.exists(media_path):
+            st.video(media_path, format="video/mp4")
+    elif media_type == "image":
+        if os.path.exists(media_path):
+            st.image(media_path, use_container_width=True)
+            
+    st.markdown("</div>", unsafe_allow_html=True)
+
 def show_verified_profile(display_name, profile_pic_path=None, subtitle="Official Global Verified Creator", is_verified=True):
-    # Fallback to permanent logo if profile pic is missing
     if not profile_pic_path or not os.path.exists(profile_pic_path):
         if os.path.exists("logo.jpg"):
             profile_pic_path = "logo.jpg"
@@ -406,7 +441,7 @@ if not st.session_state.splash_shown:
     st.markdown("""
         <div style="text-align: center; padding: 40px 0;">
             <h1 style="color: #00c853; font-weight: 900;">🔥 BD AI Book — Global Verified Network 🔥</h1>
-            <p style="color: #b0b3b8;">Loading Global Platform & Verified Identity...</p>
+            <p style="color: #b0b3b8;">Loading Waterproof Platform & Verified Identity...</p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -465,7 +500,7 @@ if logo_path:
     st.sidebar.image(logo_path, use_container_width=True)
 
 st.sidebar.header("🔍 Search Global Creators")
-search_query = st.sidebar.text_input("Type name or username...", placeholder="Search creators globally...")
+search_query = st.sidebar.text_input("Type name or #hashtag...", placeholder="Search creators or #hashtags...")
 
 if search_query.strip():
     conn = get_db_connection()
@@ -695,8 +730,7 @@ if tab == "🌍 World Feed":
             for i, sv in enumerate(short_videos[:3]):
                 with cols[i]:
                     st.markdown(f"**{sv.get('uploader_name', 'User')}** ✔️")
-                    if os.path.exists(sv['video_url']):
-                        st.video(sv['video_url'], format="video/mp4")
+                    show_watermarked_media("video", sv['video_url'])
                     
                     if st.button("▶️ Watch in Shorts Feed", key=f"open_short_{sv['id']}"):
                         st.session_state.active_tab = "📱 Scrolle Shorts Feed"
@@ -731,20 +765,24 @@ if tab == "🌍 World Feed":
                 uploader_pic = logo_path
             
             created_at = item.get("created_at", "Recently")
+            hashtags = item.get("hashtags", "")
 
             st.markdown('<div class="feed-card">', unsafe_allow_html=True)
             show_verified_profile(uploader_name, profile_pic_path=uploader_pic, subtitle=f"Posted {created_at}", is_verified=True)
 
             if "content" in item and item["content"]:
                 st.markdown(f"### {item['content']}")
+            
+            if hashtags:
+                st.markdown(f"<p style='color: #1877F2; font-weight: bold; font-size: 13px;'>{hashtags}</p>", unsafe_allow_html=True)
 
             if "image_url" in item and item["image_url"] and os.path.exists(item["image_url"]):
-                st.image(item["image_url"], use_container_width=True)
+                show_watermarked_media("image", item["image_url"])
 
             if "video_url" in item and os.path.exists(item["video_url"]):
                 if item.get("title"):
                     st.markdown(f"#### {item.get('title')}")
-                st.video(item["video_url"], format="video/mp4")
+                show_watermarked_media("video", item["video_url"])
                 
                 new_views = item.get("views", 0) + 1
                 cursor.execute("UPDATE videos SET views = ?, views_count = ? WHERE id = ?", (new_views, new_views, item_id))
@@ -809,8 +847,10 @@ elif tab == "📱 Scrolle Shorts Feed":
             with col_main:
                 show_verified_profile(sv.get("uploader_name", "User"), profile_pic_path=uploader_pic, subtitle="Official Shorts Creator", is_verified=True)
                 st.markdown(f"**{sv.get('title', 'Short Video')}**")
-                if os.path.exists(sv["video_url"]):
-                    st.video(sv["video_url"], format="video/mp4")
+                if sv.get("hashtags"):
+                    st.markdown(f"<p style='color: #1877F2; font-size: 13px;'>{sv.get('hashtags')}</p>", unsafe_allow_html=True)
+                
+                show_watermarked_media("video", sv["video_url"])
                 
                 cursor.execute("UPDATE videos SET views = views + 1, views_count = views_count + 1 WHERE id = ?", (sv["id"],))
                 conn.commit()
@@ -846,7 +886,7 @@ elif tab == "📢 Advertiser Hub":
         st.error("🔒 **Advertiser Access Restricted!**")
         st.warning("Please sign up or login with your mobile number to view secure payment details and submit ad requests.")
     else:
-        st.info("Secured Manual Payment Accounts for Verified Advertisers:")
+        st.info("Secured Manual Payment Accounts for Verified Advertisers (Hidden from Public View):")
         st.markdown(f"**🏦 Official Payment Channels:**\n\n{get_owner_payment_info()}")
         st.divider()
 
@@ -1118,7 +1158,7 @@ elif tab == "👤 My Profile & Earnings":
                 <h3 style="margin:0; color:#fff;">🌐 Global Monetization Dashboard</h3>
                 <p style="margin: 5px 0;"><b>Status: {monetization_badge}</b></p>
                 <h2 style="margin: 10px 0; color: #ffffff;">💰 Est. Earnings: ${est_earnings:.2f} USD</h2>
-                <p style="margin:0; font-size:12px;">Saved Method: <b>{user_info.get('payment_method', 'Not Set')}</b> ({user_info.get('account_details', 'N/A')})</p>
+                <p style="margin:0; font-size:12px;">Saved Method: <b>{user_info.get('payment_method', 'Not Set')}</b></p>
             </div>
         """, unsafe_allow_html=True)
         
@@ -1175,7 +1215,7 @@ elif tab == "📤 Create Post / Upload":
         st.warning("Please login to create a post or upload content.")
     else:
         st.subheader("📤 Upload Content (Daily Limits Applied)")
-        st.info("📌 **Daily Upload Rules:** 1 Long Video (10-20 min), 1 Short Video, and 10 Posts allowed per 24 hours.")
+        st.info("📌 **Daily Upload Rules:** Exactly 1 Long Video, 1 Short Video, and 10 Posts allowed per 24 hours.")
         
         st.warning("⚠️ **Global Community Guidelines:** Sexual, adult, or violent content is strictly prohibited. Violating terms will lead to immediate account suspension and loss of earnings.")
         
@@ -1186,6 +1226,7 @@ elif tab == "📤 Create Post / Upload":
             st.caption(f"📊 Today's Post Upload Status: **{current_cnt}/{max_limit}**")
             
             post_text = st.text_area("What's on your mind?")
+            hashtags_input = st.text_input("Hashtags (e.g. #AI #Trending #BD #Tech)")
             img_file = st.file_uploader("Upload Photo (JPG/PNG)", type=["jpg", "png", "jpeg"])
             
             if st.button("🚀 Publish Post"):
@@ -1204,9 +1245,9 @@ elif tab == "📤 Create Post / Upload":
                     conn = get_db_connection()
                     cursor = conn.cursor()
                     cursor.execute("""
-                        INSERT INTO posts (id, uploader_name, uploader_pic, content, image_url, likes, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """, (str(uuid.uuid4()), st.session_state.user, st.session_state.pic, post_text, img_path, 0, today_str))
+                        INSERT INTO posts (id, uploader_name, uploader_pic, content, hashtags, image_url, likes, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (str(uuid.uuid4()), st.session_state.user, st.session_state.pic, post_text, hashtags_input, img_path, 0, today_str))
                     conn.commit()
                     conn.close()
                     
@@ -1222,6 +1263,7 @@ elif tab == "📤 Create Post / Upload":
             st.caption(f"📊 Today's {upload_type} Upload Status: **{current_cnt}/{max_limit}**")
             
             v_title = st.text_input("Video Title", placeholder="Enter a title for your video...")
+            v_hashtags = st.text_input("Video Hashtags (e.g. #Viral #Shorts #BD_AI)")
             vid_file = st.file_uploader("Upload Video File (MP4/MOV)", type=["mp4", "mov", "avi", "mkv"])
             
             v_type_str = "short" if is_short else "long"
@@ -1250,15 +1292,15 @@ elif tab == "📤 Create Post / Upload":
                     cursor.execute("""
                         INSERT INTO videos (
                             id, user_id, video_url, uploader_name, uploader_pic, 
-                            video_type, title, likes, views, views_count, created_at
+                            video_type, title, hashtags, likes, views, views_count, created_at
                         )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (str(uuid.uuid4()), u_id, vid_path, st.session_state.user, st.session_state.pic, v_type_str, v_title.strip(), random.randint(10, 50), 1, 1, today_str))
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (str(uuid.uuid4()), u_id, vid_path, st.session_state.user, st.session_state.pic, v_type_str, v_title.strip(), v_hashtags, random.randint(10, 50), 1, 1, today_str))
                     conn.commit()
                     conn.close()
                     
                     record_daily_upload(st.session_state.user, c_type_key)
-                    st.toast(f"🎉 {upload_type} published successfully!")
+                    st.toast(f"🎉 {upload_type} published successfully with Waterproof Protection!")
                     st.rerun()
 
 elif tab == "🔐 Owner Control Panel":
@@ -1287,7 +1329,7 @@ elif tab == "🔐 Owner Control Panel":
             st.success("✅ Owner profile picture updated successfully for worldwide users!")
             st.rerun()
 
-        st.subheader("🏦 Update Global Manual Payment Information")
+        st.subheader("🏦 Update Global Manual Payment Information (Hidden from Public)")
         current_info = get_owner_payment_info()
         new_info = st.text_area("Edit Manual Payment Details (bKash/Nagad/Bank details for advertisers):", value=current_info)
         
