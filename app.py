@@ -75,7 +75,16 @@ def init_db():
         )
     """)
 
-    # 2. Daily Upload Logs
+    cursor.execute("PRAGMA table_info(users)")
+    existing_cols = [column[1] for column in cursor.fetchall()]
+    if "clean_phone" not in existing_cols:
+        try: cursor.execute("ALTER TABLE users ADD COLUMN clean_phone TEXT")
+        except Exception: pass
+    if "role" not in existing_cols:
+        try: cursor.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
+        except Exception: pass
+
+    # 2. Daily Upload Limits Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS daily_upload_limits (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,7 +142,6 @@ def init_db():
             uploader_name TEXT,
             uploader_pic TEXT,
             video_type TEXT DEFAULT 'long',
-            duration_mins REAL DEFAULT 0.0,
             title TEXT,
             likes INTEGER DEFAULT 0,
             views INTEGER DEFAULT 0,
@@ -169,7 +177,7 @@ def init_db():
         )
     """)
 
-    # Owner Account Setup
+    # Ensure Owner Account Exists securely
     owner_email = "rasohel1234@gmail.com"
     hashed_pw = hashlib.sha256("S$s123456789112233".encode()).hexdigest()
     cursor.execute("SELECT * FROM users WHERE username = ?", (owner_email,))
@@ -185,12 +193,31 @@ def init_db():
 init_db()
 
 # ==========================================
-# 3. HELPER FUNCTIONS
+# 3. HELPER FUNCTIONS & UI HELPERS
 # ==========================================
 def normalize_phone(phone_str):
     if not phone_str:
         return ""
     return "".join(filter(str.isdigit, str(phone_str)))
+
+def mask_phone_number(phone):
+    if not phone:
+        return ""
+    clean_p = normalize_phone(phone)
+    if len(clean_p) >= 10:
+        return "+" + clean_p[:3] + "*****" + clean_p[-3:]
+    elif len(clean_p) > 4:
+        return clean_p[:2] + "****" + clean_p[-2:]
+    return clean_p
+
+def format_value(value):
+    if value is None:
+        return "0"
+    if value >= 1000000:
+        return f"{value/1000000:.1f}M"
+    if value >= 1000:
+        return f"{value/1000:.1f}K"
+    return str(value)
 
 def get_image_base64(image_path):
     if image_path and os.path.exists(image_path):
@@ -201,31 +228,15 @@ def get_image_base64(image_path):
             return None
     return None
 
-def check_daily_limit(username, content_type, limit):
+def get_owner_payment_info():
     conn = get_db_connection()
     cursor = conn.cursor()
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    cursor.execute("""
-        SELECT COUNT(*) as count FROM daily_upload_limits 
-        WHERE username = ? AND content_type = ? AND upload_date = ?
-    """, (username, content_type, today_str))
-    res = cursor.fetchone()
+    cursor.execute("SELECT account_details FROM users WHERE role = 'owner'")
+    row = cursor.fetchone()
     conn.close()
-    count = res['count'] if res else 0
-    return count < limit, count
+    return row['account_details'] if row and row['account_details'] else "সিস্টেমে অতিরিক্ত বিবরণ আপডেট করা হয়নি। অনুগ্রহ করে Owner Control Panel থেকে আপডেট করুন।"
 
-def record_upload(username, content_type):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    cursor.execute("""
-        INSERT INTO daily_upload_limits (username, content_type, upload_date)
-        VALUES (?, ?, ?)
-    """, (username, content_type, today_str))
-    conn.commit()
-    conn.close()
-
-def show_verified_profile(display_name, profile_pic_path=None, subtitle="Official Creator", is_verified=True):
+def show_verified_profile(display_name, profile_pic_path=None, subtitle="Official Global Verified Creator", is_verified=True):
     b64_img = get_image_base64(profile_pic_path)
     if b64_img:
         img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #1877F2;">'
@@ -279,8 +290,8 @@ def render_comments_section(post_id):
             
         if st.session_state.user:
             with st.form(key=f"c_form_{post_id}"):
-                c_input = st.text_input("Write a comment...", key=f"inp_{post_id}")
-                gift_selected = st.selectbox("🎁 Select Gift", ["None", "🎁 Gift Box (+10 pts)", "💎 Diamond (+50 pts)", "🌟 Star (+20 pts)"], key=f"gft_{post_id}")
+                c_input = st.text_input("Write a comment...", key=f"inp_{post_id}", placeholder="Share your thoughts globally...")
+                gift_selected = st.selectbox("🎁 Select Gift", ["None", "🎁 Gift Box (+10 pts)", "💎 Diamond (+50 pts)", "🌟 Star (+20 pts)", "🔥 Fire (+15 pts)"], key=f"gft_{post_id}")
                 submit_btn = st.form_submit_button("Post Comment")
                 
                 if submit_btn:
@@ -298,7 +309,7 @@ def render_comments_section(post_id):
                         st.warning("Comment cannot be empty!")
                         conn.close()
         else:
-            st.info("Log in to leave a comment.")
+            st.info("Please log in to leave a comment.")
             conn.close()
 
 # ==========================================
@@ -312,12 +323,30 @@ st.markdown("""
     }
     textarea, input { color: #ffffff !important; background-color: #242526 !important; }
     .feed-card { background: #18191a; border: 1px solid #2d2f31; border-radius: 14px; padding: 16px; margin-bottom: 20px; }
+    .monetization-box { background: linear-gradient(135deg, #00b09b, #96c93d); color: white; padding: 18px; border-radius: 12px; margin-top: 15px; margin-bottom: 15px; }
+    .btn-direct { display: block; width: 100%; padding: 10px; margin: 6px 0; color: white !important; text-align: center; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 14px; }
+    .bg-1 { background: linear-gradient(135deg, #FF416C, #FF4B2B); }
+    .bg-2 { background: linear-gradient(135deg, #1DE9B6, #26A69A); }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 5. SESSION INITIALIZATION
+# 5. MAIN HEADER & SESSION INITIALIZATION
 # ==========================================
+if os.path.exists("logo.jpg"):
+    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+    with col_l2:
+        st.image("logo.jpg", use_container_width=True)
+else:
+    st.markdown("""
+        <div style="text-align: center; padding: 10px 0;">
+            <h1 style="color: #00c853; font-weight: 900; margin: 0;">🔥 BD AI Book — Global Platform 🔥</h1>
+            <p style="color: #b0b3b8; margin: 0;">Artificial Intelligence & Learning Platform for Everyone Worldwide</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.divider()
+
 if 'user' not in st.session_state:
     st.session_state.user = None
     st.session_state.user_phone = None
@@ -329,39 +358,76 @@ if 'generated_otp' not in st.session_state:
     st.session_state.generated_otp = None
 if 'otp_sent_to' not in st.session_state:
     st.session_state.otp_sent_to = None
+if 'show_reset_mode' not in st.session_state:
+    st.session_state.show_reset_mode = False
+
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
-
-# Main Header
-st.markdown("""
-    <div style="text-align: center; padding: 10px 0;">
-        <h1 style="color: #00c853; font-weight: 900; margin: 0;">🔥 BD AI Book — Global Platform 🔥</h1>
-        <p style="color: #b0b3b8; margin: 0;">Artificial Intelligence & Learning Platform for Everyone Worldwide</p>
-    </div>
-""", unsafe_allow_html=True)
-st.divider()
 
 # ==========================================
 # 6. SIDEBAR AUTHENTICATION
 # ==========================================
+if os.path.exists("logo.jpg"):
+    st.sidebar.image("logo.jpg", use_container_width=True)
+
+st.sidebar.header("🔍 Search Global Creators")
+search_query = st.sidebar.text_input("Type name or username...", placeholder="Search creators globally...")
+
+if search_query.strip():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT username, full_name, profile_pic, followers_count FROM users WHERE username LIKE ? OR full_name LIKE ?", 
+                   (f"%{search_query}%", f"%{search_query}%"))
+    found_users = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    
+    if found_users:
+        st.sidebar.markdown(f"**Found ({len(found_users)}) Users:**")
+        for u in found_users:
+            u_disp = u.get('full_name') or u['username']
+            st.sidebar.markdown(f"👤 **{u_disp}** (@{u['username']})\n👥 Followers: {u.get('followers_count', 0)}")
+            if st.sidebar.button(f"➕ Follow @{u['username']}", key=f"s_fol_{u['username']}"):
+                conn = get_db_connection()
+                c = conn.cursor()
+                c.execute("UPDATE users SET followers_count = followers_count + 1 WHERE username = ?", (u['username'],))
+                conn.commit()
+                conn.close()
+                st.toast(f"Followed @{u['username']}!")
+                st.rerun()
+            st.sidebar.markdown("---")
+    else:
+        st.sidebar.info("No user found with this name.")
+
 st.sidebar.header("📱 User Authentication")
 
 if not st.session_state.user:
-    # Generic Placeholder to hide personal email/phone from public
-    phone_input = st.sidebar.text_input("Phone / Email", placeholder="user@example.com or +880...", key="auth_phone")
+    phone_input = st.sidebar.text_input(
+        "Phone / Email", 
+        placeholder="e.g. rasohel1234@gmail.com or 017...", 
+        key="auth_phone"
+    )
     
     if phone_input.strip():
         clean_input = normalize_phone(phone_input)
+        
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = ? OR clean_phone = ? OR phone_number = ?", 
-                       (phone_input.strip(), clean_input, phone_input.strip()))
+        
+        cursor.execute("""
+            SELECT * FROM users 
+            WHERE username = ?
+               OR clean_phone = ? 
+               OR clean_phone LIKE ? 
+               OR phone_number = ?
+        """, (phone_input.strip(), clean_input, f"%{clean_input[-10:]}", phone_input.strip()))
+        
         user_record = cursor.fetchone()
         conn.close()
         
         if user_record:
-            st.sidebar.success(f"✅ Account Recognized")
-            login_pass = st.sidebar.text_input("Password", type="password", key="login_pass")
+            st.sidebar.success(f"✅ User Found: **{user_record['username']}**")
+            
+            login_pass = st.sidebar.text_input("Enter Password to Login", type="password", key="login_pass")
             
             if st.sidebar.button("🔓 Login Now"):
                 hashed_input = hashlib.sha256(login_pass.encode()).hexdigest()
@@ -371,55 +437,138 @@ if not st.session_state.user:
                     st.session_state.pic = user_record['profile_pic']
                     st.session_state.is_verified = 1
                     st.session_state.role = user_record['role']
+                    st.session_state.show_reset_mode = False
                     st.sidebar.success("🎉 Logged in Successfully.")
                     st.rerun()
                 else:
                     st.sidebar.error("❌ Incorrect Password!")
+                    st.session_state.show_reset_mode = True
+
+            if st.session_state.show_reset_mode or st.sidebar.checkbox("🔑 Forgot / Reset Password?"):
+                st.sidebar.warning("🔐 Password Recovery via WhatsApp OTP")
+                
+                if st.sidebar.button("📲 Send Recovery OTP via WhatsApp"):
+                    otp_code = str(random.randint(100000, 999999))
+                    st.session_state.generated_otp = otp_code
+                    st.session_state.otp_sent_to = clean_input
+                    
+                    msg = f"Your BD AI Book Password Reset OTP Code is: {otp_code}"
+                    wa_url = f"https://wa.me/{clean_input}?text={urllib.parse.quote(msg)}"
+                    
+                    st.sidebar.success(f"OTP Generated: **{otp_code}**")
+                    st.sidebar.markdown(f"[👉 Click to Send OTP via WhatsApp]({wa_url})", unsafe_allow_html=True)
+                
+                if st.session_state.generated_otp and st.session_state.otp_sent_to == clean_input:
+                    entered_reset_otp = st.sidebar.text_input("Enter 6-Digit OTP", max_chars=6, key="reset_otp_input")
+                    reset_new_pass = st.sidebar.text_input("Set New Password", type="password", key="reset_pass_input")
+                    
+                    if st.sidebar.button("🔒 Confirm & Update Password"):
+                        if entered_reset_otp != st.session_state.generated_otp:
+                            st.sidebar.error("❌ Invalid OTP Code!")
+                        elif not reset_new_pass.strip():
+                            st.sidebar.error("❌ Please enter a new password!")
+                        else:
+                            conn = get_db_connection()
+                            cursor = conn.cursor()
+                            cursor.execute("UPDATE users SET password = ? WHERE id = ?", (reset_new_pass.strip(), user_record['id']))
+                            conn.commit()
+                            conn.close()
+                            
+                            st.session_state.user = user_record['username']
+                            st.session_state.user_phone = user_record['phone_number']
+                            st.session_state.pic = user_record['profile_pic']
+                            st.session_state.is_verified = 1
+                            st.session_state.role = user_record['role']
+                            st.session_state.generated_otp = None
+                            st.session_state.show_reset_mode = False
+                            
+                            st.sidebar.success("🎉 Password Updated & Logged in!")
+                            st.rerun()
+
         else:
             st.sidebar.info("🆕 New User Registration")
+            
             if st.sidebar.button("📲 Send WhatsApp OTP"):
                 otp_code = str(random.randint(100000, 999999))
                 st.session_state.generated_otp = otp_code
                 st.session_state.otp_sent_to = clean_input
-                msg = f"Your BD AI Book Verification OTP is: {otp_code}"
+                
+                msg = f"Your BD AI Book Global Verification OTP is: {otp_code}"
                 wa_url = f"https://wa.me/{clean_input}?text={urllib.parse.quote(msg)}"
-                st.sidebar.success(f"OTP: **{otp_code}**")
-                st.sidebar.markdown(f"[👉 Send OTP via WhatsApp]({wa_url})", unsafe_allow_html=True)
+                
+                st.sidebar.success(f"OTP Code Generated: **{otp_code}**")
+                st.sidebar.markdown(f"[👉 Click to Send OTP via WhatsApp]({wa_url})", unsafe_allow_html=True)
             
             if st.session_state.generated_otp and st.session_state.otp_sent_to == clean_input:
                 entered_otp = st.sidebar.text_input("Enter 6-Digit OTP", max_chars=6)
-                desired_username = st.sidebar.text_input("Create Username")
+                desired_username = st.sidebar.text_input("Create Username", placeholder="e.g. AlexSmith")
                 new_password = st.sidebar.text_input("Create Password", type="password")
                 
-                if st.sidebar.button("🔒 Save Account"):
-                    if entered_otp != st.session_state.generated_otp or not desired_username.strip() or not new_password:
-                        st.sidebar.error("❌ Invalid details or OTP!")
+                if st.sidebar.button("🔒 Verify OTP & Save Account"):
+                    if entered_otp != st.session_state.generated_otp:
+                        st.sidebar.error("❌ Invalid OTP Code!")
+                    elif not desired_username.strip() or not new_password:
+                        st.sidebar.error("❌ Please fill Username and Password!")
                     else:
                         conn = get_db_connection()
                         cursor = conn.cursor()
                         today_str = datetime.now().strftime("%Y-%m-%d")
+                        
                         try:
                             cursor.execute("""
                                 INSERT INTO users (username, phone_number, clean_phone, password, full_name, is_verified, created_at)
                                 VALUES (?, ?, ?, ?, ?, 1, ?)
                             """, (desired_username.strip(), phone_input.strip(), clean_input, new_password, desired_username.strip(), today_str))
+                            
                             conn.commit()
                             conn.close()
+                            
                             st.session_state.user = desired_username.strip()
+                            st.session_state.user_phone = phone_input.strip()
+                            st.session_state.pic = None
+                            st.session_state.is_verified = 1
                             st.session_state.role = 'user'
-                            st.sidebar.success("🎉 Account Created Successfully!")
+                            st.session_state.generated_otp = None
+                            st.session_state.otp_sent_to = None
+                            
+                            st.sidebar.success("🎉 Account Created & Logged in!")
                             st.rerun()
                         except sqlite3.IntegrityError:
                             conn.close()
-                            st.sidebar.error("❌ Username or Phone already exists!")
+                            st.sidebar.error("❌ Phone number or Username already registered!")
+
 else:
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT profile_pic, phone_number, role FROM users WHERE username = ?", (st.session_state.user,))
+    res = c.fetchone()
+    if res:
+        if res['profile_pic']:
+            st.session_state.pic = res['profile_pic']
+        if res['phone_number']:
+            st.session_state.user_phone = res['phone_number']
+        st.session_state.role = res['role']
+    conn.close()
+
+    if st.session_state.pic and os.path.exists(st.session_state.pic):
+        st.sidebar.image(st.session_state.pic, width=90)
+        
+    masked_active_phone = mask_phone_number(st.session_state.user_phone or "")
     st.sidebar.markdown(f"Welcome, **{st.session_state.user}** ✔️")
+    if masked_active_phone:
+        st.sidebar.caption(f"📱 Phone: {masked_active_phone}")
+        
     if st.sidebar.button("🚪 Logout"):
         st.session_state.user = None
+        st.session_state.user_phone = None
+        st.session_state.pic = None
+        st.session_state.is_verified = 0
         st.session_state.role = 'user'
+        st.session_state.generated_otp = None
+        st.session_state.show_reset_mode = False
         st.rerun()
 
-nav_tabs = ["🌍 World Feed", "📱 Shorts Feed", "📢 Advertiser Hub", "💬 Support", "💳 Payout & Monetization", "👤 Profile & Status", "📤 Upload Content"]
+nav_tabs = ["🌍 World Feed", "📱 Scrolle Shorts Feed", "📢 Advertiser Hub", "💬 WhatsApp Support Desk", "💳 Payout & Monetization", "👤 My Profile & Earnings", "📤 Create Post / Upload"]
 if st.session_state.role == 'owner':
     nav_tabs.append("🔐 Owner Control Panel")
 
@@ -433,306 +582,622 @@ st.session_state.active_tab = tab
 if tab == "🌍 World Feed":
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM posts")
-    posts = [dict(r) for r in cursor.fetchall()]
-    cursor.execute("SELECT * FROM videos WHERE video_type != 'short'")
-    videos = [dict(r) for r in cursor.fetchall()]
     
-    feed = posts + videos
-    random.shuffle(feed)
-    
-    if not feed:
-        st.info("No content available yet.")
-    else:
-        for item in feed:
-            st.markdown('<div class="feed-card">', unsafe_allow_html=True)
-            show_verified_profile(item.get('uploader_name', 'User'), profile_pic_path=item.get('uploader_pic'))
-            if item.get('content'):
-                st.write(item['content'])
-            if item.get('image_url') and os.path.exists(item['image_url']):
-                st.image(item['image_url'], use_container_width=True)
-            if item.get('video_url') and os.path.exists(item['video_url']):
-                st.video(item['video_url'])
-            show_auto_moving_banner()
-            render_comments_section(item['id'])
-            st.markdown('</div>', unsafe_allow_html=True)
-    conn.close()
+    # Active Ad Display
+    cursor.execute("SELECT content_link, ad_type FROM advertisements WHERE status = 'Active'")
+    active_ads = cursor.fetchall()
+    if active_ads:
+        st.subheader("📢 Sponsored Ads")
+        for ad in active_ads:
+            st.success(f"Sponsored ({ad['ad_type']}): {ad['content_link']}")
+        st.divider()
 
-elif tab == "📱 Shorts Feed":
-    st.subheader("📱 Vertical Shorts")
+    try:
+        cursor.execute("SELECT * FROM videos WHERE video_type = 'short' ORDER BY created_at DESC")
+        short_videos = [dict(r) for r in cursor.fetchall()]
+        
+        if short_videos:
+            st.markdown('<h3 style="color: #00c853;">▶️ Scrolle Shorts Feed</h3>', unsafe_allow_html=True)
+            cols = st.columns(min(len(short_videos), 3))
+            for i, sv in enumerate(short_videos[:3]):
+                with cols[i]:
+                    st.markdown(f"**{sv.get('uploader_name', 'User')}** ✔️")
+                    if os.path.exists(sv['video_url']):
+                        st.video(sv['video_url'], format="video/mp4")
+                    
+                    if st.button("▶️ Watch in Shorts Feed", key=f"open_short_{sv['id']}"):
+                        st.session_state.active_tab = "📱 Scrolle Shorts Feed"
+                        st.rerun()
+                    st.caption(f"👁️ {format_value(sv.get('views', 0))} views")
+            st.divider()
+    except Exception:
+        pass
+
+    try:
+        cursor.execute("SELECT * FROM videos WHERE video_type != 'short'")
+        videos = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute("SELECT * FROM posts")
+        posts = [dict(row) for row in cursor.fetchall()]
+
+        combined_feed = videos + posts
+        random.shuffle(combined_feed)
+
+        if not combined_feed:
+            st.info("No posts or videos available. Create content from the Upload section.")
+
+        for index, item in enumerate(combined_feed):
+            item_id = str(item["id"])
+            uploader_name = item.get("uploader_name", "Unknown User")
+            
+            cursor.execute("SELECT profile_pic FROM users WHERE username = ?", (uploader_name,))
+            u_pic_res = cursor.fetchone()
+            uploader_pic = u_pic_res['profile_pic'] if u_pic_res and u_pic_res['profile_pic'] else item.get('uploader_pic')
+            
+            created_at = item.get("created_at", "Recently")
+
+            st.markdown('<div class="feed-card">', unsafe_allow_html=True)
+            show_verified_profile(uploader_name, profile_pic_path=uploader_pic, subtitle=f"Posted {created_at}", is_verified=True)
+
+            if "content" in item and item["content"]:
+                st.markdown(f"### {item['content']}")
+
+            if "image_url" in item and item["image_url"] and os.path.exists(item["image_url"]):
+                st.image(item["image_url"], use_container_width=True)
+
+            if "video_url" in item and os.path.exists(item["video_url"]):
+                if item.get("title"):
+                    st.markdown(f"#### {item.get('title')}")
+                st.video(item["video_url"], format="video/mp4")
+                
+                new_views = item.get("views", 0) + 1
+                cursor.execute("UPDATE videos SET views = ?, views_count = ? WHERE id = ?", (new_views, new_views, item_id))
+                conn.commit()
+
+            show_auto_moving_banner()
+
+            st.write(f"❤️ **{format_value(item.get('likes', 0))}** Likes")
+            st.markdown(f"""
+                <a href="{SMART_LINK}" target="_blank" class="btn-direct bg-1">💰 Claim Monetization Reward</a>
+                <a href="{SMART_LINK}" target="_blank" class="btn-direct bg-2">💎 Premium Bonus Link</a>
+            """, unsafe_allow_html=True)
+
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button(f"❤️ Like ({format_value(item.get('likes', 0))})", key=f"lk_{item_id}_{index}"):
+                    table_name = "posts" if "content" in item else "videos"
+                    cursor.execute(f"UPDATE {table_name} SET likes = likes + 1 WHERE id = ?", (item_id,))
+                    conn.commit()
+                    st.rerun()
+            with c2:
+                if st.button("➕ Follow", key=f"fl_{item_id}_{index}"):
+                    cursor.execute("UPDATE users SET followers_count = followers_count + 1 WHERE username = ?", (uploader_name,))
+                    conn.commit()
+                    st.toast(f"Followed {uploader_name} successfully!")
+
+            render_comments_section(item_id)
+
+            st.markdown('</div>', unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Feed Error: {e}")
+    finally:
+        conn.close()
+
+elif tab == "📱 Scrolle Shorts Feed":
+    st.subheader("📱 TikTok & Shorts Vertical Scroll Feed")
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM videos WHERE video_type = 'short' ORDER BY created_at DESC")
-    shorts = [dict(r) for r in cursor.fetchall()]
-    
-    for s in shorts:
-        show_verified_profile(s.get('uploader_name', 'User'), profile_pic_path=s.get('uploader_pic'))
-        st.caption(s.get('title'))
-        if os.path.exists(s['video_url']):
-            st.video(s['video_url'])
-        render_comments_section(s['id'])
-        st.divider()
-    conn.close()
+    short_vids = [dict(r) for r in cursor.fetchall()]
+
+    if not short_vids:
+        st.info("No shorts videos found.")
+        conn.close()
+    else:
+        for idx, sv in enumerate(short_vids):
+            st.markdown("---")
+            col_main, col_side = st.columns([3, 1])
+            
+            cursor.execute("SELECT profile_pic FROM users WHERE username = ?", (sv.get('uploader_name'),))
+            u_pic_res = cursor.fetchone()
+            uploader_pic = u_pic_res['profile_pic'] if u_pic_res and u_pic_res['profile_pic'] else sv.get('uploader_pic')
+
+            with col_main:
+                show_verified_profile(sv.get("uploader_name", "User"), profile_pic_path=uploader_pic, subtitle="Official Shorts Creator", is_verified=True)
+                st.markdown(f"**{sv.get('title', 'Short Video')}**")
+                if os.path.exists(sv["video_url"]):
+                    st.video(sv["video_url"], format="video/mp4")
+                
+                cursor.execute("UPDATE videos SET views = views + 1, views_count = views_count + 1 WHERE id = ?", (sv["id"],))
+                conn.commit()
+                
+                render_comments_section(sv["id"])
+
+            with col_side:
+                st.write(" ")
+                if st.button(f"❤️ {format_value(sv.get('likes', 0))}", key=f"sh_like_{sv['id']}"):
+                    cursor.execute("UPDATE videos SET likes = likes + 1 WHERE id = ?", (sv["id"],))
+                    conn.commit()
+                    st.toast("Liked!")
+                    st.rerun()
+                
+                st.caption(f"👁️ {format_value(sv.get('views', 0))}")
+
+                if st.button("➕ Follow", key=f"sh_fol_{sv['id']}"):
+                    cursor.execute("UPDATE users SET followers_count = followers_count + 1 WHERE username = ?", (sv.get("uploader_name"),))
+                    conn.commit()
+                    st.toast("Followed Creator!")
+        conn.close()
 
 elif tab == "📢 Advertiser Hub":
-    st.title("📢 Advertiser Portal")
-    if not st.session_state.user:
-        st.warning("⚠️ Please log in from the left sidebar to view payment options and submit advertisements.")
-    else:
-        region = st.selectbox("Region", ["Bangladesh (BD)", "International (Global)"])
-        price = 1000 if "Bangladesh" in region else 30
-        duration = st.number_input("Months", min_value=1, value=1)
-        st.metric("Total Payable", f"{price * duration} {'BDT' if 'Bangladesh' in region else 'USD'}")
-        
-        pay_method = st.radio("Payment Method", ["bKash", "Nagad", "Bank Transfer (Islami Bank)", "Crypto Wallet (USDT)"])
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT account_details FROM users WHERE role = 'owner'")
-        owner = cursor.fetchone()
-        owner_details = owner['account_details'] if owner and owner['account_details'] else "Details available upon submission."
-        conn.close()
-        
-        if pay_method == "bKash": st.info(f"bKash Account: {owner_details}")
-        elif pay_method == "Nagad": st.warning(f"Nagad Account: {owner_details}")
-        elif pay_method == "Bank Transfer (Islami Bank)": st.code(f"Bank Transfer Details: {owner_details}")
-        elif pay_method == "Crypto Wallet (USDT)": st.code(f"USDT Address: {owner_details}")
-        
-        email = st.text_input("Your Email Address")
-        link = st.text_input("Ad Content Link (Video / Image URL)")
-        trx = st.text_input("Transaction ID / Reference Number (TrxID)")
-        
-        if st.button("Submit Advertisement for Review"):
-            if email and link and trx:
-                conn = get_db_connection()
-                cursor = conn.cursor()
-                cursor.execute("INSERT INTO advertisements (advertiser_email, ad_type, content_link, duration_months, region, payment_method, amount, trx_id) VALUES (?, 'Banner', ?, ?, ?, ?, ?, ?)",
-                               (email, link, duration, region, pay_method, price*duration, trx))
-                conn.commit()
-                conn.close()
-                st.success("Ad submitted successfully for approval!")
-            else:
-                st.error("Please fill all required fields!")
+    st.title("📢 Advertiser Ad Network Portal")
+    st.info("অ্যাডভারটাইজারদের জন্য ওনার পেমেন্ট ইনফরমেশন:")
+    st.markdown(f"**🏦 Global Owner Payment Details:**\n\n{get_owner_payment_info()}")
+    st.divider()
 
-elif tab == "💬 Support":
-    st.subheader("💬 Official Support Desk")
-    wa_link = f"https://wa.me/8801722003172?text={urllib.parse.quote('Hello Support!')}"
-    st.markdown(f"[📲 Open Official WhatsApp Support Desk]({wa_link})")
+    st.write("আপনার বিজ্ঞাপনের ধরন এবং স্থান অনুযায়ী পেমেন্ট করে ফর্মটি ফিলাপ করুন।")
+    region = st.selectbox("Select Your Region / দেশের ধরণ", ["Bangladesh (BD)", "International (Global)"])
+    
+    if "Bangladesh" in region:
+        currency = "BDT"
+        price_per_month = 1000
+        st.info("💰 **বাংলাদেশ মূল্য নির্ধারণ:** ১ মাসের বিজ্ঞাপনের জন্য ৳১,০০০ টাকা।")
+    else:
+        currency = "USD"
+        price_per_month = 30
+        st.info("🌐 **International Pricing:** $30 USD per month.")
+
+    duration = st.number_input("Duration (Months)", min_value=1, value=1)
+    total_amount = price_per_month * duration
+    st.metric(label="Total Payable Amount", value=f"{total_amount} {currency}")
+
+    st.markdown("---")
+    st.subheader("💳 Select Payment Method & Transfer Money")
+
+    pay_method = st.radio("Choose Method:", ["bKash", "Nagad", "Bank Transfer (Islami Bank)", "Crypto Wallet (USDT)"])
+
+    if pay_method == "bKash":
+        st.success("📱 **bKash Personal Number:** `01302134435` (Send Money)")
+    elif pay_method == "Nagad":
+        st.warning("📱 **Nagad Personal Number:** `01722003172` (Send Money)")
+    elif pay_method == "Bank Transfer (Islami Bank)":
+        st.code("""
+Bank Name: Islami Bank Bangladesh Limited
+Branch: Lalmonirhat Branch
+Account Name: MD. SOHEL RANA
+Account Number: 20502530202612312
+        """)
+    elif pay_method == "Crypto Wallet (USDT)":
+        st.code("""
+USDT (TRC20 Network): TM6DAbNuF2kaMaRoC8HKi2G8Gi5hVWnbCP
+USDT (BSC BEP20 Network): 0x53052be072029dd76e02b01d925e29b03c5294ad
+        """)
+
+    st.markdown("---")
+    st.subheader("📝 Submit Ad Details")
+    adv_email = st.text_input("Your Email Address")
+    ad_type = st.selectbox("Ad Type", ["Short Video (10 Sec)", "Long Video", "Image Post / Banner"])
+    content_link = st.text_input("Ad Content Link (Video / Image URL)")
+    trx_id = st.text_input("Transaction ID / Reference Number (TrxID)")
+
+    if st.button("Submit Advertisement for Review"):
+        if adv_email and content_link and trx_id:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO advertisements 
+                (advertiser_email, ad_type, content_link, duration_months, region, payment_method, amount, trx_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (adv_email, ad_type, content_link, duration, region, pay_method, total_amount, trx_id))
+            conn.commit()
+            conn.close()
+            st.success("✅ আপনার বিজ্ঞাপন আবেদনটি সফলভাবে জমা হয়েছে! পেমেন্ট যাচাই করে অ্যাডমিন শীঘ্রই লাইভ করবে।")
+        else:
+            st.error("দয়া করে সমস্ত ফিল্ড সঠিকভাবে পূরণ করুন।")
+
+elif tab == "💬 WhatsApp Support Desk":
+    st.subheader("💬 Official WhatsApp Support Desk")
+    st.caption("Contact us directly from anywhere in the world to ask questions or resolve issues.")
+    
+    encoded_msg = urllib.parse.quote("Hello! I am contacting you from BD AI Book App.")
+    wa_link = f"https://wa.me/8801722003172?text={encoded_msg}"
+    
+    st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #075E54, #128C7E); padding: 25px; border-radius: 15px; color: white; text-align: center; border: 1px solid #25D366; margin: 20px 0;">
+            <h2 style="margin-top:0; color: #ffffff;">🌐 Official WhatsApp Support Desk</h2>
+            <p style="font-size: 15px; color: #e0e0e0; margin-bottom: 20px;">
+                Click below to send messages or feedback directly to our support team worldwide.
+            </p>
+            <a href="{wa_link}" target="_blank" style="
+                background-color: #25D366; 
+                color: #121212; 
+                padding: 14px 30px; 
+                text-decoration: none; 
+                font-weight: bold; 
+                font-size: 17px;
+                border-radius: 30px; 
+                display: inline-block;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
+                📲 Send WhatsApp Message / Photo
+            </a>
+            <p style="font-size: 12px; color: #ffeb3b; margin-top: 20px; margin-bottom: 0;">
+                ⚠️ <b>Note:</b> Only text messages and file sharing are supported.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
 
 elif tab == "💳 Payout & Monetization":
-    st.subheader("💳 Payout Account Details")
+    st.subheader("🏦 Global Monetization, Card & Bank Setup")
+    
     if not st.session_state.user:
-        st.warning("⚠️ Please log in to view or update your payout account details.")
+        st.warning("Please login to manage your Bank and Payout details.")
     else:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT account_details FROM users WHERE username = ?", (st.session_state.user,))
-        user_data = cursor.fetchone()
-        current_acc = user_data['account_details'] if user_data and user_data['account_details'] else ""
+        cursor.execute("SELECT * FROM bank_details WHERE username = ?", (st.session_state.user,))
+        existing_bank = cursor.fetchone()
+        bank_data = dict(existing_bank) if existing_bank else {}
         
-        acc_num = st.text_input("Bank Account / Mobile Wallet Number", value=current_acc)
-        if st.button("Save Payout Information"):
-            cursor.execute("UPDATE users SET account_details = ? WHERE username = ?", (acc_num, st.session_state.user))
-            conn.commit()
-            st.success("Payout details saved successfully!")
+        with st.form("bank_setup_form"):
+            st.markdown("### 🌍 Select Preferred Payment Method")
+            
+            pay_method = st.selectbox(
+                "Payment Category",
+                [
+                    "💳 Visa / Mastercard / Debit Card (Worldwide)",
+                    "🏦 Direct Bank Transfer (Local / IBAN)",
+                    "🌐 Global Wallets (Payoneer / Wise / PayPal)",
+                    "📱 Mobile Banking (bKash/Nagad/Rocket/Others)"
+                ],
+                index=0
+            )
+            
+            user_country = st.text_input("Country / দেশ", value=bank_data.get("country", ""), placeholder="e.g. USA, UK, UAE, Bangladesh, India, Canada...")
+            
+            st.markdown("#### 💳 Visa / Mastercard / Debit Card Details (Global)")
+            c_num = st.text_input("Card Number", value=bank_data.get("card_number", ""), placeholder="16-digit card number")
+            col_c1, col_c2 = st.columns(2)
+            with col_c1:
+                c_holder = st.text_input("Card Holder Name", value=bank_data.get("card_holder", ""), placeholder="Name printed on card")
+            with col_c2:
+                c_exp = st.text_input("Expiry Date (MM/YY)", value=bank_data.get("card_expiry", ""), placeholder="MM/YY")
+                
+            st.markdown("#### 🏦 Official Bank Account Details")
+            b_name = st.text_input("Bank Name", value=bank_data.get("bank_name", ""), placeholder="e.g. Chase, HSBC, Citi, Islami Bank...")
+            b_branch = st.text_input("Branch Name / Location", value=bank_data.get("branch_name", ""))
+            acc_holder = st.text_input("Account Holder Name", value=bank_data.get("account_name", ""))
+            acc_num = st.text_input("Account Number / IBAN", value=bank_data.get("account_number", ""))
+            
+            c_r1, c_r2 = st.columns(2)
+            with c_r1:
+                routing = st.text_input("Routing / ABA / Sort Code", value=bank_data.get("routing_number", ""))
+            with c_r2:
+                swift = st.text_input("SWIFT / BIC Code", value=bank_data.get("swift_code", ""))
+                
+            st.markdown("#### 🌐 Global Wallet / Mobile Banking")
+            g_wallet = st.text_input("Payoneer / Wise Email / PayPal", value=bank_data.get("global_wallet", ""))
+            m_bank = st.text_input("Mobile Banking / Local Wallet Number", value=bank_data.get("mobile_banking", ""))
+            
+            save_bank_btn = st.form_submit_button("💾 Save Payout Information")
+            
+            if save_bank_btn:
+                now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+                if existing_bank:
+                    cursor.execute("""
+                        UPDATE bank_details 
+                        SET payment_type = ?, country = ?, card_number = ?, card_holder = ?, card_expiry = ?,
+                            bank_name = ?, branch_name = ?, account_name = ?, account_number = ?, routing_number = ?, swift_code = ?,
+                            global_wallet = ?, mobile_banking = ?, updated_at = ?
+                        WHERE username = ?
+                    """, (pay_method, user_country, c_num, c_holder, c_exp, b_name, b_branch, acc_holder, acc_num, routing, swift, g_wallet, m_bank, now_str, st.session_state.user))
+                else:
+                    cursor.execute("""
+                        INSERT INTO bank_details (username, payment_type, country, card_number, card_holder, card_expiry, bank_name, branch_name, account_name, account_number, routing_number, swift_code, global_wallet, mobile_banking, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (st.session_state.user, pay_method, user_country, c_num, c_holder, c_exp, b_name, b_branch, acc_holder, acc_num, routing, swift, g_wallet, m_bank, now_str))
+                
+                p_summary = f"{pay_method} ({c_num[-4:] if c_num else b_name or m_bank or g_wallet})"
+                cursor.execute("UPDATE users SET payment_method = ?, account_details = ? WHERE username = ?", (pay_method, p_summary, st.session_state.user))
+                
+                conn.commit()
+                st.success("✅ Payout Information Saved Successfully!")
+                st.rerun()
+                
         conn.close()
 
-elif tab == "👤 Profile & Status":
+elif tab == "👤 My Profile & Earnings":
     if not st.session_state.user:
-        st.warning("Please log in to view your profile.")
+        st.warning("Please login to view your profile.")
     else:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
         cursor.execute("SELECT * FROM users WHERE username = ?", (st.session_state.user,))
-        u = cursor.fetchone()
+        raw_user = cursor.fetchone()
+        user_info = dict(raw_user) if raw_user else {}
         
-        followers = u['followers_count'] or 0
-        watch_hours = (u['watch_time_mins'] or 0.0) / 60.0
-        m_status = u['monetization_status'] or 'none'
+        display_name = user_info.get("full_name") or st.session_state.user
+        pic_path = user_info.get("profile_pic", st.session_state.pic)
+        masked_phone = mask_phone_number(user_info.get("phone_number", ""))
         
-        st.subheader(f"👤 {st.session_state.user}")
-        st.write(f"👥 Followers: **{followers}/300** | ⏱️ Watch Time: **{watch_hours:.1f}/3000 Hours**")
-        
-        st.progress(min(followers / 300.0, 1.0))
-        st.progress(min(watch_hours / 3000.0, 1.0))
-        
-        if m_status == 'none':
-            if followers >= 300 and watch_hours >= 3000.0:
-                if st.button("📩 Apply for Monetization"):
-                    cursor.execute("UPDATE users SET monetization_status = 'pending' WHERE username = ?", (st.session_state.user,))
+        with st.expander("⚙️ Edit Profile & Change Picture / Password", expanded=False):
+            with st.form("edit_profile_form"):
+                st.markdown("### 🖼️ Personal Information & Picture")
+                new_full_name = st.text_input("Full Name", value=user_info.get("full_name") or "")
+                new_bio = st.text_area("Bio / Description", value=user_info.get("bio") or "")
+                new_nid = st.text_input("NID / Passport / Govt ID Number", value=user_info.get("nid_number") or "")
+                new_address = st.text_input("Address & Country", value=user_info.get("address") or "")
+                
+                st.markdown("### 🔑 Change Password")
+                new_pass_val = st.text_input("New Password (leave empty to keep current)", type="password")
+                
+                uploaded_pic = st.file_uploader("Upload Profile Picture (JPG/PNG)", type=["jpg", "png", "jpeg"])
+                
+                save_profile_btn = st.form_submit_button("💾 Save Profile Details")
+                
+                if save_profile_btn:
+                    saved_pic_path = pic_path
+                    if uploaded_pic:
+                        saved_pic_path = os.path.join(PROFILE_DIR, f"pic_{st.session_state.user}_{uuid.uuid4()}.jpg")
+                        with open(saved_pic_path, "wb") as f:
+                            f.write(uploaded_pic.getvalue())
+                        st.session_state.pic = saved_pic_path
+                        
+                        cursor.execute("UPDATE videos SET uploader_pic = ? WHERE uploader_name = ?", (saved_pic_path, st.session_state.user))
+                        cursor.execute("UPDATE posts SET uploader_pic = ? WHERE uploader_name = ?", (saved_pic_path, st.session_state.user))
+                    
+                    pass_to_update = new_pass_val.strip() if new_pass_val.strip() else user_info.get("password")
+                    
+                    cursor.execute("""
+                        UPDATE users 
+                        SET full_name = ?, bio = ?, nid_number = ?, address = ?, profile_pic = ?, password = ?
+                        WHERE username = ?
+                    """, (new_full_name, new_bio, new_nid, new_address, saved_pic_path, pass_to_update, st.session_state.user))
+                    
                     conn.commit()
-                    st.success("Monetization application submitted to Owner for review!")
+                    st.success("✅ Profile updated successfully!")
                     st.rerun()
-            else:
-                st.info("🔒 Monetization Requirements Not Met (300 Followers & 3000 Hours needed).")
-        elif m_status == 'pending':
-            st.warning("⏳ Monetization application is pending Owner Approval.")
-        elif m_status == 'approved':
-            st.success("✅ Monetization Approved & Active!")
-            st.metric("Total Earnings", f"${u['earnings']:.2f} USD")
-            
+
+        cursor.execute("SELECT * FROM videos WHERE uploader_name = ?", (st.session_state.user,))
+        my_videos = [dict(r) for r in cursor.fetchall()]
+        
+        cursor.execute("SELECT * FROM posts WHERE uploader_name = ?", (st.session_state.user,))
+        my_posts = [dict(r) for r in cursor.fetchall()]
+        
+        total_likes = sum([v.get('likes', 0) for v in my_videos]) + sum([p.get('likes', 0) for p in my_posts])
+        total_views = sum([v.get('views', 0) for v in my_videos])
+        
+        followers = user_info.get('followers_count', 0)
+        watch_hours = user_info.get('watch_time_mins', 0.0) / 60.0
+        
+        is_eligible = (followers >= 300) and (watch_hours >= 3000.0)
+        
+        if is_eligible:
+            monetization_badge = "✅ Eligible & Active"
+            est_earnings = (total_views * 0.002) + (total_likes * 0.005) + user_info.get('earnings', 0.0)
+        else:
+            monetization_badge = "🔒 Locked (Requirements not met)"
+            est_earnings = 0.00
+
+        show_verified_profile(display_name, profile_pic_path=pic_path, subtitle=f"{user_info.get('bio') or 'Global Creator'} | Phone: {masked_phone}", is_verified=True)
+        
+        st.write(f"📹 Videos/Shorts: **{len(my_videos)}** | 🖼️ Posts: **{len(my_posts)}** | ❤️ Likes: **{format_value(total_likes)}** | 👁️ Views: **{format_value(total_views)}** | 👥 Followers: **{followers}/300**")
+        
+        st.markdown("#### 📊 Monetization Progress (Requirements: 300 Followers & 3000 Hours)")
+        col_p1, col_p2 = st.columns(2)
+        with col_p1:
+            st.write(f"👥 Followers Goal: **{followers}/300**")
+            st.progress(min(followers / 300.0, 1.0))
+        with col_p2:
+            st.write(f"⏱️ Watch Time Goal: **{watch_hours:.1f}/3000 Hours**")
+            st.progress(min(watch_hours / 3000.0, 1.0))
+
+        st.markdown(f"""
+            <div class="monetization-box">
+                <h3 style="margin:0; color:#fff;">🌐 Global Monetization Dashboard</h3>
+                <p style="margin: 5px 0;"><b>Status: {monetization_badge}</b></p>
+                <h2 style="margin: 10px 0; color: #ffffff;">💰 Est. Earnings: ${est_earnings:.2f} USD</h2>
+                <p style="margin:0; font-size:12px;">Saved Method: <b>{user_info.get('payment_method', 'Not Set')}</b> ({user_info.get('account_details', 'N/A')})</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("### 📽️ My Content Management")
+        
+        tab_v, tab_p = st.tabs(["🎥 My Videos & Shorts", "🖼️ My Image/Text Posts"])
+        
+        with tab_v:
+            if not my_videos:
+                st.caption("No videos uploaded yet.")
+            for mv in my_videos:
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.markdown(f"**{mv.get('title')}** `[{mv.get('video_type', 'long')}]`")
+                    st.caption(f"👁️ {mv.get('views', 0)} Views | ❤️ {mv.get('likes', 0)} Likes | Created: {mv.get('created_at')}")
+                with col2:
+                    if st.button("🗑️ Delete Video", key=f"del_v_{mv['id']}"):
+                        if mv.get('video_url') and os.path.exists(mv.get('video_url')):
+                            try:
+                                os.remove(mv.get('video_url'))
+                            except Exception:
+                                pass
+                        cursor.execute("DELETE FROM videos WHERE id = ?", (mv['id'],))
+                        cursor.execute("DELETE FROM comments WHERE post_id = ?", (mv['id'],))
+                        conn.commit()
+                        st.toast("Video deleted successfully!")
+                        st.rerun()
+
+        with tab_p:
+            if not my_posts:
+                st.caption("No text/image posts created yet.")
+            for mp in my_posts:
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.markdown(f"**Post:** {mp.get('content') or 'Image Post'}")
+                    st.caption(f"❤️ {mp.get('likes', 0)} Likes | Created: {mp.get('created_at')}")
+                with col2:
+                    if st.button("🗑️ Delete Post", key=f"del_p_{mp['id']}"):
+                        if mp.get('image_url') and os.path.exists(mp.get('image_url')):
+                            try:
+                                os.remove(mp.get('image_url'))
+                            except Exception:
+                                pass
+                        cursor.execute("DELETE FROM posts WHERE id = ?", (mp['id'],))
+                        cursor.execute("DELETE FROM comments WHERE post_id = ?", (mp['id'],))
+                        conn.commit()
+                        st.toast("Post deleted successfully!")
+                        st.rerun()
+
         conn.close()
 
-elif tab == "📤 Upload Content":
+elif tab == "📤 Create Post / Upload":
     if not st.session_state.user:
-        st.warning("Please login to upload content.")
+        st.warning("Please login to create a post or upload content.")
     else:
-        st.subheader("📤 Content Upload Hub")
+        st.subheader("📤 Upload Content")
         
-        st.error("""
-            🚨 **STRICT COMMUNITY GUIDELINES & POLICY (Google & Global Compliance):**
-            1. **Original Content Only:** Third-party copyrighted content, watermarked media, or stolen videos are strictly prohibited.
-            2. **Safety First:** Sexual, adult, violent, or misleading content will result in an immediate account ban and forfeiture of earnings.
-            3. **Daily Limits:** Maximum 10 Text/Image Posts, 1 Short Video, and 1 Long Video allowed per day.
-        """)
+        st.warning("⚠️ **Global Community Guidelines:** Sexual, adult, or violent content is strictly prohibited. Violating terms will lead to immediate account suspension and loss of earnings.")
         
-        upload_type = st.radio("Select Content Type:", [
-            "📝 Text/Image Post (Limit: 10/day)", 
-            "📱 Short Video (Limit: 1/day)", 
-            "🎥 Long Video (10-20 Mins, Limit: 1/day)"
-        ])
+        upload_type = st.radio("Select Upload Type:", ["📝 Post/Photo", "🎥 Long Video", "📱 Short Video"])
         
-        if upload_type == "📝 Text/Image Post (Limit: 10/day)":
-            allowed, count = check_daily_limit(st.session_state.user, "post", 10)
-            st.caption(f"Today's Limit Used: {count}/10")
+        if upload_type == "📝 Post/Photo":
+            post_text = st.text_area("What's on your mind?")
+            img_file = st.file_uploader("Upload Photo (JPG/PNG)", type=["jpg", "png", "jpeg"])
             
-            if not allowed:
-                st.error("❌ You have reached your daily limit of 10 posts!")
-            else:
-                post_text = st.text_area("Write your post content...")
-                img_file = st.file_uploader("Attach Image (Optional)", type=["jpg", "png", "jpeg"])
-                
-                if st.button("🚀 Publish Post"):
-                    if not post_text.strip() and not img_file:
-                        st.warning("Please enter text or select an image!")
-                    else:
-                        img_path = None
-                        if img_file:
-                            img_path = os.path.join(IMAGE_DIR, f"img_{uuid.uuid4()}.jpg")
-                            with open(img_path, "wb") as f:
-                                f.write(img_file.getvalue())
-                        
-                        today_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-                        conn = get_db_connection()
-                        cursor = conn.cursor()
-                        cursor.execute("""
-                            INSERT INTO posts (id, uploader_name, uploader_pic, content, image_url, likes, created_at)
-                            VALUES (?, ?, ?, ?, ?, 0, ?)
-                        """, (str(uuid.uuid4()), st.session_state.user, st.session_state.pic, post_text, img_path, today_str))
-                        conn.commit()
-                        conn.close()
-                        
-                        record_upload(st.session_state.user, "post")
-                        st.toast("✅ Post published successfully!")
-                        st.rerun()
-
-        elif upload_type == "📱 Short Video (Limit: 1/day)":
-            allowed, count = check_daily_limit(st.session_state.user, "short", 1)
-            st.caption(f"Today's Limit Used: {count}/1")
+            if st.button("🚀 Publish Post"):
+                if not post_text and not img_file:
+                    st.warning("Please enter text or attach an image!")
+                else:
+                    img_path = None
+                    if img_file:
+                        img_path = os.path.join(IMAGE_DIR, f"img_{uuid.uuid4()}.jpg")
+                        with open(img_path, "wb") as f:
+                            f.write(img_file.getvalue())
+                            
+                    today_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        INSERT INTO posts (id, uploader_name, uploader_pic, content, image_url, likes, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (str(uuid.uuid4()), st.session_state.user, st.session_state.pic, post_text, img_path, 0, today_str))
+                    conn.commit()
+                    conn.close()
+                    st.toast("✅ Post published successfully!")
+                    st.rerun()
+                    
+        else:
+            v_title = st.text_input("Video Title", placeholder="Enter a title for your video...")
+            vid_file = st.file_uploader("Upload Video File (MP4/MOV)", type=["mp4", "mov", "avi", "mkv"])
             
-            if not allowed:
-                st.error("❌ Daily limit reached! You can only upload 1 Short video per day.")
-            else:
-                v_title = st.text_input("Short Video Title")
-                vid_file = st.file_uploader("Select Short Video (MP4)", type=["mp4"])
-                
-                if st.button("🚀 Upload Short"):
-                    if not vid_file or not v_title.strip():
-                        st.warning("Please provide both video title and file!")
-                    else:
-                        vid_path = os.path.join(VIDEO_DIR, f"short_{uuid.uuid4()}.mp4")
-                        with open(vid_path, "wb") as f:
-                            f.write(vid_file.getvalue())
-                        
-                        today_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-                        conn = get_db_connection()
-                        cursor = conn.cursor()
-                        cursor.execute("""
-                            INSERT INTO videos (id, video_url, uploader_name, uploader_pic, video_type, title, likes, views, created_at)
-                            VALUES (?, ?, ?, ?, 'short', ?, 0, 1, ?)
-                        """, (str(uuid.uuid4()), vid_path, st.session_state.user, st.session_state.pic, v_title.strip(), today_str))
-                        conn.commit()
-                        conn.close()
-                        
-                        record_upload(st.session_state.user, "short")
-                        st.toast("🎉 Short video uploaded successfully!")
-                        st.rerun()
-
-        elif upload_type == "🎥 Long Video (10-20 Mins, Limit: 1/day)":
-            allowed, count = check_daily_limit(st.session_state.user, "long", 1)
-            st.caption(f"Today's Limit Used: {count}/1")
+            is_short = (upload_type == "📱 Short Video")
+            v_type_str = "short" if is_short else "long"
             
-            if not allowed:
-                st.error("❌ Daily limit reached! You can only upload 1 Long video per day.")
-            else:
-                v_title = st.text_input("Video Title")
-                duration_mins = st.number_input("Video Duration (Enter minutes)", min_value=1.0, max_value=120.0, value=10.0)
-                vid_file = st.file_uploader("Upload Video File (MP4)", type=["mp4"])
-                
-                if st.button("🚀 Upload Long Video"):
-                    if not vid_file or not v_title.strip():
-                        st.warning("Please complete all required fields!")
-                    elif duration_mins < 10.0 or duration_mins > 20.0:
-                        st.error("❌ Video duration MUST be between 10 to 20 minutes!")
-                    else:
-                        vid_path = os.path.join(VIDEO_DIR, f"long_{uuid.uuid4()}.mp4")
-                        with open(vid_path, "wb") as f:
-                            f.write(vid_file.getvalue())
+            if st.button("🚀 Publish Video"):
+                if not vid_file or not v_title.strip():
+                    st.warning("Please provide a video title and select a video file!")
+                else:
+                    vid_filename = f"vid_{uuid.uuid4()}.mp4"
+                    vid_path = os.path.join(VIDEO_DIR, vid_filename)
+                    
+                    with open(vid_path, "wb") as f:
+                        f.write(vid_file.getvalue())
                         
-                        today_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-                        conn = get_db_connection()
-                        cursor = conn.cursor()
-                        cursor.execute("""
-                            INSERT INTO videos (id, video_url, uploader_name, uploader_pic, video_type, duration_mins, title, likes, views, created_at)
-                            VALUES (?, ?, ?, ?, 'long', ?, ?, 0, 1, ?)
-                        """, (str(uuid.uuid4()), vid_path, st.session_state.user, st.session_state.pic, duration_mins, v_title.strip(), today_str))
-                        conn.commit()
-                        conn.close()
-                        
-                        record_upload(st.session_state.user, "long")
-                        st.toast("🎉 Long video uploaded successfully!")
-                        st.rerun()
+                    today_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    
+                    cursor.execute("SELECT id FROM users WHERE username = ?", (st.session_state.user,))
+                    u_rec = cursor.fetchone()
+                    u_id = u_rec['id'] if u_rec else None
+                    
+                    cursor.execute("""
+                        INSERT INTO videos (
+                            id, user_id, video_url, uploader_name, uploader_pic, 
+                            video_type, title, likes, views, views_count, created_at
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (str(uuid.uuid4()), u_id, vid_path, st.session_state.user, st.session_state.pic, v_type_str, v_title.strip(), random.randint(10, 50), 1, 1, today_str))
+                    conn.commit()
+                    conn.close()
+                    
+                    st.toast(f"🎉 {upload_type} published successfully!")
+                    st.rerun()
 
 elif tab == "🔐 Owner Control Panel":
     if st.session_state.role != 'owner':
-        st.error("🚫 Access Denied!")
+        st.error("🚫 Access Denied! Only the Owner can access this panel.")
     else:
-        st.title("👑 Owner Master Dashboard & Approvals")
+        st.title("👑 Owner Master Dashboard & Financial Accounts")
+        st.success(f"Logged in as Owner: {st.session_state.user}")
+
+        # Section to Update Global Payment Details (Merged from Code 1)
+        st.subheader("🏦 Update Global Payment Information")
+        current_info = get_owner_payment_info()
+        new_info = st.text_area("Edit Payment Details (bKash/Nagad/Bank details for advertisers):", value=current_info)
+        
+        if st.button("Save Global Payment Info"):
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET account_details = ? WHERE role = 'owner'", (new_info,))
+            conn.commit()
+            conn.close()
+            st.success("✅ Payment info updated successfully for all advertisers!")
+            st.rerun()
+
+        st.divider()
+
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        st.subheader("📩 Pending Monetization Requests")
-        cursor.execute("SELECT id, username, followers_count, watch_time_mins FROM users WHERE monetization_status = 'pending'")
-        pending_users = cursor.fetchall()
-        
-        if pending_users:
-            for pu in pending_users:
-                st.write(f"👤 **{pu['username']}** | 👥 Followers: {pu['followers_count']} | ⏱️ Watch Mins: {pu['watch_time_mins']}")
-                c1, c2 = st.columns(2)
-                if c1.button(f"✅ Approve Monetization for {pu['username']}", key=f"app_m_{pu['id']}"):
-                    cursor.execute("UPDATE users SET monetization_status = 'approved' WHERE id = ?", (pu['id'],))
-                    conn.commit()
-                    st.toast("Monetization Approved!")
-                    st.rerun()
-                if c2.button(f"❌ Reject", key=f"rej_m_{pu['id']}"):
-                    cursor.execute("UPDATE users SET monetization_status = 'none' WHERE id = ?", (pu['id'],))
-                    conn.commit()
-                    st.rerun()
-        else:
-            st.info("No monetization applications currently pending.")
+        cursor.execute("SELECT payment_method, SUM(amount) FROM advertisements WHERE status = 'Active' GROUP BY payment_method")
+        revenue_data = cursor.fetchall()
 
-        st.divider()
-        st.subheader("📢 Ad Approvals")
-        cursor.execute("SELECT * FROM advertisements WHERE status = 'Pending'")
+        bkash_total = sum(item[1] for item in revenue_data if item[0] == 'bKash')
+        nagad_total = sum(item[1] for item in revenue_data if item[0] == 'Nagad')
+        bank_total = sum(item[1] for item in revenue_data if item[0] == 'Bank Transfer (Islami Bank)')
+        crypto_total = sum(item[1] for item in revenue_data if item[0] == 'Crypto Wallet (USDT)')
+
+        st.subheader("💰 Real-Time Revenue Metrics")
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("bKash Total", f"৳{bkash_total}")
+        col2.metric("Nagad Total", f"৳{nagad_total}")
+        col3.metric("Bank Total", f"৳{bank_total}")
+        col4.metric("Crypto (Global)", f"${crypto_total} USD")
+
+        st.markdown("---")
+        st.subheader("📋 Pending Advertisements for Approval")
+
+        cursor.execute("SELECT id, advertiser_email, ad_type, content_link, amount, payment_method, trx_id, status FROM advertisements")
         ads = cursor.fetchall()
+
         if ads:
             for ad in ads:
-                st.write(f"Email: {ad['advertiser_email']} | Amount: {ad['amount']} | Trx: {ad['trx_id']}")
-                if st.button(f"Approve Ad #{ad['id']}"):
-                    cursor.execute("UPDATE advertisements SET status = 'Active' WHERE id = ?", (ad['id'],))
-                    conn.commit()
-                    st.rerun()
+                ad_id = ad['id']
+                email = ad['advertiser_email']
+                a_type = ad['ad_type']
+                link = ad['content_link']
+                amt = ad['amount']
+                method = ad['payment_method']
+                trx = ad['trx_id']
+                status = ad['status']
+                
+                with st.expander(f"Ad #{ad_id} | {email} | Status: {status}"):
+                    st.write(f"**Type:** {a_type} | **Amount:** {amt} | **Method:** {method}")
+                    st.write(f"**TrxID:** `{trx}`")
+                    st.write(f"**Link:** {link}")
+
+                    c1, c2 = st.columns(2)
+                    if status != 'Active':
+                        if c1.button(f"Approve Ad #{ad_id}", key=f"app_{ad_id}"):
+                            cursor.execute("UPDATE advertisements SET status = 'Active' WHERE id = ?", (ad_id,))
+                            conn.commit()
+                            st.rerun()
+                    if c2.button(f"Delete Ad #{ad_id}", key=f"del_{ad_id}"):
+                        cursor.execute("DELETE FROM advertisements WHERE id = ?", (ad_id,))
+                        conn.commit()
+                        st.rerun()
         else:
-            st.info("No ads pending approval.")
-            
+            st.info("কোনো পেন্ডিং বা অ্যাক্টিভ অ্যাড পাওয়া যায়নি।")
+        
         conn.close()
