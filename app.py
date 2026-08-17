@@ -185,10 +185,18 @@ def init_db():
             stream_title TEXT NOT NULL,
             stream_platform TEXT NOT NULL,
             stream_url TEXT NOT NULL,
+            room_name TEXT,
             is_active INTEGER DEFAULT 1,
             created_at TEXT
         )
     """)
+
+    # Check and add room_name column if missing in live_streams
+    cursor.execute("PRAGMA table_info(live_streams)")
+    live_cols = [column[1] for column in cursor.fetchall()]
+    if "room_name" not in live_cols:
+        try: cursor.execute("ALTER TABLE live_streams ADD COLUMN room_name TEXT")
+        except Exception: pass
 
     owner_email = "owner_admin_system"
     hashed_pw = hashlib.sha256("S$s123456789112233".encode()).hexdigest()
@@ -695,9 +703,9 @@ elif tab == "📱 Scrolle Shorts Feed":
         conn.close()
 
 elif tab == "🔴 Live Streaming":
-    st.subheader("🔴 Live Streaming Hub (Mobile & Web Live Broadcast)")
-    st.info("লাইভ স্ট্রিম শুরু করুন অথবা সরাসরি মোবাইল/ওয়েব থেকে লাইভ ব্রডকাস্ট দেখুন! আপনি Facebook, YouTube, TikTok, Telegram এবং WhatsApp-এও লাইভ লিঙ্ক শেয়ার করতে পারেন।")
-    
+    st.subheader("🔴 Live Streaming Hub & Multi-User Meeting Rooms (Jitsi Meet)")
+    st.info("লাইভ স্ট্রিম শুরু করুন অথবা সরাসরি অ্যাপের ভেতর Jitsi Meet রুমের মাধ্যমে মাল্টি-ইউজার লাইভ ব্রডকাস্টিংয়ে যুক্ত হন!")
+
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM live_streams WHERE is_active = 1 ORDER BY created_at DESC")
@@ -705,41 +713,54 @@ elif tab == "🔴 Live Streaming":
     conn.close()
 
     if active_streams:
-        st.markdown("### 📡 Live Broadcasts On Air Right Now")
+        st.markdown("### 📡 Live Broadcasts & Rooms On Air Right Now")
         for stm in active_streams:
             st.markdown(f"""
                 <div style="background: #1a1a1a; border: 2px solid #ff4444; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
                     <h3 style="color: #ff4444; margin-top:0;">🔴 LIVE: {stm['stream_title']}</h3>
                     <p style="color: #bbb; margin: 5px 0;">Broadcaster: <b>@{stm['username']}</b> | Platform: <b>{stm['stream_platform']}</b></p>
-                    <a href="{stm['stream_url']}" target="_blank" style="background: #ff4444; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 8px;">Watch Live Broadcast 🎥</a>
                 </div>
             """, unsafe_allow_html=True)
+            
+            # Embed Jitsi Meet if room name exists or external link
+            if stm.get('room_name'):
+                room_safe = stm['room_name'].replace(" ", "_")
+                jitsi_html = f"""
+                <div style="width: 100%; height: 500px; background: #000; border-radius: 10px; overflow: hidden; border: 1px solid #ff4444;">
+                    <iframe src="https://meet.jit.si/{room_safe}" allow="camera; microphone; fullscreen; display-capture; autoplay" style="width: 100%; height: 100%; border: 0;"></iframe>
+                </div>
+                """
+                components.html(jitsi_html, height=520)
+            elif stm.get('stream_url'):
+                st.markdown(f'<a href="{stm["stream_url"]}" target="_blank" style="background: #ff4444; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 8px;">Open External Live Broadcast 🎥</a>', unsafe_allow_html=True)
     else:
         st.info("No live streams currently active.")
 
     st.divider()
     if st.session_state.user:
         with st.form("go_live_form"):
-            st.markdown("### 🎙️ Go Live Now / Start Broadcasting")
+            st.markdown("### 🎙️ Go Live Now / Start Broadcasting Room")
             live_title = st.text_input("Live Stream Title / লাইভ শিরোনাম (আবশ্যক)")
-            live_platform = st.selectbox("Select Streaming Platform / প্ল্যাটফর্ম", ["BD AI Book In-App Stream", "YouTube Live", "Facebook Live", "TikTok Live", "Telegram", "WhatsApp Status/Group"])
-            live_url = st.text_input("Stream Video / Embed URL (ইউটিউব বা ভিডিও কল লিংক দিন)")
+            live_platform = st.selectbox("Select Streaming Platform / প্ল্যাটফর্ম", ["BD AI Book Jitsi Live Room", "YouTube Live", "Facebook Live", "TikTok Live"])
+            custom_room = st.text_input("Jitsi Room Name / ইউনিক রুম নাম (যেমন: bdaibook_live_101)")
+            live_url = st.text_input("External Stream URL (Optional if using Jitsi Room)")
             
-            submit_live = st.form_submit_button("🚀 Start Live Stream")
+            submit_live = st.form_submit_button("🚀 Start Live Stream Room")
             if submit_live:
-                if live_title and live_url and live_title.strip() != "" and live_url.strip() != "":
+                if live_title and live_title.strip() != "":
+                    room_name_val = custom_room.strip() if custom_room and custom_room.strip() != "" else f"bdaibook_room_{uuid.uuid4().hex[:8]}"
                     conn = get_db_connection()
                     cursor = conn.cursor()
                     cursor.execute("""
-                        INSERT INTO live_streams (id, username, stream_title, stream_platform, stream_url, is_active, created_at)
-                        VALUES (?, ?, ?, ?, ?, 1, ?)
-                    """, (str(uuid.uuid4()), st.session_state.user, live_title.strip(), live_platform, live_url.strip(), datetime.now().strftime("%Y-%m-%d %H:%M")))
+                        INSERT INTO live_streams (id, username, stream_title, stream_platform, stream_url, room_name, is_active, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+                    """, (str(uuid.uuid4()), st.session_state.user, live_title.strip(), live_platform, live_url.strip() if live_url else "", room_name_val, datetime.now().strftime("%Y-%m-%d %H:%M")))
                     conn.commit()
                     conn.close()
-                    st.success("✅ You are now Live! Stream published successfully.")
+                    st.success("✅ You are now Live! Room published successfully.")
                     st.rerun()
                 else:
-                    st.error("❌ দয়া করে লাইভের শিরোনাম (Title) এবং সঠিক লিংক (URL) উভয়ই পূরণ করুন!")
+                    st.error("❌ দয়া করে লাইভের শিরোনাম (Title) পূরণ করুন!")
     else:
         st.warning("🔒 লাইভ শুরু করতে অনুগ্রহ করে প্রথমে লগইন করুন।")
 
