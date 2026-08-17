@@ -75,7 +75,7 @@ def init_db():
         )
     """)
 
-    # 2. Daily Upload Logs (Limit Checking)
+    # 2. Daily Upload Logs
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS daily_upload_limits (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -185,31 +185,12 @@ def init_db():
 init_db()
 
 # ==========================================
-# 3. HELPER & LIMIT CHECKING FUNCTIONS
+# 3. HELPER FUNCTIONS
 # ==========================================
 def normalize_phone(phone_str):
     if not phone_str:
         return ""
     return "".join(filter(str.isdigit, str(phone_str)))
-
-def mask_phone_number(phone):
-    if not phone:
-        return ""
-    clean_p = normalize_phone(phone)
-    if len(clean_p) >= 10:
-        return "+" + clean_p[:3] + "*****" + clean_p[-3:]
-    elif len(clean_p) > 4:
-        return clean_p[:2] + "****" + clean_p[-2:]
-    return clean_p
-
-def format_value(value):
-    if value is None:
-        return "0"
-    if value >= 1000000:
-        return f"{value/1000000:.1f}M"
-    if value >= 1000:
-        return f"{value/1000:.1f}K"
-    return str(value)
 
 def get_image_base64(image_path):
     if image_path and os.path.exists(image_path):
@@ -331,8 +312,6 @@ st.markdown("""
     }
     textarea, input { color: #ffffff !important; background-color: #242526 !important; }
     .feed-card { background: #18191a; border: 1px solid #2d2f31; border-radius: 14px; padding: 16px; margin-bottom: 20px; }
-    .monetization-box { background: linear-gradient(135deg, #00b09b, #96c93d); color: white; padding: 18px; border-radius: 12px; margin-top: 15px; margin-bottom: 15px; }
-    .btn-direct { display: block; width: 100%; padding: 10px; margin: 6px 0; color: white !important; text-align: center; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 14px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -350,8 +329,6 @@ if 'generated_otp' not in st.session_state:
     st.session_state.generated_otp = None
 if 'otp_sent_to' not in st.session_state:
     st.session_state.otp_sent_to = None
-if 'show_reset_mode' not in st.session_state:
-    st.session_state.show_reset_mode = False
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
 
@@ -370,7 +347,8 @@ st.divider()
 st.sidebar.header("📱 User Authentication")
 
 if not st.session_state.user:
-    phone_input = st.sidebar.text_input("Phone / Email", placeholder="rasohel1234@gmail.com or +880...", key="auth_phone")
+    # Generic Placeholder to hide personal email/phone from public
+    phone_input = st.sidebar.text_input("Phone / Email", placeholder="user@example.com or +880...", key="auth_phone")
     
     if phone_input.strip():
         clean_input = normalize_phone(phone_input)
@@ -382,7 +360,7 @@ if not st.session_state.user:
         conn.close()
         
         if user_record:
-            st.sidebar.success(f"✅ User Found: **{user_record['username']}**")
+            st.sidebar.success(f"✅ Account Recognized")
             login_pass = st.sidebar.text_input("Password", type="password", key="login_pass")
             
             if st.sidebar.button("🔓 Login Now"):
@@ -498,30 +476,43 @@ elif tab == "📱 Shorts Feed":
 
 elif tab == "📢 Advertiser Hub":
     st.title("📢 Advertiser Portal")
-    region = st.selectbox("Region", ["Bangladesh (BD)", "International (Global)"])
-    price = 1000 if "Bangladesh" in region else 30
-    duration = st.number_input("Months", min_value=1, value=1)
-    st.metric("Total Payable", f"{price * duration} {'BDT' if 'Bangladesh' in region else 'USD'}")
-    
-    pay_method = st.radio("Payment Method", ["bKash", "Nagad", "Bank Transfer (Islami Bank)", "Crypto Wallet (USDT)"])
-    if pay_method == "bKash": st.info("bKash Personal: 01302134435")
-    elif pay_method == "Nagad": st.warning("Nagad Personal: 01722003172")
-    elif pay_method == "Bank Transfer (Islami Bank)": st.code("Acc: 20502530202612312 | Islami Bank Lalmonirhat Branch")
-    elif pay_method == "Crypto Wallet (USDT)": st.code("USDT TRC20: TM6DAbNuF2kaMaRoC8HKi2G8Gi5hVWnbCP")
-    
-    email = st.text_input("Your Email Address")
-    link = st.text_input("Ad Content Link (Video / Image URL)")
-    trx = st.text_input("Transaction ID / Reference Number (TrxID)")
-    
-    if st.button("Submit Advertisement for Review"):
-        if email and link and trx:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO advertisements (advertiser_email, ad_type, content_link, duration_months, region, payment_method, amount, trx_id) VALUES (?, 'Banner', ?, ?, ?, ?, ?, ?)",
-                           (email, link, duration, region, pay_method, price*duration, trx))
-            conn.commit()
-            conn.close()
-            st.success("Ad submitted successfully for approval!")
+    if not st.session_state.user:
+        st.warning("⚠️ Please log in from the left sidebar to view payment options and submit advertisements.")
+    else:
+        region = st.selectbox("Region", ["Bangladesh (BD)", "International (Global)"])
+        price = 1000 if "Bangladesh" in region else 30
+        duration = st.number_input("Months", min_value=1, value=1)
+        st.metric("Total Payable", f"{price * duration} {'BDT' if 'Bangladesh' in region else 'USD'}")
+        
+        pay_method = st.radio("Payment Method", ["bKash", "Nagad", "Bank Transfer (Islami Bank)", "Crypto Wallet (USDT)"])
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT account_details FROM users WHERE role = 'owner'")
+        owner = cursor.fetchone()
+        owner_details = owner['account_details'] if owner and owner['account_details'] else "Details available upon submission."
+        conn.close()
+        
+        if pay_method == "bKash": st.info(f"bKash Account: {owner_details}")
+        elif pay_method == "Nagad": st.warning(f"Nagad Account: {owner_details}")
+        elif pay_method == "Bank Transfer (Islami Bank)": st.code(f"Bank Transfer Details: {owner_details}")
+        elif pay_method == "Crypto Wallet (USDT)": st.code(f"USDT Address: {owner_details}")
+        
+        email = st.text_input("Your Email Address")
+        link = st.text_input("Ad Content Link (Video / Image URL)")
+        trx = st.text_input("Transaction ID / Reference Number (TrxID)")
+        
+        if st.button("Submit Advertisement for Review"):
+            if email and link and trx:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO advertisements (advertiser_email, ad_type, content_link, duration_months, region, payment_method, amount, trx_id) VALUES (?, 'Banner', ?, ?, ?, ?, ?, ?)",
+                               (email, link, duration, region, pay_method, price*duration, trx))
+                conn.commit()
+                conn.close()
+                st.success("Ad submitted successfully for approval!")
+            else:
+                st.error("Please fill all required fields!")
 
 elif tab == "💬 Support":
     st.subheader("💬 Official Support Desk")
@@ -530,15 +521,21 @@ elif tab == "💬 Support":
 
 elif tab == "💳 Payout & Monetization":
     st.subheader("💳 Payout Account Details")
-    if st.session_state.user:
-        acc_num = st.text_input("Bank Account / Mobile Wallet Number")
+    if not st.session_state.user:
+        st.warning("⚠️ Please log in to view or update your payout account details.")
+    else:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT account_details FROM users WHERE username = ?", (st.session_state.user,))
+        user_data = cursor.fetchone()
+        current_acc = user_data['account_details'] if user_data and user_data['account_details'] else ""
+        
+        acc_num = st.text_input("Bank Account / Mobile Wallet Number", value=current_acc)
         if st.button("Save Payout Information"):
-            conn = get_db_connection()
-            cursor = conn.cursor()
             cursor.execute("UPDATE users SET account_details = ? WHERE username = ?", (acc_num, st.session_state.user))
             conn.commit()
-            conn.close()
             st.success("Payout details saved successfully!")
+        conn.close()
 
 elif tab == "👤 Profile & Status":
     if not st.session_state.user:
@@ -582,7 +579,6 @@ elif tab == "📤 Upload Content":
     else:
         st.subheader("📤 Content Upload Hub")
         
-        # Strict Global Guidelines Warning (English)
         st.error("""
             🚨 **STRICT COMMUNITY GUIDELINES & POLICY (Google & Global Compliance):**
             1. **Original Content Only:** Third-party copyrighted content, watermarked media, or stolen videos are strictly prohibited.
