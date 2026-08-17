@@ -108,7 +108,7 @@ def init_db():
             except Exception:
                 pass
 
-    # Bank Details Table
+    # Bank Details Table (Global Support)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS bank_details (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -295,7 +295,7 @@ def render_comments_section(post_id):
                 c_input = st.text_input(
                     "Write a comment...",
                     key=f"inp_{post_id}",
-                    placeholder="Share your thoughts...",
+                    placeholder="Share your thoughts globally...",
                 )
                 gift_selected = st.selectbox(
                     "🎁 Select Gift",
@@ -392,8 +392,8 @@ else:
     st.markdown(
         """
         <div style="text-align: center; padding: 10px 0;">
-            <h1 style="color: #00c853; font-weight: 900; margin: 0;">🔥 BD AI Book 🔥</h1>
-            <p style="color: #b0b3b8; margin: 0;">Artificial Intelligence & Learning Platform</p>
+            <h1 style="color: #00c853; font-weight: 900; margin: 0;">🔥 BD AI Book — Global Platform 🔥</h1>
+            <p style="color: #b0b3b8; margin: 0;">Artificial Intelligence & Learning Platform for Everyone Worldwide</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -416,14 +416,14 @@ if "active_tab" not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
 
 # ==========================================
-# 6. SIDEBAR AUTHENTICATION (GLOBAL NUMBERS)
+# 6. SIDEBAR AUTHENTICATION (GLOBAL SUPPORT)
 # ==========================================
 if os.path.exists("logo.jpg"):
     st.sidebar.image("logo.jpg", use_container_width=True)
 
-st.sidebar.header("🔍 Search User")
+st.sidebar.header("🔍 Search Global Creators")
 search_query = st.sidebar.text_input(
-    "Type name or username...", placeholder="Search creators..."
+    "Type name or username...", placeholder="Search creators globally..."
 )
 
 if search_query.strip():
@@ -465,60 +465,70 @@ st.sidebar.header("📱 User Authentication")
 if not st.session_state.user:
     phone_num_input = st.sidebar.text_input(
         "International Phone / WhatsApp Number",
-        placeholder="e.g. +8801700000000 or +14155552671",
+        placeholder="Include Country Code e.g. +1..., +44..., +880...",
         key="auth_phone",
     )
 
     if phone_num_input.strip():
-        # Clean non-digit characters for standard storage & WhatsApp API
-        clean_phone = "".join(filter(str.isdigit, phone_num_input))
+        # Clean non-digit characters
+        raw_digits = "".join(filter(str.isdigit, phone_num_input))
 
         conn = get_db_connection()
         cursor = conn.cursor()
+
+        # Search matching phone number
         cursor.execute(
-            "SELECT * FROM users WHERE phone_number = ?", (clean_phone,)
+            "SELECT * FROM users WHERE phone_number = ? OR phone_number LIKE ?",
+            (raw_digits, f"%{raw_digits}"),
         )
         user_db_record = cursor.fetchone()
+
         conn.close()
 
-        # Case 1: Phone is already VERIFIED -> Direct Password Login (No OTP)
+        # CASE 1: Registered User -> Show Password Login directly
         if (
             user_db_record
             and user_db_record["is_verified"] == 1
             and user_db_record["password"]
         ):
             st.sidebar.success(
-                f"✅ Verified Account: **{mask_phone_number(clean_phone)}**"
+                f"✅ Registered User: **{user_db_record['username']}**"
             )
-            login_pass = st.sidebar.text_input(
-                "Password", type="password", key="login_pass"
+            st.sidebar.caption(
+                f"📱 Phone: {mask_phone_number(user_db_record['phone_number'])}"
             )
 
-            if st.sidebar.button("🔓 Login with Password"):
+            login_pass = st.sidebar.text_input(
+                "Enter Password to Login", type="password", key="login_pass"
+            )
+
+            if st.sidebar.button("🔓 Login Now"):
                 if login_pass == user_db_record["password"]:
                     st.session_state.user = user_db_record["username"]
-                    st.session_state.user_phone = user_db_record["phone_number"]
+                    st.session_state.user_phone = user_db_record[
+                        "phone_number"
+                    ]
                     st.session_state.pic = user_db_record["profile_pic"]
                     st.session_state.is_verified = 1
-                    st.sidebar.success("🎉 Logged in Successfully!")
+                    st.sidebar.success(
+                        "🎉 Welcome back! Logged in Successfully."
+                    )
                     st.rerun()
                 else:
                     st.sidebar.error("❌ Incorrect Password!")
 
-        # Case 2: New Number or Unverified -> Send OTP once & Create Password
+        # CASE 2: New Registration -> Send WhatsApp OTP
         else:
-            st.sidebar.info(
-                "🆕 International Account Verification (OTP Needed Once)"
-            )
+            st.sidebar.info("🆕 New User Registration (Global Verification)")
 
             if st.sidebar.button("📲 Send WhatsApp OTP"):
                 otp_code = str(random.randint(100000, 999999))
                 st.session_state.generated_otp = otp_code
-                st.session_state.otp_sent_to = clean_phone
+                st.session_state.otp_sent_to = raw_digits
 
-                msg = f"Your BD AI Book Account Verification OTP is: {otp_code}"
+                msg = f"Your BD AI Book Global Verification OTP is: {otp_code}"
                 wa_url = (
-                    f"https://wa.me/{clean_phone}?text={urllib.parse.quote(msg)}"
+                    f"https://wa.me/{raw_digits}?text={urllib.parse.quote(msg)}"
                 )
 
                 st.sidebar.success(f"OTP Code Generated: **{otp_code}**")
@@ -529,24 +539,24 @@ if not st.session_state.user:
 
             if (
                 st.session_state.generated_otp
-                and st.session_state.otp_sent_to == clean_phone
+                and st.session_state.otp_sent_to == raw_digits
             ):
                 entered_otp = st.sidebar.text_input(
                     "Enter 6-Digit OTP", max_chars=6
                 )
                 desired_username = st.sidebar.text_input(
-                    "Username", placeholder="e.g. AlexGlobal"
+                    "Create Username", placeholder="e.g. AlexSmith"
                 )
                 new_password = st.sidebar.text_input(
-                    "Create New Password", type="password"
+                    "Create Password", type="password"
                 )
 
-                if st.sidebar.button("🔒 Verify OTP & Create Account"):
+                if st.sidebar.button("🔒 Verify OTP & Save Account"):
                     if entered_otp != st.session_state.generated_otp:
                         st.sidebar.error("❌ Invalid OTP Code!")
                     elif not desired_username.strip() or not new_password:
                         st.sidebar.error(
-                            "❌ Please provide Username and Password!"
+                            "❌ Please fill Username and Password!"
                         )
                     else:
                         conn = get_db_connection()
@@ -554,49 +564,42 @@ if not st.session_state.user:
                         today_str = datetime.now().strftime("%Y-%m-%d")
 
                         try:
-                            if user_db_record:
-                                cursor.execute(
-                                    """UPDATE users SET username=?, password=?, is_verified=1 WHERE phone_number=?""",
-                                    (
-                                        desired_username.strip(),
-                                        new_password,
-                                        clean_phone,
-                                    ),
-                                )
-                            else:
-                                cursor.execute(
-                                    """INSERT INTO users (username, phone_number, password, full_name, is_verified, created_at)
-                                       VALUES (?, ?, ?, ?, 1, ?)""",
-                                    (
-                                        desired_username.strip(),
-                                        clean_phone,
-                                        new_password,
-                                        desired_username.strip(),
-                                        today_str,
-                                    ),
-                                )
+                            cursor.execute(
+                                """
+                                INSERT INTO users (username, phone_number, password, full_name, is_verified, created_at)
+                                VALUES (?, ?, ?, ?, 1, ?)
+                            """,
+                                (
+                                    desired_username.strip(),
+                                    raw_digits,
+                                    new_password,
+                                    desired_username.strip(),
+                                    today_str,
+                                ),
+                            )
+
                             conn.commit()
                             conn.close()
 
                             st.session_state.user = desired_username.strip()
-                            st.session_state.user_phone = clean_phone
+                            st.session_state.user_phone = raw_digits
                             st.session_state.pic = None
                             st.session_state.is_verified = 1
                             st.session_state.generated_otp = None
                             st.session_state.otp_sent_to = None
 
                             st.sidebar.success(
-                                "🎉 Account Verified & Created!"
+                                "🎉 Account Created & Logged in!"
                             )
                             st.rerun()
                         except sqlite3.IntegrityError:
                             conn.close()
                             st.sidebar.error(
-                                "❌ Username already taken! Choose another."
+                                "❌ Phone number or Username already registered!"
                             )
 
 else:
-    # Sync current profile pic & phone from DB
+    # Sync active profile data
     conn = get_db_connection()
     c = conn.cursor()
     c.execute(
@@ -857,12 +860,11 @@ elif tab == "📱 Scrolle Shorts Feed":
 
 elif tab == "💬 WhatsApp Support Desk":
     st.subheader("💬 Official WhatsApp Support Desk")
-    st.caption("Contact us directly to ask questions or resolve issues.")
+    st.caption("Contact us directly from anywhere in the world to ask questions or resolve issues.")
 
     encoded_msg = urllib.parse.quote(
         "Hello! I am contacting you from BD AI Book App."
     )
-    # Global WhatsApp Target
     wa_link = f"https://wa.me/8801722003172?text={encoded_msg}"
 
     st.markdown(
@@ -870,7 +872,7 @@ elif tab == "💬 WhatsApp Support Desk":
         <div style="background: linear-gradient(135deg, #075E54, #128C7E); padding: 25px; border-radius: 15px; color: white; text-align: center; border: 1px solid #25D366; margin: 20px 0;">
             <h2 style="margin-top:0; color: #ffffff;">🌐 Official WhatsApp Support Desk</h2>
             <p style="font-size: 15px; color: #e0e0e0; margin-bottom: 20px;">
-                Click below to send messages or feedback directly to our support team.
+                Click below to send messages or feedback directly to our support team worldwide.
             </p>
             <a href="{wa_link}" target="_blank" style="
                 background-color: #25D366; 
@@ -916,15 +918,15 @@ elif tab == "💳 Payout & Monetization":
                     "💳 Visa / Mastercard / Debit Card (Worldwide)",
                     "🏦 Direct Bank Transfer (Local / IBAN)",
                     "🌐 Global Wallets (Payoneer / Wise / PayPal)",
-                    "📱 Mobile Banking (bKash/Nagad/Rocket)",
+                    "📱 Mobile Banking (bKash/Nagad/Rocket/Others)",
                 ],
                 index=0,
             )
 
             user_country = st.text_input(
                 "Country / দেশ",
-                value=bank_data.get("country", "Bangladesh"),
-                placeholder="e.g. Bangladesh, USA, UAE, UK",
+                value=bank_data.get("country", ""),
+                placeholder="e.g. USA, UK, UAE, Bangladesh, India, Canada...",
             )
 
             st.markdown(
@@ -953,10 +955,10 @@ elif tab == "💳 Payout & Monetization":
             b_name = st.text_input(
                 "Bank Name",
                 value=bank_data.get("bank_name", ""),
-                placeholder="e.g. Islami Bank, City Bank, Chase",
+                placeholder="e.g. Chase, HSBC, Citi, Islami Bank...",
             )
             b_branch = st.text_input(
-                "Branch Name", value=bank_data.get("branch_name", "")
+                "Branch Name / Location", value=bank_data.get("branch_name", "")
             )
             acc_holder = st.text_input(
                 "Account Holder Name", value=bank_data.get("account_name", "")
@@ -983,7 +985,7 @@ elif tab == "💳 Payout & Monetization":
                 value=bank_data.get("global_wallet", ""),
             )
             m_bank = st.text_input(
-                "bKash / Nagad / Rocket Number",
+                "Mobile Banking / Local Wallet Number",
                 value=bank_data.get("mobile_banking", ""),
             )
 
@@ -1087,11 +1089,11 @@ elif tab == "👤 My Profile & Earnings":
                     "Bio / Description", value=user_info.get("bio") or ""
                 )
                 new_nid = st.text_input(
-                    "NID / Passport Number",
+                    "NID / Passport / Govt ID Number",
                     value=user_info.get("nid_number") or "",
                 )
                 new_address = st.text_input(
-                    "Address", value=user_info.get("address") or ""
+                    "Address & Country", value=user_info.get("address") or ""
                 )
 
                 st.markdown("### 🔑 Change Password")
@@ -1192,7 +1194,7 @@ elif tab == "👤 My Profile & Earnings":
         show_verified_profile(
             display_name,
             profile_pic_path=pic_path,
-            subtitle=f"{user_info.get('bio') or 'Creator'} | Phone: {masked_phone}",
+            subtitle=f"{user_info.get('bio') or 'Global Creator'} | Phone: {masked_phone}",
             is_verified=True,
         )
 
@@ -1301,7 +1303,7 @@ elif tab == "📤 Create Post / Upload":
         st.subheader("📤 Upload Content")
 
         st.warning(
-            "⚠️ **Community Guidelines:** Sexual, adult, or violent content is strictly prohibited. Violating terms will lead to immediate account suspension and loss of earnings."
+            "⚠️ **Global Community Guidelines:** Sexual, adult, or violent content is strictly prohibited. Violating terms will lead to immediate account suspension and loss of earnings."
         )
 
         upload_type = st.radio(
