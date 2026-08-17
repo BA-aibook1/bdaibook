@@ -191,7 +191,6 @@ def init_db():
         )
     """)
 
-    # Check and add room_name column if missing in live_streams
     cursor.execute("PRAGMA table_info(live_streams)")
     live_cols = [column[1] for column in cursor.fetchall()]
     if "room_name" not in live_cols:
@@ -714,25 +713,30 @@ elif tab == "🔴 Live Streaming":
 
     if active_streams:
         st.markdown("### 📡 Live Broadcasts & Rooms On Air Right Now")
-        for stm in active_streams:
-            st.markdown(f"""
-                <div style="background: #1a1a1a; border: 2px solid #ff4444; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
-                    <h3 style="color: #ff4444; margin-top:0;">🔴 LIVE: {stm['stream_title']}</h3>
-                    <p style="color: #bbb; margin: 5px 0;">Broadcaster: <b>@{stm['username']}</b> | Platform: <b>{stm['stream_platform']}</b></p>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            # Embed Jitsi Meet if room name exists or external link
-            if stm.get('room_name'):
-                room_safe = stm['room_name'].replace(" ", "_")
-                jitsi_html = f"""
-                <div style="width: 100%; height: 500px; background: #000; border-radius: 10px; overflow: hidden; border: 1px solid #ff4444;">
-                    <iframe src="https://meet.jit.si/{room_safe}" allow="camera; microphone; fullscreen; display-capture; autoplay" style="width: 100%; height: 100%; border: 0;"></iframe>
-                </div>
-                """
-                components.html(jitsi_html, height=520)
-            elif stm.get('stream_url'):
-                st.markdown(f'<a href="{stm["stream_url"]}" target="_blank" style="background: #ff4444; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 8px;">Open External Live Broadcast 🎥</a>', unsafe_allow_html=True)
+        
+        for i in range(0, len(active_streams), 2):
+            cols = st.columns(2)
+            for j in range(2):
+                if i + j < len(active_streams):
+                    stm = active_streams[i + j]
+                    with cols[j]:
+                        st.markdown(f"""
+                            <div style="background: #1a1a1a; border: 2px solid #ff4444; padding: 15px; border-radius: 12px; margin-bottom: 15px; min-height: 160px;">
+                                <h4 style="color: #ff4444; margin-top:0;">🔴 LIVE: {stm['stream_title']}</h4>
+                                <p style="color: #bbb; margin: 5px 0; font-size: 13px;">Broadcaster: <b>@{stm['username']}</b><br>Platform: <b>{stm['stream_platform']}</b></p>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if stm.get('room_name'):
+                            room_safe = stm['room_name'].replace(" ", "_")
+                            jitsi_html = f"""
+                            <div style="width: 100%; height: 350px; background: #000; border-radius: 10px; overflow: hidden; border: 1px solid #ff4444; margin-bottom: 15px;">
+                                <iframe src="https://meet.jit.si/{room_safe}" allow="camera; microphone; fullscreen; display-capture; autoplay" style="width: 100%; height: 100%; border: 0;"></iframe>
+                            </div>
+                            """
+                            components.html(jitsi_html, height=365)
+                        elif stm.get('stream_url'):
+                            st.markdown(f'<a href="{stm["stream_url"]}" target="_blank" style="background: #ff4444; color: white; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block; margin-bottom: 15px; font-size: 12px;">Open External Live 🎥</a>', unsafe_allow_html=True)
     else:
         st.info("No live streams currently active.")
 
