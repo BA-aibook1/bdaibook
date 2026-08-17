@@ -83,6 +83,12 @@ def init_db():
     if "role" not in existing_cols:
         try: cursor.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'Public ID'")
         except Exception: pass
+    if "nid_number" not in existing_cols:
+        try: cursor.execute("ALTER TABLE users ADD COLUMN nid_number TEXT")
+        except Exception: pass
+    if "address" not in existing_cols:
+        try: cursor.execute("ALTER TABLE users ADD COLUMN address TEXT")
+        except Exception: pass
 
     # 2. Daily Upload Limits Table
     cursor.execute("""
@@ -770,16 +776,99 @@ elif tab == "💳 Payout & Monetization":
 
 elif tab == "👤 My Profile & Earnings":
     if not st.session_state.user:
-        st.warning("Please login.")
+        st.warning("Please login first.")
     else:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE username = ?", (st.session_state.user,))
-        user_info = dict(cursor.fetchone())
+        user_info = dict(cursor.fetchone() or {})
         conn.close()
         
-        show_verified_profile(user_info.get("full_name") or st.session_state.user, subtitle=f"Role: {user_info.get('role')} | Phone: {mask_phone_number(user_info.get('phone_number'))}", is_verified=True)
-        st.info(f"Account Type: **{user_info.get('role')}**")
+        st.subheader("👤 My Profile & Information Management")
+        show_verified_profile(user_info.get("full_name") or st.session_state.user, profile_pic_path=user_info.get("profile_pic"), subtitle=f"Role: {user_info.get('role')} | Phone: {mask_phone_number(user_info.get('phone_number'))}", is_verified=True)
+        
+        # Profile Update Form (Name, Address, NID, Profile Picture)
+        with st.form("update_profile_form"):
+            st.markdown("### ✏️ Edit Profile Details")
+            new_full_name = st.text_input("Full Name", value=user_info.get("full_name") or "")
+            new_address = st.text_input("Address / ঠিকানা", value=user_info.get("address") or "")
+            new_nid = st.text_input("NID Number / এনআইডি নম্বর", value=user_info.get("nid_number") or "")
+            new_pic_file = st.file_uploader("Upload New Profile Picture", type=["jpg", "jpeg", "png"])
+            
+            if st.form_submit_button("💾 Save Profile Changes"):
+                profile_path = user_info.get("profile_pic")
+                if new_pic_file:
+                    file_ext = new_pic_file.name.split(".")[-1]
+                    profile_filename = f"profile_{uuid.uuid4()}.{file_ext}"
+                    profile_path = os.path.join(PROFILE_DIR, profile_filename)
+                    with open(profile_path, "wb") as f:
+                        f.write(new_pic_file.getbuffer())
+                
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute("""
+                    UPDATE users SET full_name = ?, address = ?, nid_number = ?, profile_pic = ? WHERE username = ?
+                """, (new_full_name.strip(), new_address.strip(), new_nid.strip(), profile_path, st.session_state.user))
+                conn.commit()
+                conn.close()
+                
+                st.session_state.pic = profile_path
+                st.success("✅ Profile updated successfully!")
+                st.rerun()
+
+        st.divider()
+        st.markdown("### 📂 My Uploaded Content (Manage / Delete / Customize)")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM posts WHERE uploader_name = ?", (st.session_state.user,))
+        my_posts = [dict(r) for r in cursor.fetchall()]
+        
+        cursor.execute("SELECT * FROM videos WHERE uploader_name = ?", (st.session_state.user,))
+        my_videos = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+
+        tab_p1, tab_p2 = st.tabs(["📝 My Posts", "🎥 My Videos"])
+        
+        with tab_p1:
+            if not my_posts:
+                st.info("You have not published any posts yet.")
+            else:
+                for p in my_posts:
+                    st.markdown(f"**Content:** {p.get('content')}")
+                    if p.get('image_url') and os.path.exists(p['image_url']):
+                        st.image(p['image_url'], width=200)
+                    st.caption(f"Posted on: {p.get('created_at')}")
+                    
+                    if st.button("🗑️ Delete Post", key=f"del_post_{p['id']}"):
+                        conn = get_db_connection()
+                        cursor = conn.cursor()
+                        cursor.execute("DELETE FROM posts WHERE id = ?", (p['id'],))
+                        conn.commit()
+                        conn.close()
+                        st.toast("✅ Post deleted successfully!")
+                        st.rerun()
+                    st.markdown("---")
+                    
+        with tab_p2:
+            if not my_videos:
+                st.info("You have not uploaded any videos yet.")
+            else:
+                for v in my_videos:
+                    st.markdown(f"**Title:** {v.get('title')} (`{v.get('video_type')}`)")
+                    if v.get('video_url') and os.path.exists(v['video_url']):
+                        st.video(v['video_url'])
+                    st.caption(f"Uploaded on: {v.get('created_at')}")
+                    
+                    if st.button("🗑️ Delete Video", key=f"del_vid_{v['id']}"):
+                        conn = get_db_connection()
+                        cursor = conn.cursor()
+                        cursor.execute("DELETE FROM videos WHERE id = ?", (v['id'],))
+                        conn.commit()
+                        conn.close()
+                        st.toast("✅ Video deleted successfully!")
+                        st.rerun()
+                    st.markdown("---")
 
 elif tab == "📤 Create Post / Upload":
     if not st.session_state.user:
@@ -834,7 +923,6 @@ elif tab == "📤 Create Post / Upload":
                 if video_file and video_title:
                     v_type = 'long' if upload_type == "🎥 Long Video" else 'short'
                     
-                    # Save video file to stored_videos folder
                     file_ext = video_file.name.split(".")[-1]
                     video_filename = f"{uuid.uuid4()}.{file_ext}"
                     video_path = os.path.join(VIDEO_DIR, video_filename)
