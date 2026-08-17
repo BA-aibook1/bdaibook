@@ -721,12 +721,13 @@ elif tab == "🔴 Live Streaming":
     if st.session_state.user:
         with st.form("go_live_form"):
             st.markdown("### 🎙️ Go Live Now / Start Broadcasting")
-            live_title = st.text_input("Live Stream Title / বিবরণ")
-            live_platform = st.selectbox("Select Streaming Platform / Destination", ["BD AI Book In-App Stream", "YouTube Live", "Facebook Live", "TikTok Live", "Telegram", "WhatsApp Status/Group"])
-            live_url = st.text_input("Stream Video / Embed URL (YouTube embed, RTMP stream URL, or video call link)")
+            live_title = st.text_input("Live Stream Title / লাইভ শিরোনাম (আবশ্যক)")
+            live_platform = st.selectbox("Select Streaming Platform / প্ল্যাটফর্ম", ["BD AI Book In-App Stream", "YouTube Live", "Facebook Live", "TikTok Live", "Telegram", "WhatsApp Status/Group"])
+            live_url = st.text_input("Stream Video / Embed URL (ইউটিউব বা ভিডিও কল লিংক দিন)")
             
-            if st.form_submit_button("🚀 Start Live Stream"):
-                if live_title.strip() and live_url.strip():
+            submit_live = st.form_submit_button("🚀 Start Live Stream")
+            if submit_live:
+                if live_title and live_url and live_title.strip() != "" and live_url.strip() != "":
                     conn = get_db_connection()
                     cursor = conn.cursor()
                     cursor.execute("""
@@ -738,9 +739,9 @@ elif tab == "🔴 Live Streaming":
                     st.success("✅ You are now Live! Stream published successfully.")
                     st.rerun()
                 else:
-                    st.error("Please fill in stream title and URL/link.")
+                    st.error("❌ দয়া করে লাইভের শিরোনাম (Title) এবং সঠিক লিংক (URL) উভয়ই পূরণ করুন!")
     else:
-        st.warning("🔒 Please login to start a live stream.")
+        st.warning("🔒 লাইভ শুরু করতে অনুগ্রহ করে প্রথমে লগইন করুন।")
 
 elif tab == "📢 Advertiser Hub":
     st.title("📢 Advertiser Ad Network Portal")
@@ -932,7 +933,6 @@ elif tab == "📤 Create Post / Upload":
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Check today's counts for the user
         cursor.execute("SELECT COUNT(*) FROM posts WHERE uploader_name = ? AND created_at LIKE ?", (st.session_state.user, f"{today_date_str}%"))
         today_posts_count = cursor.fetchone()[0]
         
