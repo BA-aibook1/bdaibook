@@ -5,7 +5,7 @@ import uuid
 import base64
 import urllib.parse
 import hashlib
-from datetime import datetime
+from datetime import datetime, date
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -178,6 +178,18 @@ def init_db():
         )
     """)
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS live_streams (
+            id TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            stream_title TEXT NOT NULL,
+            stream_platform TEXT NOT NULL,
+            stream_url TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1,
+            created_at TEXT
+        )
+    """)
+
     owner_email = "owner_admin_system"
     hashed_pw = hashlib.sha256("S$s123456789112233".encode()).hexdigest()
     owner_pic = "logo.jpg" if os.path.exists("logo.jpg") else None
@@ -254,11 +266,12 @@ def get_owner_payment_info():
 def show_google_guidelines_box():
     st.markdown("""
         <div style="background-color: #1e293b; border-left: 5px solid #00c853; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-            <h4 style="color: #00c853; margin-top: 0;">📜 Platform & Role-Based Protection Guidelines</h4>
+            <h4 style="color: #00c853; margin-top: 0;">📜 Platform, Community & Upload Guidelines</h4>
             <ul style="color: #cbd5e1; font-size: 13px; margin-bottom: 0; padding-left: 20px;">
-                <li><b>Role Separation:</b> Users can choose either <b>Public ID</b> (Standard viewing/posting) or <b>Advertiser ID</b> (For running ads & payments).</li>
-                <li><b>Data Security:</b> Personal billing, bKash/Nagad & bank info are strictly hidden from Public IDs and fully protected.</li>
-                <li><b>Waterproof Protection:</b> All media features secure platform branding and owner watermark.</li>
+                <li><b>Strict Daily Limit:</b> Users can upload max <b>1 Long Video</b> and <b>1 Short Video</b> per day. Post/Photo uploads are limited to max <b>15 posts</b> per day.</li>
+                <li><b>Zero Tolerance Policy:</b> Any kind of adult, explicit, or sexual content is strictly prohibited. Violation will result in permanent account ban.</li>
+                <li><b>Role Separation & Security:</b> Public IDs and Advertiser IDs are fully isolated. All billing/payment info remains encrypted and strictly protected.</li>
+                <li><b>Waterproof Protection:</b> All platform media carries automatic platform branding and secure watermarks.</li>
             </ul>
         </div>
     """, unsafe_allow_html=True)
@@ -570,7 +583,7 @@ else:
         st.session_state.role = 'Public ID'
         st.rerun()
 
-nav_tabs = ["🌍 World Feed", "📱 Scrolle Shorts Feed", "📢 Advertiser Hub", "💬 WhatsApp Support Desk", "💳 Payout & Monetization", "👤 My Profile & Earnings", "📤 Create Post / Upload"]
+nav_tabs = ["🌍 World Feed", "📱 Scrolle Shorts Feed", "🔴 Live Streaming", "📢 Advertiser Hub", "💬 WhatsApp Support Desk", "💳 Payout & Monetization", "👤 My Profile & Earnings", "📤 Create Post / Upload"]
 if st.session_state.role == 'owner':
     nav_tabs.append("🔐 Owner Control Panel")
 
@@ -680,6 +693,54 @@ elif tab == "📱 Scrolle Shorts Feed":
                         conn.commit()
                         st.rerun()
         conn.close()
+
+elif tab == "🔴 Live Streaming":
+    st.subheader("🔴 Live Streaming Hub (Mobile & Web Live Broadcast)")
+    st.info("লাইভ স্ট্রিম শুরু করুন অথবা সরাসরি মোবাইল/ওয়েব থেকে লাইভ ব্রডকাস্ট দেখুন! আপনি Facebook, YouTube, TikTok, Telegram এবং WhatsApp-এও লাইভ লিঙ্ক শেয়ার করতে পারেন।")
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM live_streams WHERE is_active = 1 ORDER BY created_at DESC")
+    active_streams = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+
+    if active_streams:
+        st.markdown("### 📡 Live Broadcasts On Air Right Now")
+        for stm in active_streams:
+            st.markdown(f"""
+                <div style="background: #1a1a1a; border: 2px solid #ff4444; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
+                    <h3 style="color: #ff4444; margin-top:0;">🔴 LIVE: {stm['stream_title']}</h3>
+                    <p style="color: #bbb; margin: 5px 0;">Broadcaster: <b>@{stm['username']}</b> | Platform: <b>{stm['stream_platform']}</b></p>
+                    <a href="{stm['stream_url']}" target="_blank" style="background: #ff4444; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 8px;">Watch Live Broadcast 🎥</a>
+                </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.info("No live streams currently active.")
+
+    st.divider()
+    if st.session_state.user:
+        with st.form("go_live_form"):
+            st.markdown("### 🎙️ Go Live Now / Start Broadcasting")
+            live_title = st.text_input("Live Stream Title / বিবরণ")
+            live_platform = st.selectbox("Select Streaming Platform / Destination", ["BD AI Book In-App Stream", "YouTube Live", "Facebook Live", "TikTok Live", "Telegram", "WhatsApp Status/Group"])
+            live_url = st.text_input("Stream Video / Embed URL (YouTube embed, RTMP stream URL, or video call link)")
+            
+            if st.form_submit_button("🚀 Start Live Stream"):
+                if live_title.strip() and live_url.strip():
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        INSERT INTO live_streams (id, username, stream_title, stream_platform, stream_url, is_active, created_at)
+                        VALUES (?, ?, ?, ?, ?, 1, ?)
+                    """, (str(uuid.uuid4()), st.session_state.user, live_title.strip(), live_platform, live_url.strip(), datetime.now().strftime("%Y-%m-%d %H:%M")))
+                    conn.commit()
+                    conn.close()
+                    st.success("✅ You are now Live! Stream published successfully.")
+                    st.rerun()
+                else:
+                    st.error("Please fill in stream title and URL/link.")
+    else:
+        st.warning("🔒 Please login to start a live stream.")
 
 elif tab == "📢 Advertiser Hub":
     st.title("📢 Advertiser Ad Network Portal")
@@ -865,16 +926,43 @@ elif tab == "📤 Create Post / Upload":
     if not st.session_state.user:
         st.warning("Please login first.")
     else:
-        st.subheader("📤 Upload Content")
+        st.subheader("📤 Upload Content & Strict Daily Limits Check")
+        today_date_str = date.today().strftime("%Y-%m-%d")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check today's counts for the user
+        cursor.execute("SELECT COUNT(*) FROM posts WHERE uploader_name = ? AND created_at LIKE ?", (st.session_state.user, f"{today_date_str}%"))
+        today_posts_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM videos WHERE uploader_name = ? AND video_type = 'long' AND created_at LIKE ?", (st.session_state.user, f"{today_date_str}%"))
+        today_long_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM videos WHERE uploader_name = ? AND video_type = 'short' AND created_at LIKE ?", (st.session_state.user, f"{today_date_str}%"))
+        today_short_count = cursor.fetchone()[0]
+        conn.close()
+
+        st.markdown(f"""
+            <div style="background: #242526; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #3a3b3c;">
+                <b>📅 Today's Upload Quota ({today_date_str}):</b><br>
+                • Long Videos Uploaded Today: <b>{today_long_count} / 1</b> (Max 1 per day)<br>
+                • Short Videos Uploaded Today: <b>{today_short_count} / 1</b> (Max 1 per day)<br>
+                • Posts/Photos Uploaded Today: <b>{today_posts_count} / 15</b> (Max 15 per day)
+            </div>
+        """, unsafe_allow_html=True)
+
         upload_type = st.radio("Select Type:", ["📝 Post/Photo", "🎥 Long Video", "📱 Short Video"])
         
         if upload_type == "📝 Post/Photo":
-            post_text = st.text_area("What's on your mind?")
+            post_text = st.text_area("What's on your mind? (Strictly no adult/sexual content)")
             uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
             hashtag_input = st.text_input("Hashtags", placeholder="#bdaibook #trending")
             
             if st.button("🚀 Publish Post"):
-                if post_text.strip() or uploaded_file:
+                if today_posts_count >= 15:
+                    st.error("❌ Daily limit reached! You can only post up to 15 posts/photos per day.")
+                elif post_text.strip() or uploaded_file:
                     image_path = None
                     if uploaded_file:
                         file_ext = uploaded_file.name.split(".")[-1]
@@ -905,14 +993,19 @@ elif tab == "📤 Create Post / Upload":
                     st.error("Please write something or upload an image.")
 
         elif upload_type in ["🎥 Long Video", "📱 Short Video"]:
-            st.info("Upload your video file (MP4). It will be automatically secured with Platform Watermark.")
+            st.info("Upload your video file (MP4). strictly no adult/sexual content. Automatically secured with Platform Watermark.")
             video_file = st.file_uploader("Choose video...", type=["mp4"])
             video_title = st.text_input("Video Title")
             video_hashtags = st.text_input("Video Hashtags", placeholder="#shorts #ai #bdaibook")
             
             if st.button("🚀 Upload & Secure Video"):
-                if video_file and video_title:
-                    v_type = 'long' if upload_type == "🎥 Long Video" else 'short'
+                is_short = (upload_type == "📱 Short Video")
+                if is_short and today_short_count >= 1:
+                    st.error("❌ Daily limit reached! You can only upload 1 Short video per day.")
+                elif not is_short and today_long_count >= 1:
+                    st.error("❌ Daily limit reached! You can only upload 1 Long video per day.")
+                elif video_file and video_title:
+                    v_type = 'long' if not is_short else 'short'
                     
                     file_ext = video_file.name.split(".")[-1]
                     video_filename = f"{uuid.uuid4()}.{file_ext}"
@@ -938,90 +1031,23 @@ elif tab == "📤 Create Post / Upload":
                     conn.commit()
                     conn.close()
                     st.success(f"✅ Your {upload_type} is successfully uploaded, watermarked, and secured!")
+                    st.rerun()
                 else:
                     st.error("Please upload a video and provide a title.")
 
 elif tab == "🔐 Owner Control Panel":
     if st.session_state.role != 'owner':
-        st.error("🚫 Access Denied! Only the System Owner can view this control panel.")
+        st.error("🚫 Access Denied!")
     else:
-        st.title("👑 Owner Master Dashboard & Live Monitoring")
-        st.success("System Administrator Access Active — Live Analytics & User Overview")
-        
-        # Live Metrics Overview
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        cursor.execute("SELECT COUNT(*) FROM users")
-        total_users = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM advertisements")
-        total_ads = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT SUM(amount) FROM advertisements")
-        total_earnings_res = cursor.fetchone()[0]
-        total_earnings = total_earnings_res if total_earnings_res else 0.0
-        
-        cursor.execute("SELECT COUNT(*) FROM videos")
-        total_videos = cursor.fetchone()[0]
-        
-        conn.close()
-        
-        # Display Metrics Cards
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("👥 Total Users", format_value(total_users))
-        m2.metric("📢 Total Ad Orders", format_value(total_ads))
-        m3.metric("💰 Total Revenue", f"{total_earnings:,.2f} BDT")
-        m4.metric("🎥 Total Videos", format_value(total_videos))
-        
-        st.divider()
-        
-        # Comprehensive Live Users & Financial Tracking Table for Owner
-        st.subheader("📊 Live User Database & Transaction Monitor")
-        st.markdown("এখানে প্ল্যাটফর্মের সকল ইউজারের তথ্য, ফোন নম্বর, অ্যাকাউন্ট রোল, ট্রানজাকশন ডিটেইলস এবং অ্যাড্রেসসহ লাইভ দেখতে পাবেন।")
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Fetch all registered users with their details
-        cursor.execute("""
-            SELECT id, username, phone_number, role, full_name, address, nid_number, created_at 
-            FROM users 
-            ORDER BY id DESC
-        """)
-        all_users_data = [dict(row) for row in cursor.fetchall()]
-        
-        # Fetch advertisement transactions
-        cursor.execute("""
-            SELECT advertiser_email, ad_type, region, payment_method, amount, trx_id, status 
-            FROM advertisements 
-            ORDER BY id DESC
-        """)
-        all_ads_data = [dict(row) for row in cursor.fetchall()]
-        conn.close()
-        
-        tab_o1, tab_o2, tab_o3 = st.tabs(["👤 All Registered Users Table", "💳 Revenue & Ad Transactions", "⚙️ Manual Payment Settings"])
-        
-        with tab_o1:
-            if all_users_data:
-                st.dataframe(all_users_data, use_container_width=True)
-            else:
-                st.info("No registered users found.")
-                
-        with tab_o2:
-            if all_ads_data:
-                st.dataframe(all_ads_data, use_container_width=True)
-            else:
-                st.info("No transaction records found.")
-                
-        with tab_o3:
-            current_info = get_owner_payment_info()
-            new_info = st.text_area("Edit Manual Payment Details:", value=current_info)
-            if st.button("Save Global Payment Info"):
-                conn = get_db_connection()
-                cursor = conn.cursor()
-                cursor.execute("UPDATE users SET account_details = ? WHERE role = 'owner'", (new_info,))
-                conn.commit()
-                conn.close()
-                st.success("✅ Payment info updated successfully!")
-                st.rerun()
+        st.title("👑 Owner Master Dashboard")
+        st.success("System Administrator Access Active")
+        current_info = get_owner_payment_info()
+        new_info = st.text_area("Edit Manual Payment Details:", value=current_info)
+        if st.button("Save Global Payment Info"):
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET account_details = ? WHERE role = 'owner'", (new_info,))
+            conn.commit()
+            conn.close()
+            st.success("✅ Updated!")
+            st.rerun()
