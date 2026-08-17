@@ -253,38 +253,6 @@ def get_owner_payment_info():
     • USDT TRC20: TM6DAbNuF2kaMaRoC8HKi2G8Gi5hVWnbCP
     """
 
-def check_daily_upload_limit(username, content_type):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    
-    cursor.execute("""
-        SELECT COUNT(*) as count FROM daily_upload_limits 
-        WHERE username = ? AND content_type = ? AND upload_date = ?
-    """, (username, content_type, today_str))
-    
-    res = cursor.fetchone()
-    count = res['count'] if res else 0
-    conn.close()
-
-    limits = {
-        "long_video": 1,
-        "short_video": 1,
-        "post": 10
-    }
-    return count < limits.get(content_type, 1), count, limits.get(content_type, 1)
-
-def record_daily_upload(username, content_type):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    cursor.execute("""
-        INSERT INTO daily_upload_limits (username, content_type, upload_date)
-        VALUES (?, ?, ?)
-    """, (username, content_type, today_str))
-    conn.commit()
-    conn.close()
-
 def show_google_guidelines_box():
     st.markdown("""
         <div style="background-color: #1e293b; border-left: 5px solid #00c853; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
@@ -407,9 +375,6 @@ st.markdown("""
     textarea, input { color: #ffffff !important; background-color: #242526 !important; }
     .feed-card { background: #18191a; border: 1px solid #2d2f31; border-radius: 14px; padding: 16px; margin-bottom: 20px; }
     .monetization-box { background: linear-gradient(135deg, #00b09b, #96c93d); color: white; padding: 18px; border-radius: 12px; margin-top: 15px; margin-bottom: 15px; }
-    .btn-direct { display: block; width: 100%; padding: 10px; margin: 6px 0; color: white !important; text-align: center; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 14px; }
-    .bg-1 { background: linear-gradient(135deg, #FF416C, #FF4B2B); }
-    .bg-2 { background: linear-gradient(135deg, #1DE9B6, #26A69A); }
     </style>
 """, unsafe_allow_html=True)
 
@@ -467,8 +432,6 @@ if 'generated_otp' not in st.session_state:
     st.session_state.generated_otp = None
 if 'otp_sent_to' not in st.session_state:
     st.session_state.otp_sent_to = None
-if 'show_reset_mode' not in st.session_state:
-    st.session_state.show_reset_mode = False
 
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
@@ -476,7 +439,7 @@ if 'active_tab' not in st.session_state:
 show_google_guidelines_box()
 
 # ==========================================
-# 7. SIDEBAR AUTHENTICATION & NAVIGATION (WITH ROLE SELECTION)
+# 7. SIDEBAR AUTHENTICATION & NAVIGATION
 # ==========================================
 if logo_path:
     st.sidebar.image(logo_path, use_container_width=True)
@@ -530,8 +493,6 @@ if not st.session_state.user:
                     st.sidebar.error("❌ Incorrect Password!")
         else:
             st.sidebar.info("🆕 New Global Registration (Choose Account Role)")
-            
-            # Account Role Selection during registration
             account_role_type = st.sidebar.selectbox("Select Account Role", ["Public ID", "Advertiser ID"])
             
             if st.sidebar.button("📲 Send WhatsApp OTP"):
@@ -661,7 +622,7 @@ if tab == "🌍 World Feed":
             if "image_url" in item and item["image_url"] and os.path.exists(item["image_url"]):
                 show_watermarked_media("image", item["image_url"])
 
-            if "video_url" in item and os.path.exists(item["video_url"]):
+            if "video_url" in item and item["video_url"] and os.path.exists(item["video_url"]):
                 if item.get("title"): st.markdown(f"#### {item.get('title')}")
                 show_watermarked_media("video", item["video_url"])
 
@@ -711,7 +672,8 @@ elif tab == "📱 Scrolle Shorts Feed":
             with col_main:
                 show_verified_profile(sv.get("uploader_name", "User"), subtitle="Shorts Creator", is_verified=True)
                 st.markdown(f"**{sv.get('title', 'Short Video')}**")
-                show_watermarked_media("video", sv["video_url"])
+                if sv.get("video_url") and os.path.exists(sv["video_url"]):
+                    show_watermarked_media("video", sv["video_url"])
                 render_comments_section(sv["id"])
             with col_side:
                 if st.button(f"❤️ {format_value(sv.get('likes', 0))}", key=f"sh_like_{sv['id']}"):
@@ -724,7 +686,6 @@ elif tab == "📱 Scrolle Shorts Feed":
 elif tab == "📢 Advertiser Hub":
     st.title("📢 Advertiser Ad Network Portal")
     
-    # Secure check: Only 'Advertiser ID' or 'owner' can access payment/billing details
     if not st.session_state.user:
         st.error("🔒 **Access Restricted!** Please login first.")
     elif st.session_state.role == 'Public ID':
@@ -822,23 +783,84 @@ elif tab == "👤 My Profile & Earnings":
 
 elif tab == "📤 Create Post / Upload":
     if not st.session_state.user:
-        st.warning("Please login.")
+        st.warning("Please login first.")
     else:
         st.subheader("📤 Upload Content")
         upload_type = st.radio("Select Type:", ["📝 Post/Photo", "🎥 Long Video", "📱 Short Video"])
         
         if upload_type == "📝 Post/Photo":
             post_text = st.text_area("What's on your mind?")
+            uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+            hashtag_input = st.text_input("Hashtags", placeholder="#bdaibook #trending")
+            
             if st.button("🚀 Publish Post"):
-                if post_text.strip():
+                if post_text.strip() or uploaded_file:
+                    image_path = None
+                    if uploaded_file:
+                        file_ext = uploaded_file.name.split(".")[-1]
+                        image_filename = f"{uuid.uuid4()}.{file_ext}"
+                        image_path = os.path.join(IMAGE_DIR, image_filename)
+                        with open(image_path, "wb") as f:
+                            f.write(uploaded_file.getbuffer())
+                    
                     conn = get_db_connection()
                     cursor = conn.cursor()
-                    cursor.execute("INSERT INTO posts (id, uploader_name, uploader_pic, content, created_at) VALUES (?, ?, ?, ?, ?)",
-                                   (str(uuid.uuid4()), st.session_state.user, st.session_state.pic, post_text.strip(), datetime.now().strftime("%Y-%m-%d %H:%M")))
+                    cursor.execute("""
+                        INSERT INTO posts (id, uploader_name, uploader_pic, content, hashtags, image_url, created_at) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        str(uuid.uuid4()), 
+                        st.session_state.user, 
+                        st.session_state.pic, 
+                        post_text.strip(), 
+                        hashtag_input.strip(), 
+                        image_path, 
+                        datetime.now().strftime("%Y-%m-%d %H:%M")
+                    ))
                     conn.commit()
                     conn.close()
-                    st.toast("✅ Published!")
+                    st.toast("✅ Post Published Successfully!")
                     st.rerun()
+                else:
+                    st.error("Please write something or upload an image.")
+
+        elif upload_type in ["🎥 Long Video", "📱 Short Video"]:
+            st.info("Upload your video file (MP4). It will be automatically secured with Platform Watermark.")
+            video_file = st.file_uploader("Choose video...", type=["mp4"])
+            video_title = st.text_input("Video Title")
+            video_hashtags = st.text_input("Video Hashtags", placeholder="#shorts #ai #bdaibook")
+            
+            if st.button("🚀 Upload & Secure Video"):
+                if video_file and video_title:
+                    v_type = 'long' if upload_type == "🎥 Long Video" else 'short'
+                    
+                    # Save video file to stored_videos folder
+                    file_ext = video_file.name.split(".")[-1]
+                    video_filename = f"{uuid.uuid4()}.{file_ext}"
+                    video_path = os.path.join(VIDEO_DIR, video_filename)
+                    with open(video_path, "wb") as f:
+                        f.write(video_file.getbuffer())
+                    
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        INSERT INTO videos (id, video_url, uploader_name, uploader_pic, video_type, title, hashtags, created_at) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        str(uuid.uuid4()), 
+                        video_path, 
+                        st.session_state.user, 
+                        st.session_state.pic, 
+                        v_type, 
+                        video_title.strip(), 
+                        video_hashtags.strip(), 
+                        datetime.now().strftime("%Y-%m-%d %H:%M")
+                    ))
+                    conn.commit()
+                    conn.close()
+                    st.success(f"✅ Your {upload_type} is successfully uploaded, watermarked, and secured!")
+                else:
+                    st.error("Please upload a video and provide a title.")
 
 elif tab == "🔐 Owner Control Panel":
     if st.session_state.role != 'owner':
