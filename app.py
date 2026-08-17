@@ -177,15 +177,21 @@ def init_db():
         )
     """)
 
-    # Secure Owner Account Setup (Hidden Credentials)
+    # Secure Owner Account Setup
     owner_email = "owner_admin_system"
     hashed_pw = hashlib.sha256("S$s123456789112233".encode()).hexdigest()
+    owner_pic = "logo.jpg" if os.path.exists("logo.jpg") else None
+    
     cursor.execute("SELECT * FROM users WHERE role = 'owner'")
-    if not cursor.fetchone():
+    owner_rec = cursor.fetchone()
+    if not owner_rec:
         cursor.execute("""
-            INSERT INTO users (username, phone_number, clean_phone, password, full_name, role, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (owner_email, "8801722003172", "8801722003172", hashed_pw, "System Administrator", "owner", datetime.now().strftime("%Y-%m-%d")))
+            INSERT INTO users (username, phone_number, clean_phone, password, full_name, profile_pic, role, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (owner_email, "8801722003172", "8801722003172", hashed_pw, "System Administrator", owner_pic, "owner", datetime.now().strftime("%Y-%m-%d")))
+    else:
+        if owner_pic and not owner_rec['profile_pic']:
+            cursor.execute("UPDATE users SET profile_pic = ? WHERE role = 'owner'", (owner_pic,))
 
     conn.commit()
     conn.close()
@@ -386,7 +392,31 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 5. MAIN HEADER & SESSION INITIALIZATION
+# 5. SPLASH SCREEN / INTRO
+# ==========================================
+if 'splash_shown' not in st.session_state:
+    st.session_state.splash_shown = False
+
+if not st.session_state.splash_shown:
+    st.markdown("""
+        <div style="text-align: center; padding: 40px 0;">
+            <h1 style="color: #00c853; font-weight: 900;">🔥 BD AI Book — Global Verified Network 🔥</h1>
+            <p style="color: #b0b3b8;">Loading Global Platform & Verified Identity...</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    if os.path.exists("logo.jpg"):
+        col_s1, col_s2, col_s3 = st.columns([1, 2, 1])
+        with col_s2:
+            st.image("logo.jpg", use_container_width=True)
+    
+    if st.button("🚀 Enter Platform"):
+        st.session_state.splash_shown = True
+        st.rerun()
+    st.stop()
+
+# ==========================================
+# 6. MAIN HEADER & SESSION INITIALIZATION
 # ==========================================
 if os.path.exists("logo.jpg"):
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -422,7 +452,7 @@ if 'active_tab' not in st.session_state:
 show_google_guidelines_box()
 
 # ==========================================
-# 6. SIDEBAR AUTHENTICATION
+# 7. SIDEBAR AUTHENTICATION & NAVIGATION
 # ==========================================
 if os.path.exists("logo.jpg"):
     st.sidebar.image("logo.jpg", use_container_width=True)
@@ -467,7 +497,6 @@ if not st.session_state.user:
     
     if phone_input.strip():
         clean_input = normalize_phone(phone_input)
-        
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -633,7 +662,7 @@ tab = st.sidebar.radio("Navigation", nav_tabs, index=nav_tabs.index(st.session_s
 st.session_state.active_tab = tab
 
 # ==========================================
-# 7. TAB IMPLEMENTATIONS
+# 8. TAB IMPLEMENTATIONS
 # ==========================================
 
 if tab == "🌍 World Feed":
@@ -686,9 +715,12 @@ if tab == "🌍 World Feed":
             item_id = str(item["id"])
             uploader_name = item.get("uploader_name", "Unknown User")
             
-            cursor.execute("SELECT profile_pic FROM users WHERE username = ?", (uploader_name,))
-            u_pic_res = cursor.fetchone()
-            uploader_pic = u_pic_res['profile_pic'] if u_pic_res and u_pic_res['profile_pic'] else item.get('uploader_pic')
+            cursor.execute("SELECT profile_pic, role FROM users WHERE username = ?", (uploader_name,))
+            u_res = cursor.fetchone()
+            uploader_pic = u_res['profile_pic'] if u_res and u_res['profile_pic'] else item.get('uploader_pic')
+            
+            if u_res and u_res['role'] == 'owner' and os.path.exists("logo.jpg"):
+                uploader_pic = "logo.jpg"
             
             created_at = item.get("created_at", "Recently")
 
@@ -760,9 +792,11 @@ elif tab == "📱 Scrolle Shorts Feed":
             st.markdown("---")
             col_main, col_side = st.columns([3, 1])
             
-            cursor.execute("SELECT profile_pic FROM users WHERE username = ?", (sv.get('uploader_name'),))
-            u_pic_res = cursor.fetchone()
-            uploader_pic = u_pic_res['profile_pic'] if u_pic_res and u_pic_res['profile_pic'] else sv.get('uploader_pic')
+            cursor.execute("SELECT profile_pic, role FROM users WHERE username = ?", (sv.get('uploader_name'),))
+            u_res = cursor.fetchone()
+            uploader_pic = u_res['profile_pic'] if u_res and u_res['profile_pic'] else sv.get('uploader_pic')
+            if u_res and u_res['role'] == 'owner' and os.path.exists("logo.jpg"):
+                uploader_pic = "logo.jpg"
 
             with col_main:
                 show_verified_profile(sv.get("uploader_name", "User"), profile_pic_path=uploader_pic, subtitle="Official Shorts Creator", is_verified=True)
@@ -996,6 +1030,9 @@ elif tab == "👤 My Profile & Earnings":
         pic_path = user_info.get("profile_pic", st.session_state.pic)
         masked_phone = mask_phone_number(user_info.get("phone_number", ""))
         
+        if user_info.get('role') == 'owner' and os.path.exists("logo.jpg"):
+            pic_path = "logo.jpg"
+        
         with st.expander("⚙️ Edit Profile & Change Picture / Password", expanded=False):
             with st.form("edit_profile_form"):
                 st.markdown("### 🖼️ Personal Information & Picture")
@@ -1221,7 +1258,26 @@ elif tab == "🔐 Owner Control Panel":
         st.error("🚫 Access Denied! Only the Owner can access this panel.")
     else:
         st.title("👑 Owner Master Dashboard & Financial Accounts")
-        st.success(f"Logged in as Owner Admin")
+        st.success(f"Logged in as System Administrator & Owner")
+
+        st.subheader("🖼️ Update Global Owner / Platform Logo & Profile Picture")
+        st.write("Current global logo/profile picture is set as `logo.jpg` and will be displayed across all global posts and feeds.")
+        
+        if os.path.exists("logo.jpg"):
+            st.image("logo.jpg", width=150)
+            
+        new_logo = st.file_uploader("Upload New Owner / Platform Logo (JPG/PNG)", type=["jpg", "png", "jpeg"])
+        if new_logo:
+            with open("logo.jpg", "wb") as f:
+                f.write(new_logo.getvalue())
+            
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET profile_pic = 'logo.jpg' WHERE role = 'owner'")
+            conn.commit()
+            conn.close()
+            st.success("✅ Owner profile picture updated successfully for worldwide users!")
+            st.rerun()
 
         st.subheader("🏦 Update Global Manual Payment Information")
         current_info = get_owner_payment_info()
