@@ -29,7 +29,7 @@ components.html(
 SMART_LINK = "https://omg10.com/4/10954816"
 
 # ==========================================
-# 2. LOCAL STORAGE & DATABASE SETUP (OPTIMIZED TABLES)
+# 2. LOCAL STORAGE & DATABASE SETUP
 # ==========================================
 DB_FILE = "local_storage.db"
 VIDEO_DIR = "stored_videos"
@@ -49,7 +49,7 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 1. Users Table (Phone Number Unique Primary Mapping)
+    # 1. Users Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,7 +73,6 @@ def init_db():
         )
     """)
 
-    # Schema Update check for existing databases
     cursor.execute("PRAGMA table_info(users)")
     existing_cols = [column[1] for column in cursor.fetchall()]
     if "clean_phone" not in existing_cols:
@@ -105,7 +104,7 @@ def init_db():
         )
     """)
 
-    # 3. Videos Table (Mapped with User ID & Username)
+    # 3. Videos Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS videos (
             id TEXT PRIMARY KEY,
@@ -158,7 +157,6 @@ init_db()
 # 3. HELPER FUNCTIONS & GLOBAL PHONE SANITIZER
 # ==========================================
 def normalize_phone(phone_str):
-    """বিশ্বের যেকোনো ফোন নম্বর থেকে শুধুমাত্র মূল ডিজিটগুলো বের করে সেভ/ম্যাচ করার ফাংশন"""
     if not phone_str:
         return ""
     return "".join(filter(str.isdigit, str(phone_str)))
@@ -312,12 +310,14 @@ if 'generated_otp' not in st.session_state:
     st.session_state.generated_otp = None
 if 'otp_sent_to' not in st.session_state:
     st.session_state.otp_sent_to = None
+if 'show_reset_mode' not in st.session_state:
+    st.session_state.show_reset_mode = False
 
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
 
 # ==========================================
-# 6. SIDEBAR AUTHENTICATION (UNIVERSAL GLOBAL LOGIN LOGIC)
+# 6. SIDEBAR AUTHENTICATION (WITH FORGOT PASSWORD RESET)
 # ==========================================
 if os.path.exists("logo.jpg"):
     st.sidebar.image("logo.jpg", use_container_width=True)
@@ -365,7 +365,6 @@ if not st.session_state.user:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # ডাটাবেজে নম্বরের হুবহু শেষ ডিজিট বা ক্লিন নম্বরের সাথে ম্যাচ করানো (সর্বজনীন গ্লোবাল লজিক)
         cursor.execute("""
             SELECT * FROM users 
             WHERE clean_phone = ? 
@@ -376,25 +375,72 @@ if not st.session_state.user:
         user_record = cursor.fetchone()
         conn.close()
         
-        # ১. নম্বর ডাটাবেজে আগে থেকে থাকলে -> সরাসরি পাসওয়ার্ড বক্স (কোনো OTP লাগবে না)
+        # কেস ১: ইউজার ডাটাবেজে রয়েছে
         if user_record:
             st.sidebar.success(f"✅ User Found: **{user_record['username']}**")
             st.sidebar.caption(f"📱 Phone: {mask_phone_number(user_record['phone_number'])}")
             
             login_pass = st.sidebar.text_input("Enter Password to Login", type="password", key="login_pass")
             
-            if st.sidebar.button("🔓 Login Now"):
+            col_l1, col_l2 = st.columns(2)
+            with col_l1:
+                login_click = st.sidebar.button("🔓 Login Now")
+            
+            if login_click:
                 if user_record['password'] and login_pass == user_record['password']:
                     st.session_state.user = user_record['username']
                     st.session_state.user_phone = user_record['phone_number']
                     st.session_state.pic = user_record['profile_pic']
                     st.session_state.is_verified = 1
-                    st.sidebar.success("🎉 Welcome back! Logged in Successfully.")
+                    st.session_state.show_reset_mode = False
+                    st.sidebar.success("🎉 Logged in Successfully.")
                     st.rerun()
                 else:
                     st.sidebar.error("❌ Incorrect Password!")
+                    st.session_state.show_reset_mode = True
+
+            # পাসওয়ার্ড ভুলে গেলে রিসেট করার অপশন
+            if st.session_state.show_reset_mode or st.sidebar.checkbox("🔑 Forgot / Reset Password?"):
+                st.sidebar.warning("🔐 Password Recovery via WhatsApp OTP")
+                
+                if st.sidebar.button("📲 Send Recovery OTP via WhatsApp"):
+                    otp_code = str(random.randint(100000, 999999))
+                    st.session_state.generated_otp = otp_code
+                    st.session_state.otp_sent_to = clean_input
                     
-        # ২. নম্বর একদম নতুন হলে -> রেজিস্ট্রেশন ও OTP অপশন আসবে
+                    msg = f"Your BD AI Book Password Reset OTP Code is: {otp_code}"
+                    wa_url = f"https://wa.me/{clean_input}?text={urllib.parse.quote(msg)}"
+                    
+                    st.sidebar.success(f"OTP Generated: **{otp_code}**")
+                    st.sidebar.markdown(f"[👉 Click to Send OTP via WhatsApp]({wa_url})", unsafe_allow_html=True)
+                
+                if st.session_state.generated_otp and st.session_state.otp_sent_to == clean_input:
+                    entered_reset_otp = st.sidebar.text_input("Enter 6-Digit OTP", max_chars=6, key="reset_otp_input")
+                    reset_new_pass = st.sidebar.text_input("Set New Password", type="password", key="reset_pass_input")
+                    
+                    if st.sidebar.button("🔒 Confirm & Update Password"):
+                        if entered_reset_otp != st.session_state.generated_otp:
+                            st.sidebar.error("❌ Invalid OTP Code!")
+                        elif not reset_new_pass.strip():
+                            st.sidebar.error("❌ Please enter a new password!")
+                        else:
+                            conn = get_db_connection()
+                            cursor = conn.cursor()
+                            cursor.execute("UPDATE users SET password = ? WHERE id = ?", (reset_new_pass.strip(), user_record['id']))
+                            conn.commit()
+                            conn.close()
+                            
+                            st.session_state.user = user_record['username']
+                            st.session_state.user_phone = user_record['phone_number']
+                            st.session_state.pic = user_record['profile_pic']
+                            st.session_state.is_verified = 1
+                            st.session_state.generated_otp = None
+                            st.session_state.show_reset_mode = False
+                            
+                            st.sidebar.success("🎉 Password Updated & Logged in!")
+                            st.rerun()
+
+        # কেস ২: একদম নতুন ইউজার (রেজিস্ট্রেশন)
         else:
             st.sidebar.info("🆕 New User Registration")
             
@@ -447,7 +493,7 @@ if not st.session_state.user:
                             st.sidebar.error("❌ Phone number or Username already registered!")
 
 else:
-    # সাইন-ইন অবস্থায় ইউজার ডেটা সিঙ্ক
+    # লগইন অবস্থায় থাকা সাইডবার ভিউ
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT profile_pic, phone_number FROM users WHERE username = ?", (st.session_state.user,))
@@ -473,6 +519,7 @@ else:
         st.session_state.pic = None
         st.session_state.is_verified = 0
         st.session_state.generated_otp = None
+        st.session_state.show_reset_mode = False
         st.rerun()
 
 nav_tabs = ["🌍 World Feed", "📱 Scrolle Shorts Feed", "💬 WhatsApp Support Desk", "💳 Payout & Monetization", "👤 My Profile & Earnings", "📤 Create Post / Upload"]
@@ -525,7 +572,6 @@ if tab == "🌍 World Feed":
             item_id = str(item["id"])
             uploader_name = item.get("uploader_name", "Unknown User")
             
-            # টেবিল সিঙ্কিং: মূল ইউজার টেবিল থেকে প্রোফাইল পিকচার তুলে আনা
             cursor.execute("SELECT profile_pic FROM users WHERE username = ?", (uploader_name,))
             u_pic_res = cursor.fetchone()
             uploader_pic = u_pic_res['profile_pic'] if u_pic_res and u_pic_res['profile_pic'] else item.get('uploader_pic')
@@ -750,7 +796,6 @@ elif tab == "👤 My Profile & Earnings":
         pic_path = user_info.get("profile_pic", st.session_state.pic)
         masked_phone = mask_phone_number(user_info.get("phone_number", ""))
         
-        # EDIT PROFILE SECTION
         with st.expander("⚙️ Edit Profile & Change Picture / Password", expanded=False):
             with st.form("edit_profile_form"):
                 st.markdown("### 🖼️ Personal Information & Picture")
@@ -774,7 +819,6 @@ elif tab == "👤 My Profile & Earnings":
                             f.write(uploaded_pic.getvalue())
                         st.session_state.pic = saved_pic_path
                         
-                        # ছবি আপডেটের সাথে সাথে অন্যান্য টেবিলেও নতুন ছবি সিঙ্ক করা
                         cursor.execute("UPDATE videos SET uploader_pic = ? WHERE uploader_name = ?", (saved_pic_path, st.session_state.user))
                         cursor.execute("UPDATE posts SET uploader_pic = ? WHERE uploader_name = ?", (saved_pic_path, st.session_state.user))
                     
@@ -833,7 +877,6 @@ elif tab == "👤 My Profile & Earnings":
             </div>
         """, unsafe_allow_html=True)
         
-        # DELETE POSTS & VIDEOS SECTION
         st.markdown("### 📽️ My Content Management")
         
         tab_v, tab_p = st.tabs(["🎥 My Videos & Shorts", "🖼️ My Image/Text Posts"])
