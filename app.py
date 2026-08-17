@@ -177,15 +177,15 @@ def init_db():
         )
     """)
 
-    # Ensure Owner Account Exists securely
-    owner_email = "rasohel1234@gmail.com"
+    # Secure Owner Account Setup (Hidden Credentials)
+    owner_email = "owner_admin_system"
     hashed_pw = hashlib.sha256("S$s123456789112233".encode()).hexdigest()
-    cursor.execute("SELECT * FROM users WHERE username = ?", (owner_email,))
+    cursor.execute("SELECT * FROM users WHERE role = 'owner'")
     if not cursor.fetchone():
         cursor.execute("""
             INSERT INTO users (username, phone_number, clean_phone, password, full_name, role, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (owner_email, "01722003172", "01722003172", hashed_pw, "MD. SOHEL RANA", "owner", datetime.now().strftime("%Y-%m-%d")))
+        """, (owner_email, "8801722003172", "8801722003172", hashed_pw, "System Administrator", "owner", datetime.now().strftime("%Y-%m-%d")))
 
     conn.commit()
     conn.close()
@@ -198,14 +198,16 @@ init_db()
 def normalize_phone(phone_str):
     if not phone_str:
         return ""
-    return "".join(filter(str.isdigit, str(phone_str)))
+    # Retains '+' for International E.164 Global format
+    cleaned = "".join([c for c in str(phone_str) if c.isdigit() or c == '+'])
+    return cleaned
 
 def mask_phone_number(phone):
     if not phone:
         return ""
     clean_p = normalize_phone(phone)
     if len(clean_p) >= 10:
-        return "+" + clean_p[:3] + "*****" + clean_p[-3:]
+        return clean_p[:4] + "*****" + clean_p[-3:]
     elif len(clean_p) > 4:
         return clean_p[:2] + "****" + clean_p[-2:]
     return clean_p
@@ -234,7 +236,61 @@ def get_owner_payment_info():
     cursor.execute("SELECT account_details FROM users WHERE role = 'owner'")
     row = cursor.fetchone()
     conn.close()
-    return row['account_details'] if row and row['account_details'] else "সিস্টেমে অতিরিক্ত বিবরণ আপডেট করা হয়নি। অনুগ্রহ করে Owner Control Panel থেকে আপডেট করুন।"
+    if row and row['account_details']:
+        return row['account_details']
+    return """
+    🏦 Official Payment Account Details:
+    • bKash Personal: 01302134435
+    • Nagad Personal: 01722003172
+    • Islami Bank Bangladesh: A/C 20502530202612312 (MD. SOHEL RANA, Lalmonirhat Branch)
+    • USDT TRC20: TM6DAbNuF2kaMaRoC8HKi2G8Gi5hVWnbCP
+    """
+
+def check_daily_upload_limit(username, content_type):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    
+    cursor.execute("""
+        SELECT COUNT(*) as count FROM daily_upload_limits 
+        WHERE username = ? AND content_type = ? AND upload_date = ?
+    """, (username, content_type, today_str))
+    
+    res = cursor.fetchone()
+    count = res['count'] if res else 0
+    conn.close()
+
+    limits = {
+        "long_video": 1,
+        "short_video": 1,
+        "post": 10
+    }
+    
+    return count < limits.get(content_type, 1), count, limits.get(content_type, 1)
+
+def record_daily_upload(username, content_type):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    cursor.execute("""
+        INSERT INTO daily_upload_limits (username, content_type, upload_date)
+        VALUES (?, ?, ?)
+    """, (username, content_type, today_str))
+    conn.commit()
+    conn.close()
+
+def show_google_guidelines_box():
+    st.markdown("""
+        <div style="background-color: #1e293b; border-left: 5px solid #00c853; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <h4 style="color: #00c853; margin-top: 0;">📜 Google Platform & Global Guidelines</h4>
+            <ul style="color: #cbd5e1; font-size: 13px; margin-bottom: 0; padding-left: 20px;">
+                <li><b>দৈনিক আপলোড সীমা:</b> ১টি লং ভিডিও (১০-২০ মি:), ১টি শর্টস এবং সর্বোচ্চ ১০টি পোস্ট প্রতি ২৪ ঘণ্টায় অনুমোদিত।</li>
+                <li><b>নিরাপত্তা ও গাইডলাইন:</b> যৌন, প্রাপ্তবয়স্ক, সহিংস বা কপিরাইটযুক্ত উপাদান সম্পূর্ণ নিষিদ্ধ। লঙ্ঘন করলে অ্যাকাউন্ট স্থায়ীভাবে ব্যান হবে।</li>
+                <li><b>সারা বিশ্বব্যাপী সাপোর্ট:</b> যেকোনো আন্তর্জাতিক কান্ট্রি কোড সহ (+1, +44, +880, +91 ইত্যাদি) মোবাইল নম্বরে সাইন-আপ ও ব্যবহার সম্ভব।</li>
+                <li><b>নিরাপদ লেনদেন:</b> অ্যাডভার্টাইজারগণ অ্যাকাউন্ট না খুলে সার্ভিস বিষয়ে সরাসরি প্রশ্ন করতে পারবেন না; শুধুমাত্র প্রদত্ত বিবরণ দেখে সরাসরি টাকা জমা প্রদান করতে পারবেন।</li>
+            </ul>
+        </div>
+    """, unsafe_allow_html=True)
 
 def show_verified_profile(display_name, profile_pic_path=None, subtitle="Official Global Verified Creator", is_verified=True):
     b64_img = get_image_base64(profile_pic_path)
@@ -309,7 +365,7 @@ def render_comments_section(post_id):
                         st.warning("Comment cannot be empty!")
                         conn.close()
         else:
-            st.info("Please log in to leave a comment.")
+            st.info("🔒 মন্তব্য করতে প্রথমে আপনার অ্যাকাউন্ট দিয়ে লগইন করুন।")
             conn.close()
 
 # ==========================================
@@ -364,6 +420,9 @@ if 'show_reset_mode' not in st.session_state:
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
 
+# Display Global Policy Box
+show_google_guidelines_box()
+
 # ==========================================
 # 6. SIDEBAR AUTHENTICATION
 # ==========================================
@@ -386,24 +445,25 @@ if search_query.strip():
         for u in found_users:
             u_disp = u.get('full_name') or u['username']
             st.sidebar.markdown(f"👤 **{u_disp}** (@{u['username']})\n👥 Followers: {u.get('followers_count', 0)}")
-            if st.sidebar.button(f"➕ Follow @{u['username']}", key=f"s_fol_{u['username']}"):
-                conn = get_db_connection()
-                c = conn.cursor()
-                c.execute("UPDATE users SET followers_count = followers_count + 1 WHERE username = ?", (u['username'],))
-                conn.commit()
-                conn.close()
-                st.toast(f"Followed @{u['username']}!")
-                st.rerun()
+            if st.session_state.user:
+                if st.sidebar.button(f"➕ Follow @{u['username']}", key=f"s_fol_{u['username']}"):
+                    conn = get_db_connection()
+                    c = conn.cursor()
+                    c.execute("UPDATE users SET followers_count = followers_count + 1 WHERE username = ?", (u['username'],))
+                    conn.commit()
+                    conn.close()
+                    st.toast(f"Followed @{u['username']}!")
+                    st.rerun()
             st.sidebar.markdown("---")
     else:
         st.sidebar.info("No user found with this name.")
 
-st.sidebar.header("📱 User Authentication")
+st.sidebar.header("📱 Global User Authentication")
 
 if not st.session_state.user:
     phone_input = st.sidebar.text_input(
-        "Phone / Email", 
-        placeholder="e.g. rasohel1234@gmail.com or 017...", 
+        "Phone / Account ID", 
+        placeholder="e.g. +88017... or +1234...", 
         key="auth_phone"
     )
     
@@ -425,8 +485,7 @@ if not st.session_state.user:
         conn.close()
         
         if user_record:
-            st.sidebar.success(f"✅ User Found: **{user_record['username']}**")
-            
+            st.sidebar.success(f"✅ Account Found: **{user_record['username']}**")
             login_pass = st.sidebar.text_input("Enter Password to Login", type="password", key="login_pass")
             
             if st.sidebar.button("🔓 Login Now"):
@@ -486,7 +545,7 @@ if not st.session_state.user:
                             st.rerun()
 
         else:
-            st.sidebar.info("🆕 New User Registration")
+            st.sidebar.info("🆕 Global User Registration (All Countries Supported)")
             
             if st.sidebar.button("📲 Send WhatsApp OTP"):
                 otp_code = str(random.randint(100000, 999999))
@@ -665,15 +724,21 @@ if tab == "🌍 World Feed":
             c1, c2 = st.columns(2)
             with c1:
                 if st.button(f"❤️ Like ({format_value(item.get('likes', 0))})", key=f"lk_{item_id}_{index}"):
-                    table_name = "posts" if "content" in item else "videos"
-                    cursor.execute(f"UPDATE {table_name} SET likes = likes + 1 WHERE id = ?", (item_id,))
-                    conn.commit()
-                    st.rerun()
+                    if st.session_state.user:
+                        table_name = "posts" if "content" in item else "videos"
+                        cursor.execute(f"UPDATE {table_name} SET likes = likes + 1 WHERE id = ?", (item_id,))
+                        conn.commit()
+                        st.rerun()
+                    else:
+                        st.toast("🔒 লাইক দিতে প্রথমে সাইন ইন করুন!")
             with c2:
                 if st.button("➕ Follow", key=f"fl_{item_id}_{index}"):
-                    cursor.execute("UPDATE users SET followers_count = followers_count + 1 WHERE username = ?", (uploader_name,))
-                    conn.commit()
-                    st.toast(f"Followed {uploader_name} successfully!")
+                    if st.session_state.user:
+                        cursor.execute("UPDATE users SET followers_count = followers_count + 1 WHERE username = ?", (uploader_name,))
+                        conn.commit()
+                        st.toast(f"Followed {uploader_name} successfully!")
+                    else:
+                        st.toast("🔒 ফলো করতে প্রথমে সাইন ইন করুন!")
 
             render_comments_section(item_id)
 
@@ -716,115 +781,130 @@ elif tab == "📱 Scrolle Shorts Feed":
             with col_side:
                 st.write(" ")
                 if st.button(f"❤️ {format_value(sv.get('likes', 0))}", key=f"sh_like_{sv['id']}"):
-                    cursor.execute("UPDATE videos SET likes = likes + 1 WHERE id = ?", (sv["id"],))
-                    conn.commit()
-                    st.toast("Liked!")
-                    st.rerun()
+                    if st.session_state.user:
+                        cursor.execute("UPDATE videos SET likes = likes + 1 WHERE id = ?", (sv["id"],))
+                        conn.commit()
+                        st.toast("Liked!")
+                        st.rerun()
+                    else:
+                        st.toast("🔒 লাইক করতে লগইন করুন!")
                 
                 st.caption(f"👁️ {format_value(sv.get('views', 0))}")
 
                 if st.button("➕ Follow", key=f"sh_fol_{sv['id']}"):
-                    cursor.execute("UPDATE users SET followers_count = followers_count + 1 WHERE username = ?", (sv.get("uploader_name"),))
-                    conn.commit()
-                    st.toast("Followed Creator!")
+                    if st.session_state.user:
+                        cursor.execute("UPDATE users SET followers_count = followers_count + 1 WHERE username = ?", (sv.get("uploader_name"),))
+                        conn.commit()
+                        st.toast("Followed Creator!")
+                    else:
+                        st.toast("🔒 ফলো করতে লগইন করুন!")
         conn.close()
 
 elif tab == "📢 Advertiser Hub":
     st.title("📢 Advertiser Ad Network Portal")
-    st.info("অ্যাডভারটাইজারদের জন্য ওনার পেমেন্ট ইনফরমেশন:")
-    st.markdown(f"**🏦 Global Owner Payment Details:**\n\n{get_owner_payment_info()}")
-    st.divider()
-
-    st.write("আপনার বিজ্ঞাপনের ধরন এবং স্থান অনুযায়ী পেমেন্ট করে ফর্মটি ফিলাপ করুন।")
-    region = st.selectbox("Select Your Region / দেশের ধরণ", ["Bangladesh (BD)", "International (Global)"])
     
-    if "Bangladesh" in region:
-        currency = "BDT"
-        price_per_month = 1000
-        st.info("💰 **বাংলাদেশ মূল্য নির্ধারণ:** ১ মাসের বিজ্ঞাপনের জন্য ৳১,০০০ টাকা।")
+    # GUEST RESTRICTION: Locked until logged in
+    if not st.session_state.user:
+        st.error("🔒 **অ্যাডভারটাইজার অ্যাক্সেস সীমাবদ্ধ!**")
+        st.warning("যেকোনো ধরনের বিজ্ঞাপন আবেদন, পেমেন্ট সাবমিশন বা প্রশ্ন করার জন্য প্রথমে আপনার মোবাইল নম্বর দিয়ে সাইন-আপ বা লগইন করুন। অ্যাকাউন্ট না খোলা পর্যন্ত এখানে কোনো অপশন দেখতে বা প্রশ্ন করতে পারবেন না।")
     else:
-        currency = "USD"
-        price_per_month = 30
-        st.info("🌐 **International Pricing:** $30 USD per month.")
+        st.info("অ্যাডভারটাইজারদের জন্য সরাসরি ওনার পেমেন্ট ডিটেইলস (এখানে কোনো প্রশ্ন করার প্রয়োজন নেই, সরাসরি টাকা পাঠাতে পারবেন):")
+        st.markdown(f"**🏦 Official Direct Payment Accounts:**\n\n{get_owner_payment_info()}")
+        st.divider()
 
-    duration = st.number_input("Duration (Months)", min_value=1, value=1)
-    total_amount = price_per_month * duration
-    st.metric(label="Total Payable Amount", value=f"{total_amount} {currency}")
+        st.write("আপনার বিজ্ঞাপনের ধরন এবং স্থান অনুযায়ী পেমেন্ট করে নিচের ফর্মটি ফিলাপ করুন।")
+        region = st.selectbox("Select Your Region / দেশের ধরণ", ["Bangladesh (BD)", "International (Global)"])
+        
+        if "Bangladesh" in region:
+            currency = "BDT"
+            price_per_month = 1000
+            st.info("💰 **বাংলাদেশ মূল্য নির্ধারণ:** ১ মাসের বিজ্ঞাপনের জন্য ৳১,০০০ টাকা।")
+        else:
+            currency = "USD"
+            price_per_month = 30
+            st.info("🌐 **International Pricing:** $30 USD per month.")
 
-    st.markdown("---")
-    st.subheader("💳 Select Payment Method & Transfer Money")
+        duration = st.number_input("Duration (Months)", min_value=1, value=1)
+        total_amount = price_per_month * duration
+        st.metric(label="Total Payable Amount", value=f"{total_amount} {currency}")
 
-    pay_method = st.radio("Choose Method:", ["bKash", "Nagad", "Bank Transfer (Islami Bank)", "Crypto Wallet (USDT)"])
+        st.markdown("---")
+        st.subheader("💳 Select Payment Method & Transfer Money")
 
-    if pay_method == "bKash":
-        st.success("📱 **bKash Personal Number:** `01302134435` (Send Money)")
-    elif pay_method == "Nagad":
-        st.warning("📱 **Nagad Personal Number:** `01722003172` (Send Money)")
-    elif pay_method == "Bank Transfer (Islami Bank)":
-        st.code("""
+        pay_method = st.radio("Choose Method:", ["bKash", "Nagad", "Bank Transfer (Islami Bank)", "Crypto Wallet (USDT)"])
+
+        if pay_method == "bKash":
+            st.success("📱 **bKash Personal Number:** `01302134435` (Send Money)")
+        elif pay_method == "Nagad":
+            st.warning("📱 **Nagad Personal Number:** `01722003172` (Send Money)")
+        elif pay_method == "Bank Transfer (Islami Bank)":
+            st.code("""
 Bank Name: Islami Bank Bangladesh Limited
 Branch: Lalmonirhat Branch
 Account Name: MD. SOHEL RANA
 Account Number: 20502530202612312
-        """)
-    elif pay_method == "Crypto Wallet (USDT)":
-        st.code("""
+            """)
+        elif pay_method == "Crypto Wallet (USDT)":
+            st.code("""
 USDT (TRC20 Network): TM6DAbNuF2kaMaRoC8HKi2G8Gi5hVWnbCP
 USDT (BSC BEP20 Network): 0x53052be072029dd76e02b01d925e29b03c5294ad
-        """)
+            """)
 
-    st.markdown("---")
-    st.subheader("📝 Submit Ad Details")
-    adv_email = st.text_input("Your Email Address")
-    ad_type = st.selectbox("Ad Type", ["Short Video (10 Sec)", "Long Video", "Image Post / Banner"])
-    content_link = st.text_input("Ad Content Link (Video / Image URL)")
-    trx_id = st.text_input("Transaction ID / Reference Number (TrxID)")
+        st.markdown("---")
+        st.subheader("📝 Submit Ad Details")
+        adv_email = st.text_input("Your Contact Phone / Email", value=st.session_state.user)
+        ad_type = st.selectbox("Ad Type", ["Short Video (10 Sec)", "Long Video", "Image Post / Banner"])
+        content_link = st.text_input("Ad Content Link (Video / Image URL)")
+        trx_id = st.text_input("Transaction ID / Reference Number (TrxID)")
 
-    if st.button("Submit Advertisement for Review"):
-        if adv_email and content_link and trx_id:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO advertisements 
-                (advertiser_email, ad_type, content_link, duration_months, region, payment_method, amount, trx_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (adv_email, ad_type, content_link, duration, region, pay_method, total_amount, trx_id))
-            conn.commit()
-            conn.close()
-            st.success("✅ আপনার বিজ্ঞাপন আবেদনটি সফলভাবে জমা হয়েছে! পেমেন্ট যাচাই করে অ্যাডমিন শীঘ্রই লাইভ করবে।")
-        else:
-            st.error("দয়া করে সমস্ত ফিল্ড সঠিকভাবে পূরণ করুন।")
+        if st.button("Submit Advertisement for Review"):
+            if adv_email and content_link and trx_id:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO advertisements 
+                    (advertiser_email, ad_type, content_link, duration_months, region, payment_method, amount, trx_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (adv_email, ad_type, content_link, duration, region, pay_method, total_amount, trx_id))
+                conn.commit()
+                conn.close()
+                st.success("✅ আপনার বিজ্ঞাপন আবেদনটি সফলভাবে জমা হয়েছে! পেমেন্ট যাচাই করে অ্যাডমিন শীঘ্রই লাইভ করবে।")
+            else:
+                st.error("দয়া করে সমস্ত ফিল্ড সঠিকভাবে পূরণ করুন।")
 
 elif tab == "💬 WhatsApp Support Desk":
     st.subheader("💬 Official WhatsApp Support Desk")
     st.caption("Contact us directly from anywhere in the world to ask questions or resolve issues.")
     
-    encoded_msg = urllib.parse.quote("Hello! I am contacting you from BD AI Book App.")
-    wa_link = f"https://wa.me/8801722003172?text={encoded_msg}"
-    
-    st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #075E54, #128C7E); padding: 25px; border-radius: 15px; color: white; text-align: center; border: 1px solid #25D366; margin: 20px 0;">
-            <h2 style="margin-top:0; color: #ffffff;">🌐 Official WhatsApp Support Desk</h2>
-            <p style="font-size: 15px; color: #e0e0e0; margin-bottom: 20px;">
-                Click below to send messages or feedback directly to our support team worldwide.
-            </p>
-            <a href="{wa_link}" target="_blank" style="
-                background-color: #25D366; 
-                color: #121212; 
-                padding: 14px 30px; 
-                text-decoration: none; 
-                font-weight: bold; 
-                font-size: 17px;
-                border-radius: 30px; 
-                display: inline-block;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
-                📲 Send WhatsApp Message / Photo
-            </a>
-            <p style="font-size: 12px; color: #ffeb3b; margin-top: 20px; margin-bottom: 0;">
-                ⚠️ <b>Note:</b> Only text messages and file sharing are supported.
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
+    if not st.session_state.user:
+        st.warning("🔒 যেকোনো সাপোর্ট বা প্রশ্ন করার আগে ফোন নম্বর দিয়ে সাইন-আপ বা লগইন করুন।")
+    else:
+        encoded_msg = urllib.parse.quote(f"Hello! I am logged in as {st.session_state.user} on BD AI Book App.")
+        wa_link = f"https://wa.me/8801722003172?text={encoded_msg}"
+        
+        st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #075E54, #128C7E); padding: 25px; border-radius: 15px; color: white; text-align: center; border: 1px solid #25D366; margin: 20px 0;">
+                <h2 style="margin-top:0; color: #ffffff;">🌐 Official WhatsApp Support Desk</h2>
+                <p style="font-size: 15px; color: #e0e0e0; margin-bottom: 20px;">
+                    Click below to send messages or feedback directly to our support team worldwide.
+                </p>
+                <a href="{wa_link}" target="_blank" style="
+                    background-color: #25D366; 
+                    color: #121212; 
+                    padding: 14px 30px; 
+                    text-decoration: none; 
+                    font-weight: bold; 
+                    font-size: 17px;
+                    border-radius: 30px; 
+                    display: inline-block;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
+                    📲 Send WhatsApp Message / Photo
+                </a>
+                <p style="font-size: 12px; color: #ffeb3b; margin-top: 20px; margin-bottom: 0;">
+                    ⚠️ <b>Note:</b> Only text messages and file sharing are supported.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
 
 elif tab == "💳 Payout & Monetization":
     st.subheader("🏦 Global Monetization, Card & Bank Setup")
@@ -1053,18 +1133,24 @@ elif tab == "📤 Create Post / Upload":
     if not st.session_state.user:
         st.warning("Please login to create a post or upload content.")
     else:
-        st.subheader("📤 Upload Content")
+        st.subheader("📤 Upload Content (Daily Limits Applied)")
+        st.info("📌 **দৈনিক আপলোড নিয়মাবলী:** ১টি লং ভিডিও (১০-২০ মি:), ১টি শর্ট ভিডিও, এবং ১০টি ফটো/টেক্সট পোস্ট প্রতি ২৪ ঘণ্টায় অনুমোদিত।")
         
         st.warning("⚠️ **Global Community Guidelines:** Sexual, adult, or violent content is strictly prohibited. Violating terms will lead to immediate account suspension and loss of earnings.")
         
-        upload_type = st.radio("Select Upload Type:", ["📝 Post/Photo", "🎥 Long Video", "📱 Short Video"])
+        upload_type = st.radio("Select Upload Type:", ["📝 Post/Photo", "🎥 Long Video (10-20 min)", "📱 Short Video"])
         
         if upload_type == "📝 Post/Photo":
+            can_upload, current_cnt, max_limit = check_daily_upload_limit(st.session_state.user, "post")
+            st.caption(f"📊 আজকের পোস্ট আপলোড অবস্থা: **{current_cnt}/{max_limit}**")
+            
             post_text = st.text_area("What's on your mind?")
             img_file = st.file_uploader("Upload Photo (JPG/PNG)", type=["jpg", "png", "jpeg"])
             
             if st.button("🚀 Publish Post"):
-                if not post_text and not img_file:
+                if not can_upload:
+                    st.error("❌ আপনার আজকের ১০টি পোস্ট করার দৈনিক সীমা অতিক্রম করেছে! আগামীকাল আবার চেষ্টা করুন।")
+                elif not post_text and not img_file:
                     st.warning("Please enter text or attach an image!")
                 else:
                     img_path = None
@@ -1082,18 +1168,27 @@ elif tab == "📤 Create Post / Upload":
                     """, (str(uuid.uuid4()), st.session_state.user, st.session_state.pic, post_text, img_path, 0, today_str))
                     conn.commit()
                     conn.close()
+                    
+                    record_daily_upload(st.session_state.user, "post")
                     st.toast("✅ Post published successfully!")
                     st.rerun()
                     
         else:
+            is_short = (upload_type == "📱 Short Video")
+            c_type_key = "short_video" if is_short else "long_video"
+            
+            can_upload, current_cnt, max_limit = check_daily_upload_limit(st.session_state.user, c_type_key)
+            st.caption(f"📊 আজকের {upload_type} আপলোড অবস্থা: **{current_cnt}/{max_limit}**")
+            
             v_title = st.text_input("Video Title", placeholder="Enter a title for your video...")
             vid_file = st.file_uploader("Upload Video File (MP4/MOV)", type=["mp4", "mov", "avi", "mkv"])
             
-            is_short = (upload_type == "📱 Short Video")
             v_type_str = "short" if is_short else "long"
             
             if st.button("🚀 Publish Video"):
-                if not vid_file or not v_title.strip():
+                if not can_upload:
+                    st.error(f"❌ আপনার আজকের ১টি {upload_type} আপলোড করার সীমা শেষ! আগামী ২৪ ঘন্টা পর আবার চেষ্টা করুন।")
+                elif not vid_file or not v_title.strip():
                     st.warning("Please provide a video title and select a video file!")
                 else:
                     vid_filename = f"vid_{uuid.uuid4()}.mp4"
@@ -1121,6 +1216,7 @@ elif tab == "📤 Create Post / Upload":
                     conn.commit()
                     conn.close()
                     
+                    record_daily_upload(st.session_state.user, c_type_key)
                     st.toast(f"🎉 {upload_type} published successfully!")
                     st.rerun()
 
@@ -1129,9 +1225,9 @@ elif tab == "🔐 Owner Control Panel":
         st.error("🚫 Access Denied! Only the Owner can access this panel.")
     else:
         st.title("👑 Owner Master Dashboard & Financial Accounts")
-        st.success(f"Logged in as Owner: {st.session_state.user}")
+        st.success(f"Logged in as Owner Admin")
 
-        # Section to Update Global Payment Details (Merged from Code 1)
+        # Section to Update Global Payment Details
         st.subheader("🏦 Update Global Payment Information")
         current_info = get_owner_payment_info()
         new_info = st.text_area("Edit Payment Details (bKash/Nagad/Bank details for advertisers):", value=current_info)
