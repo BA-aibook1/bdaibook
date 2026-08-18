@@ -186,13 +186,13 @@ def show_verified_profile(
 ):
     b64_img = get_image_base64(profile_pic_path)
     if b64_img:
-        img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #00c853;">'
+        img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #1877F2;">'
     else:
         img_html = '<div style="width:50px; height:50px; border-radius:50%; background:#2a2a2a; color:#fff; display:flex; align-items:center; justify-content:center; font-size:24px;">👤</div>'
 
     blue_tick_svg = (
         """<svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-left: 6px; vertical-align: middle;">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#00c853"/>
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#1877F2"/>
     </svg>"""
         if is_verified
         else ""
@@ -215,7 +215,7 @@ def show_auto_moving_banner():
     ad_html = f"""
     <div style="text-align:center; margin: 15px 0;">
         <a href="{SMART_LINK}" target="_blank" style="text-decoration:none;">
-            <div style="background: linear-gradient(90deg, #00c853, #1e88e5); color: #fff; padding: 14px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid #3a3b3c; font-family: sans-serif;">
+            <div style="background: linear-gradient(90deg, #1877F2, #00c853); color: #fff; padding: 14px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid #3a3b3c; font-family: sans-serif;">
                 <span style="font-size: 15px; font-weight: bold;">⚡ GLOBAL AUTOMATIC MONETIZATION ACTIVE ⚡</span><br>
                 <span style="font-size: 12px;">Click to Boost Earnings & Claim Reward Bonus!</span>
             </div>
@@ -470,10 +470,12 @@ if tab == "🌍 World Feed":
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Show search result title if searching
     if search_query:
         st.info(f"🔍 Showing search results for: **{search_query}**")
 
     try:
+        # Fetch Shorts for Top Slider
         if search_query:
             cursor.execute(
                 "SELECT * FROM videos WHERE video_type = 'short' AND (title LIKE ? OR uploader_name LIKE ?) ORDER BY created_at DESC",
@@ -508,6 +510,7 @@ if tab == "🌍 World Feed":
         pass
 
     try:
+        # Search or Fetch All Videos & Posts
         if search_query:
             cursor.execute(
                 "SELECT * FROM videos WHERE video_type != 'short' AND (title LIKE ? OR uploader_name LIKE ?)",
@@ -835,7 +838,9 @@ elif tab == "👤 My Profile & Earnings":
             f"📹 Videos/Shorts: **{len(my_videos)}** | 🖼️ Posts: **{len(my_posts)}** | ❤️ Likes: **{format_value(total_likes)}** | 👁️ Views: **{format_value(total_views)}** | 👥 Followers: **{followers}/300**"
         )
 
-        st.markdown("#### 📊 Monetization Progress (Requirements: 300 Followers & 3000 Hours)")
+        st.markdown(
+            "#### 📊 Monetization Progress (Requirements: 300 Followers & 3000 Hours)"
+        )
         col_p1, col_p2 = st.columns(2)
         with col_p1:
             st.write(f"👥 Followers Goal: **{followers}/300**")
@@ -933,7 +938,10 @@ elif tab == "📤 Create Post / Upload":
                     st.rerun()
 
         else:
-            v_title = st.text_input("Video Title", placeholder="Enter a title for your video...")
+            # Handle Video / Shorts Uploads
+            v_title = st.text_input(
+                "Video Title", placeholder="Enter a title for your video..."
+            )
             vid_file = st.file_uploader(
                 "Upload Video File (MP4/MOV)", type=["mp4", "mov", "avi", "mkv"]
             )
@@ -943,7 +951,9 @@ elif tab == "📤 Create Post / Upload":
 
             if st.button("🚀 Publish Video"):
                 if not vid_file or not v_title.strip():
-                    st.warning("Please provide a video title and select a video file!")
+                    st.warning(
+                        "Please provide a video title and select a video file!"
+                    )
                 else:
                     vid_filename = f"vid_{uuid.uuid4()}.mp4"
                     vid_path = os.path.join(VIDEO_DIR, vid_filename)
