@@ -59,6 +59,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
+            phone_number TEXT,
             full_name TEXT,
             profile_pic TEXT,
             is_verified INTEGER DEFAULT 1,
@@ -372,66 +373,82 @@ if "active_tab" not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
 
 # ==========================================
-# 6. SIDEBAR NAVIGATION, AUTH & SEARCH
+# 6. SIDEBAR NAVIGATION & AUTHENTICATION
 # ==========================================
 if os.path.exists("logo.jpg"):
     st.sidebar.image("logo.jpg", use_container_width=True)
 
-# --- 🔍 SEARCH BAR SECTION ---
-st.sidebar.markdown("### 🔍 Search Feed")
-search_query = st.sidebar.text_input(
-    "Search posts, videos, creators...",
-    placeholder="Type to search...",
-    key="search_query",
-)
-if search_query:
-    if st.sidebar.button("❌ Clear Search"):
-        st.session_state.search_query = ""
-        st.rerun()
-
-st.sidebar.markdown("---")
-st.sidebar.header("📸 Authentication")
+st.sidebar.header("📱 Phone Authentication")
 
 if not st.session_state.user:
     u_name = st.sidebar.text_input("Username")
-    camera_photo = st.sidebar.camera_input("Take Face Scan", key="face_cam")
+    phone_input = st.sidebar.text_input(
+        "Phone Number", placeholder="017XXXXXXXX"
+    )
 
-    if u_name and camera_photo:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = ?", (u_name,))
-        user_data = cursor.fetchone()
+    col_auth1, col_auth2 = st.sidebar.columns(2)
+    with col_auth1:
+        login_btn = st.button("🔓 Login")
+    with col_auth2:
+        register_btn = st.button("✨ Register")
 
-        if user_data:
-            if st.sidebar.button("🔓 Login with Face ID"):
+    if login_btn:
+        if u_name and phone_input:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM users WHERE username = ? AND phone_number = ?",
+                (u_name, phone_input),
+            )
+            user_data = cursor.fetchone()
+            conn.close()
+
+            if user_data:
                 st.session_state.user = u_name
                 st.session_state.pic = user_data["profile_pic"]
                 st.session_state.is_verified = user_data["is_verified"]
-                conn.close()
+                st.sidebar.success("✅ Login Successful!")
                 st.rerun()
-            conn.close()
+            else:
+                st.sidebar.error("❌ Invalid Username or Phone Number!")
         else:
-            if st.sidebar.button("✨ Create Account"):
-                fname = os.path.join(PROFILE_DIR, f"p_{uuid.uuid4()}.jpg")
-                with open(fname, "wb") as f:
-                    f.write(camera_photo.getvalue())
+            st.sidebar.warning(
+                "Please enter both Username and Phone Number!"
+            )
 
+    if register_btn:
+        if u_name and phone_input:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM users WHERE username = ?", (u_name,))
+            existing_user = cursor.fetchone()
+
+            if existing_user:
+                st.sidebar.error(
+                    "⚠️ Username already exists! Try another or login."
+                )
+                conn.close()
+            else:
                 today_str = datetime.now().strftime("%Y-%m-%d")
                 cursor.execute(
-                    """INSERT INTO users (username, full_name, profile_pic, is_verified, created_at) 
+                    """INSERT INTO users (username, phone_number, full_name, is_verified, created_at) 
                        VALUES (?, ?, ?, ?, ?)""",
-                    (u_name, u_name, fname, 1, today_str),
+                    (u_name, phone_input, u_name, 1, today_str),
                 )
                 conn.commit()
                 conn.close()
 
                 st.session_state.user = u_name
-                st.session_state.pic = fname
+                st.session_state.pic = None
                 st.session_state.is_verified = 1
                 st.sidebar.success(
-                    "🎉 Account Verified & Created Successfully!"
+                    "🎉 Account Created & Logged In Successfully!"
                 )
                 st.rerun()
+        else:
+            st.sidebar.warning(
+                "Please enter both Username and Phone Number to register!"
+            )
 else:
     if st.session_state.pic and os.path.exists(st.session_state.pic):
         st.sidebar.image(st.session_state.pic, width=90)
@@ -470,21 +487,10 @@ if tab == "🌍 World Feed":
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Show search result title if searching
-    if search_query:
-        st.info(f"🔍 Showing search results for: **{search_query}**")
-
     try:
-        # Fetch Shorts for Top Slider
-        if search_query:
-            cursor.execute(
-                "SELECT * FROM videos WHERE video_type = 'short' AND (title LIKE ? OR uploader_name LIKE ?) ORDER BY created_at DESC",
-                (f"%{search_query}%", f"%{search_query}%"),
-            )
-        else:
-            cursor.execute(
-                "SELECT * FROM videos WHERE video_type = 'short' ORDER BY created_at DESC"
-            )
+        cursor.execute(
+            "SELECT * FROM videos WHERE video_type = 'short' ORDER BY created_at DESC"
+        )
         short_videos = [dict(r) for r in cursor.fetchall()]
 
         if short_videos:
@@ -510,37 +516,19 @@ if tab == "🌍 World Feed":
         pass
 
     try:
-        # Search or Fetch All Videos & Posts
-        if search_query:
-            cursor.execute(
-                "SELECT * FROM videos WHERE video_type != 'short' AND (title LIKE ? OR uploader_name LIKE ?)",
-                (f"%{search_query}%", f"%{search_query}%"),
-            )
-            videos = [dict(row) for row in cursor.fetchall()]
+        cursor.execute("SELECT * FROM videos WHERE video_type != 'short'")
+        videos = [dict(row) for row in cursor.fetchall()]
 
-            cursor.execute(
-                "SELECT * FROM posts WHERE (content LIKE ? OR uploader_name LIKE ?)",
-                (f"%{search_query}%", f"%{search_query}%"),
-            )
-            posts = [dict(row) for row in cursor.fetchall()]
-        else:
-            cursor.execute("SELECT * FROM videos WHERE video_type != 'short'")
-            videos = [dict(row) for row in cursor.fetchall()]
-
-            cursor.execute("SELECT * FROM posts")
-            posts = [dict(row) for row in cursor.fetchall()]
+        cursor.execute("SELECT * FROM posts")
+        posts = [dict(row) for row in cursor.fetchall()]
 
         combined_feed = videos + posts
-        if not search_query:
-            random.shuffle(combined_feed)
+        random.shuffle(combined_feed)
 
         if not combined_feed:
-            if search_query:
-                st.warning("No posts or videos found matching your search term.")
-            else:
-                st.info(
-                    "No posts or videos available. Create content from the Upload section."
-                )
+            st.info(
+                "No posts or videos available. Create content from the Upload section."
+            )
 
         for index, item in enumerate(combined_feed):
             item_id = str(item["id"])
@@ -624,16 +612,9 @@ elif tab == "📱 Scrolle Shorts Feed":
     st.subheader("📱 TikTok & Shorts Vertical Scroll Feed")
     conn = get_db_connection()
     cursor = conn.cursor()
-
-    if search_query:
-        cursor.execute(
-            "SELECT * FROM videos WHERE video_type = 'short' AND (title LIKE ? OR uploader_name LIKE ?) ORDER BY created_at DESC",
-            (f"%{search_query}%", f"%{search_query}%"),
-        )
-    else:
-        cursor.execute(
-            "SELECT * FROM videos WHERE video_type = 'short' ORDER BY created_at DESC"
-        )
+    cursor.execute(
+        "SELECT * FROM videos WHERE video_type = 'short' ORDER BY created_at DESC"
+    )
     short_vids = [dict(r) for r in cursor.fetchall()]
     conn.close()
 
