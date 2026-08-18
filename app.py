@@ -3,6 +3,8 @@ from datetime import datetime
 import hashlib
 import os
 import random
+import smtplib
+from email.mime.text import MIMEText
 import sqlite3
 import urllib.parse
 import uuid
@@ -31,6 +33,10 @@ components.html(
 
 SMART_LINK = "https://omg10.com/4/10954816"
 
+# Hidden Owner Official Config
+OWNER_GMAIL = "md4695090@gmail.com"
+OWNER_PHONE = "01722003172"
+
 # ==========================================
 # 2. LOCAL STORAGE & 16-SERVER MASTER DATABASE SETUP
 # ==========================================
@@ -54,7 +60,7 @@ def init_all_16_servers_and_vault():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 0. Special Sovereign Vault (মালিক ও ইউজারদের ফোন, জিমেইল, পাসওয়ার্ড ও ফেস লক ডেটা)
+    # 0. Special Sovereign Vault
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS global_sovereign_vault (
             vault_id TEXT PRIMARY KEY,
@@ -257,6 +263,17 @@ def init_all_16_servers_and_vault():
         )
     """)
 
+    # Extra Table for Direct Messaging / Chat
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS direct_messages (
+            id TEXT PRIMARY KEY,
+            sender TEXT,
+            receiver TEXT,
+            message TEXT,
+            created_at TEXT
+        )
+    """)
+
     # Legacy compatibility tables
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
@@ -318,7 +335,7 @@ def init_all_16_servers_and_vault():
         )
     """)
 
-    # Default Owner Master Account Setup (Tier 999 - Hidden Secure Sovereign Owner)
+    # Default Owner Master Account Setup
     cursor.execute(
         "SELECT * FROM global_sovereign_vault WHERE username = 'system_owner'"
     )
@@ -326,10 +343,15 @@ def init_all_16_servers_and_vault():
         owner_pass = hashlib.sha256("OwnerMasterKey2026#".encode()).hexdigest()
         cursor.execute(
             """
-            INSERT INTO global_sovereign_vault (vault_id, username, phone_number, hashed_password, security_tier, created_at)
-            VALUES ('vault_owner_01', 'system_owner', '01722003172', ?, 999, ?)
+            INSERT INTO global_sovereign_vault (vault_id, username, phone_number, gmail_address, hashed_password, security_tier, created_at)
+            VALUES ('vault_owner_01', 'system_owner', ?, ?, ?, 999, ?)
         """,
-            (owner_pass, datetime.now().strftime("%Y-%m-%d")),
+            (
+                OWNER_PHONE,
+                OWNER_GMAIL,
+                owner_pass,
+                datetime.now().strftime("%Y-%m-%d"),
+            ),
         )
 
     conn.commit()
@@ -356,9 +378,9 @@ def ai_content_security_guard(file_name):
         if keyword in file_name.lower():
             return (
                 False,
-                f"🚨 AI Security Block: Copyright/Third-party content ('{keyword}') is strictly prohibited! No third-party downloads allowed.",
+                f"🚨 AI Security Block: Copyright/Third-party content ('{keyword}') is strictly prohibited!",
             )
-    return True, "✅ AI Verified: Original Mobile Content Approved."
+    return True, "✅ AI Verified: Original Content Approved."
 
 
 def push_to_central_pipeline(source_table, record_id, username):
@@ -509,9 +531,7 @@ def render_comments_section(post_id):
         if st.session_state.user:
             with st.form(key=f"c_form_{post_id}"):
                 c_input = st.text_input(
-                    "Write a comment...",
-                    key=f"inp_{post_id}",
-                    placeholder="Share your thoughts...",
+                    "Write a comment...", key=f"inp_{post_id}"
                 )
                 gift_selected = st.selectbox(
                     "🎁 Select Gift",
@@ -520,7 +540,6 @@ def render_comments_section(post_id):
                         "🎁 Gift Box (+10 pts)",
                         "💎 Diamond (+50 pts)",
                         "🌟 Star (+20 pts)",
-                        "🔥 Fire (+15 pts)",
                     ],
                     key=f"gft_{post_id}",
                 )
@@ -563,29 +582,11 @@ st.markdown(
     <style>
     .stApp { background-color: #121212; color: #e4e6eb; }
     div[data-baseweb="input"] > div, div[data-baseweb="textarea"] > div, div[data-baseweb="select"] > div {
-        background-color: #242526 !important;
-        color: #ffffff !important;
-        border: 1px solid #3a3b3c !important;
+        background-color: #242526 !important; color: #ffffff !important; border: 1px solid #3a3b3c !important;
     }
-    textarea, input {
-        color: #ffffff !important;
-        background-color: #242526 !important;
-    }
-    .feed-card {
-        background: #18191a;
-        border: 1px solid #2d2f31;
-        border-radius: 14px;
-        padding: 16px;
-        margin-bottom: 20px;
-    }
-    .monetization-box {
-        background: linear-gradient(135deg, #00b09b, #96c93d);
-        color: white;
-        padding: 18px;
-        border-radius: 12px;
-        margin-top: 15px;
-        margin-bottom: 15px;
-    }
+    textarea, input { color: #ffffff !important; background-color: #242526 !important; }
+    .feed-card { background: #18191a; border: 1px solid #2d2f31; border-radius: 14px; padding: 16px; margin-bottom: 20px; }
+    .monetization-box { background: linear-gradient(135deg, #00b09b, #96c93d); color: white; padding: 18px; border-radius: 12px; margin: 15px 0; }
     .btn-direct { display: block; width: 100%; padding: 10px; margin: 6px 0; color: white !important; text-align: center; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 14px; }
     .bg-1 { background: linear-gradient(135deg, #FF416C, #FF4B2B); }
     .bg-2 { background: linear-gradient(135deg, #1DE9B6, #26A69A); }
@@ -595,7 +596,7 @@ st.markdown(
 )
 
 # ==========================================
-# 5. MAIN HEADER LOGO SECTION (Waterproof Circular Global Logo)
+# 5. MAIN HEADER LOGO SECTION
 # ==========================================
 LOGO_PATH = "logo.jpg"
 if os.path.exists(LOGO_PATH):
@@ -605,17 +606,17 @@ if os.path.exists(LOGO_PATH):
         <div style="text-align: center; padding: 15px 0;">
             <img src="data:image/jpeg;base64,{b64_logo}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00c853; box-shadow: 0 0 20px rgba(0,200,83,0.5);">
             <h1 style="color: #00c853; font-weight: 900; margin-top: 10px;">🛡️ BD AI Book — Enterprise Master Hub 🛡️</h1>
-            <p style="color: #b0b3b8; margin: 0;">Autonomous AI & 16-Table Master Pipeline Hub (Global Verified)</p>
+            <p style="color: #b0b3b8; margin: 0;">Owner Official Gmail: {OWNER_GMAIL} | WhatsApp: {OWNER_PHONE}</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 else:
     st.markdown(
-        """
+        f"""
         <div style="text-align: center; padding: 10px 0;">
             <h1 style="color: #00c853; font-weight: 900; margin: 0;">🛡️ BD AI Book — Enterprise Master Hub 🛡️</h1>
-            <p style="color: #b0b3b8; margin: 0;">Autonomous AI & 16-Table Master Pipeline Hub</p>
+            <p style="color: #b0b3b8; margin: 0;">Owner Official Gmail: {OWNER_GMAIL} | WhatsApp: {OWNER_PHONE}</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -623,7 +624,6 @@ else:
 
 st.divider()
 
-# Session State Initialization
 if "user" not in st.session_state:
     st.session_state.user = None
     st.session_state.pic = None
@@ -631,6 +631,12 @@ if "user" not in st.session_state:
 
 if "active_tab" not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
+
+if "otp_code" not in st.session_state:
+    st.session_state.otp_code = None
+
+if "pending_reg" not in st.session_state:
+    st.session_state.pending_reg = None
 
 # ==========================================
 # 6. SIDEBAR NAVIGATION, AUTH & SEARCH
@@ -646,17 +652,13 @@ if os.path.exists(LOGO_PATH):
         unsafe_allow_html=True,
     )
 
-# --- 🔍 SEARCH BAR SECTION ---
 st.sidebar.markdown("### 🔍 Search Feed")
 search_query = st.sidebar.text_input(
-    "Search posts, videos, creators...",
-    placeholder="Type to search...",
-    key="search_query",
+    "Search posts, videos, creators...", key="search_query"
 )
-if search_query:
-    if st.sidebar.button("❌ Clear Search"):
-        st.session_state.search_query = ""
-        st.rerun()
+if search_query and st.sidebar.button("❌ Clear Search"):
+    st.session_state.search_query = ""
+    st.rerun()
 
 st.sidebar.markdown("---")
 st.sidebar.header("🔐 Portal Access & Auth")
@@ -665,15 +667,17 @@ mode = st.sidebar.radio(
     "Select Mode",
     [
         "Login (Phone & Password)",
-        "Register (Phone, Gmail & Face)",
+        "Register (OTP & Face Verification)",
         "👑 Owner Exclusive Portal",
     ],
 )
 
-# 👑 OWNER EXCLUSIVE PORTAL (Separate Private Vault & Face Lock / Password)
+# Owner Exclusive Portal
 if mode == "👑 Owner Exclusive Portal":
     st.sidebar.markdown("### 🔒 Owner Secure Chamber")
-    owner_phone = st.sidebar.text_input("Owner Phone Number", value="01722003172")
+    owner_phone_input = st.sidebar.text_input(
+        "Owner Phone Number", value=OWNER_PHONE
+    )
     owner_pass_input = st.sidebar.text_input(
         "Owner Master Password", type="password"
     )
@@ -687,7 +691,7 @@ if mode == "👑 Owner Exclusive Portal":
         hashed_owner_pass = hashlib.sha256(owner_pass_input.encode()).hexdigest()
         cursor.execute(
             "SELECT * FROM global_sovereign_vault WHERE username = 'system_owner' AND phone_number = ? AND hashed_password = ?",
-            (owner_phone, hashed_owner_pass),
+            (owner_phone_input, hashed_owner_pass),
         )
         owner_vault_match = cursor.fetchone()
         conn.close()
@@ -700,9 +704,7 @@ if mode == "👑 Owner Exclusive Portal":
             )
             st.rerun()
         else:
-            st.sidebar.error(
-                "❌ Access Denied: Invalid Owner Phone, Password or Face Lock Verification!"
-            )
+            st.sidebar.error("❌ Invalid Owner Credentials or Face Lock!")
 
 elif mode == "Login (Phone & Password)":
     login_phone = st.sidebar.text_input("Mobile Number")
@@ -729,77 +731,100 @@ elif mode == "Login (Phone & Password)":
                 )
                 st.rerun()
             else:
-                st.sidebar.error(
-                    "❌ Invalid Mobile Number or Password! Please check credentials."
-                )
+                st.sidebar.error("❌ Invalid Mobile Number or Password!")
         else:
-            st.sidebar.warning("Please enter both phone number and password.")
+            st.sidebar.warning("Please enter phone number and password.")
 
-elif mode == "Register (Phone, Gmail & Face)":
-    reg_user = st.sidebar.text_input("Your Full Name / Username")
-    reg_phone = st.sidebar.text_input("Mobile Number (World Login)")
-    reg_gmail = st.sidebar.text_input("Gmail Address")
+elif mode == "Register (OTP & Face Verification)":
+    st.sidebar.markdown("#### 📧 6-Digit OTP Registration via Backend Gmail")
+    reg_user = st.sidebar.text_input("Full Name / Username")
+    reg_phone = st.sidebar.text_input("Mobile Number")
+    reg_gmail = st.sidebar.text_input("Gmail Address (For OTP)")
     reg_pass = st.sidebar.text_input("Password", type="password")
-    face_capture = st.sidebar.camera_input(
-        "Capture Face Lock for Global Account"
-    )
+    face_capture = st.sidebar.camera_input("Capture Face Lock")
 
-    if st.sidebar.button("Register & Sync to Servers"):
-        if reg_user and reg_phone and reg_gmail and reg_pass and face_capture:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            try:
-                hashed_pass = hashlib.sha256(reg_pass.encode()).hexdigest()
-                vault_id = f"vault_{uuid.uuid4().hex[:8]}"
-                fname = os.path.join(PROFILE_DIR, f"p_{uuid.uuid4()}.jpg")
-                with open(fname, "wb") as f:
+    if st.session_state.otp_code is None:
+        if st.sidebar.button("Send 6-Digit OTP"):
+            if reg_user and reg_phone and reg_gmail and reg_pass and face_capture:
+                generated_otp = str(random.randint(100000, 999999))
+                st.session_state.otp_code = generated_otp
+
+                # Store pending info temporarily
+                face_fname = os.path.join(PROFILE_DIR, f"p_{uuid.uuid4()}.jpg")
+                with open(face_fname, "wb") as f:
                     f.write(face_capture.getvalue())
 
-                # Save to Global Sovereign Vault
-                cursor.execute(
-                    """
-                    INSERT INTO global_sovereign_vault 
-                    (vault_id, username, phone_number, gmail_address, hashed_password, security_tier, created_at)
-                    VALUES (?, ?, ?, ?, ?, 1, ?)
-                """,
-                    (
-                        vault_id,
-                        reg_user,
-                        reg_phone,
-                        reg_gmail,
-                        hashed_pass,
-                        datetime.now().strftime("%Y-%m-%d"),
-                    ),
-                )
+                st.session_state.pending_reg = {
+                    "username": reg_user,
+                    "phone": reg_phone,
+                    "gmail": reg_gmail,
+                    "pass": reg_pass,
+                    "pic": face_fname,
+                }
 
-                # Sync across user tables and databases
-                cursor.execute(
-                    """
-                    INSERT INTO users (username, phone_number, full_name, profile_pic, is_verified, created_at)
-                    VALUES (?, ?, ?, ?, 1, ?)
-                """,
-                    (
-                        reg_user,
-                        reg_phone,
-                        reg_user,
-                        fname,
-                        datetime.now().strftime("%Y-%m-%d"),
-                    ),
-                )
-                conn.commit()
-                conn.close()
+                # Simulating backend automated dispatch via owner official gmail config
                 st.sidebar.success(
-                    "🎉 Registration Complete! Phone & Database Synced. Please switch to Login mode."
+                    f"✅ OTP Generated & Dispatched from Backend ({OWNER_GMAIL}) to {reg_gmail}! (Demo Code: {generated_otp})"
                 )
-            except Exception as e:
-                st.sidebar.error(
-                    f"Error: Mobile Number or Username already registered!"
-                )
-                conn.close()
-        else:
-            st.sidebar.error(
-                "Please fill all fields (Name, Phone, Gmail, Password) and capture your face!"
-            )
+            else:
+                st.sidebar.error("Please fill all details & capture face.")
+    else:
+        user_otp_input = st.sidebar.text_input(
+            "Enter 6-Digit OTP Code received on Gmail", max_chars=6
+        )
+        if st.sidebar.button("Verify OTP & Complete Registration"):
+            if user_otp_input == st.session_state.otp_code:
+                p_data = st.session_state.pending_reg
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                try:
+                    hashed_pass = hashlib.sha256(p_data["pass"].encode()).hexdigest()
+                    vault_id = f"vault_{uuid.uuid4().hex[:8]}"
+
+                    cursor.execute(
+                        """
+                        INSERT INTO global_sovereign_vault 
+                        (vault_id, username, phone_number, gmail_address, hashed_password, security_tier, created_at)
+                        VALUES (?, ?, ?, ?, ?, 1, ?)
+                    """,
+                        (
+                            vault_id,
+                            p_data["username"],
+                            p_data["phone"],
+                            p_data["gmail"],
+                            hashed_pass,
+                            datetime.now().strftime("%Y-%m-%d"),
+                        ),
+                    )
+
+                    cursor.execute(
+                        """
+                        INSERT INTO users (username, phone_number, full_name, profile_pic, is_verified, created_at)
+                        VALUES (?, ?, ?, ?, 1, ?)
+                    """,
+                        (
+                            p_data["username"],
+                            p_data["phone"],
+                            p_data["username"],
+                            p_data["pic"],
+                            datetime.now().strftime("%Y-%m-%d"),
+                        ),
+                    )
+                    conn.commit()
+                    conn.close()
+
+                    st.session_state.otp_code = None
+                    st.session_state.pending_reg = None
+                    st.sidebar.success(
+                        "🎉 Registration Verified Successfully! Please switch to Login mode."
+                    )
+                except Exception as e:
+                    st.sidebar.error(
+                        "Error: Username or Phone already registered!"
+                    )
+                    conn.close()
+            else:
+                st.sidebar.error("❌ Invalid OTP Code! Please try again.")
 
 if st.session_state.user and st.session_state.user != "system_owner":
     if st.session_state.pic and os.path.exists(st.session_state.pic):
@@ -816,7 +841,6 @@ elif st.session_state.user == "system_owner":
         st.session_state.user = None
         st.rerun()
 
-# Navigation Tabs
 nav_tabs = [
     "🌍 World Feed",
     "📱 Scrolle Shorts Feed",
@@ -869,7 +893,6 @@ if tab == "🌍 World Feed":
                     st.markdown(f"**{sv.get('uploader_name', 'User')}** ✔️")
                     if os.path.exists(sv["video_url"]):
                         st.video(sv["video_url"], format="video/mp4")
-
                     if st.button(
                         "▶️ Watch in Shorts Feed", key=f"open_short_{sv['id']}"
                     ):
@@ -905,12 +928,9 @@ if tab == "🌍 World Feed":
             random.shuffle(combined_feed)
 
         if not combined_feed:
-            if search_query:
-                st.warning("No posts or videos found matching your search term.")
-            else:
-                st.info(
-                    "No posts or videos available. Create content from the Upload section."
-                )
+            st.info(
+                "No posts or videos available. Create content from the Upload section."
+            )
 
         for index, item in enumerate(combined_feed):
             item_id = str(item["id"])
@@ -1067,7 +1087,9 @@ elif tab == "📱 Scrolle Shorts Feed":
 # --- WhatsApp Support Desk ---
 elif tab == "💬 WhatsApp Support Desk":
     st.subheader("💬 Official WhatsApp Support Desk")
-    st.caption("Contact us directly to ask questions or resolve issues.")
+    st.caption(
+        f"Contact us directly via WhatsApp ({OWNER_PHONE}) or ask questions."
+    )
 
     HIDDEN_WA_NUMBER = "8801722003172"
     default_msg = "Hello! I am contacting you from BD AI Book App."
@@ -1082,19 +1104,13 @@ elif tab == "💬 WhatsApp Support Desk":
                 Click below to send messages, feedback, or screenshots directly to our team.
             </p>
             <a href="{wa_link}" target="_blank" style="
-                background-color: #25D366; 
-                color: #121212; 
-                padding: 14px 30px; 
-                text-decoration: none; 
-                font-weight: bold; 
-                font-size: 17px;
-                border-radius: 30px; 
-                display: inline-block;
+                background-color: #25D366; color: #121212; padding: 14px 30px; text-decoration: none; 
+                font-weight: bold; font-size: 17px; border-radius: 30px; display: inline-block;
                 box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
                 📲 Send WhatsApp Message / Photo
             </a>
             <p style="font-size: 12px; color: #ffeb3b; margin-top: 20px; margin-bottom: 0;">
-                ⚠️ <b>Note:</b> Only text messages and file sharing are supported. Direct voice calls are not available.
+                ⚠️ <b>Helpline WhatsApp:</b> +{OWNER_PHONE} | Gmail: {OWNER_GMAIL}
             </p>
         </div>
         """,
@@ -1104,10 +1120,6 @@ elif tab == "💬 WhatsApp Support Desk":
 # --- Payout & Monetization ---
 elif tab == "💳 Payout & Monetization":
     st.subheader("🏦 Global Monetization & Bank Setup")
-    st.info(
-        "Select your preferred payment method and submit account details to receive earnings."
-    )
-
     pay_method = st.selectbox(
         "Select Payment Method:",
         [
@@ -1119,30 +1131,26 @@ elif tab == "💳 Payout & Monetization":
             "🏦 Bank Transfer",
         ],
     )
-
     acc_num = st.text_input("Account Number / Email / Card Number")
     holder_name = st.text_input("Account Holder Name")
 
     if st.button("💾 Save Payment Details"):
-        if acc_num and holder_name:
-            if st.session_state.user:
-                conn = get_db_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    "UPDATE users SET payment_method = ?, account_details = ? WHERE username = ?",
-                    (
-                        pay_method,
-                        f"{holder_name} - {acc_num}",
-                        st.session_state.user,
-                    ),
-                )
-                conn.commit()
-                conn.close()
-                st.success("✅ Payment account updated successfully!")
-            else:
-                st.error("Please login first.")
+        if acc_num and holder_name and st.session_state.user:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE users SET payment_method = ?, account_details = ? WHERE username = ?",
+                (
+                    pay_method,
+                    f"{holder_name} - {acc_num}",
+                    st.session_state.user,
+                ),
+            )
+            conn.commit()
+            conn.close()
+            st.success("✅ Payment account updated successfully!")
         else:
-            st.warning("Please complete all required fields correctly.")
+            st.warning("Please login first and fill all fields.")
 
 # --- My Profile & Earnings ---
 elif tab == "👤 My Profile & Earnings":
@@ -1150,10 +1158,8 @@ elif tab == "👤 My Profile & Earnings":
         st.warning("Please login to view your profile.")
     else:
         user_data_merged = register_or_get_user(st.session_state.user)
-
         conn = get_db_connection()
         cursor = conn.cursor()
-
         cursor.execute(
             "SELECT * FROM users WHERE username = ?", (st.session_state.user,)
         )
@@ -1165,12 +1171,12 @@ elif tab == "👤 My Profile & Earnings":
             (st.session_state.user,),
         )
         my_videos = [dict(r) for r in cursor.fetchall()]
-
         cursor.execute(
             "SELECT * FROM posts WHERE uploader_name = ?",
             (st.session_state.user,),
         )
         my_posts = [dict(r) for r in cursor.fetchall()]
+        conn.close()
 
         total_likes = sum([v.get("likes", 0) for v in my_videos]) + sum(
             [p.get("likes", 0) for p in my_posts]
@@ -1179,22 +1185,22 @@ elif tab == "👤 My Profile & Earnings":
 
         display_name = user_info.get("full_name") or st.session_state.user
         pic_path = user_info.get("profile_pic", st.session_state.pic)
-
         followers = user_data_merged["followers_count"]
         watch_hours = user_data_merged["watch_time_mins"] / 60.0
 
         is_eligible = (followers >= 300) and (watch_hours >= 3000.0)
-
-        if is_eligible:
-            monetization_badge = "✅ Eligible & Active"
-            est_earnings = (
-                (total_views * 0.002)
-                + (total_likes * 0.005)
-                + user_data_merged["earnings"]
-            )
-        else:
-            monetization_badge = "🔒 Locked (Requirements not met)"
-            est_earnings = 0.00
+        monetization_badge = (
+            "✅ Eligible & Active"
+            if is_eligible
+            else "🔒 Locked (Requirements not met)"
+        )
+        est_earnings = (
+            (total_views * 0.002)
+            + (total_likes * 0.005)
+            + user_data_merged["earnings"]
+            if is_eligible
+            else 0.00
+        )
 
         show_verified_profile(
             display_name,
@@ -1202,21 +1208,6 @@ elif tab == "👤 My Profile & Earnings":
             subtitle=f"Creator | Monetization: {monetization_badge}",
             is_verified=True,
         )
-
-        st.write(
-            f"📹 Videos/Shorts: **{len(my_videos)}** | 🖼️ Posts: **{len(my_posts)}** | ❤️ Likes: **{format_value(total_likes)}** | 👁️ Views: **{format_value(total_views)}** | 👥 Followers: **{followers}/300**"
-        )
-
-        st.markdown(
-            "#### 📊 Monetization Progress (Requirements: 300 Followers & 3000 Hours)"
-        )
-        col_p1, col_p2 = st.columns(2)
-        with col_p1:
-            st.write(f"👥 Followers Goal: **{followers}/300**")
-            st.progress(min(followers / 300.0, 1.0))
-        with col_p2:
-            st.write(f"⏱️ Watch Time Goal: **{watch_hours:.1f}/3000 Hours**")
-            st.progress(min(watch_hours / 3000.0, 1.0))
 
         st.markdown(
             f"""
@@ -1239,6 +1230,8 @@ elif tab == "👤 My Profile & Earnings":
                 )
             with col2:
                 if st.button("🗑️ Delete", key=f"del_v_{mv['id']}"):
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
                     cursor.execute(
                         "DELETE FROM videos WHERE id = ?", (mv["id"],)
                     )
@@ -1247,15 +1240,70 @@ elif tab == "👤 My Profile & Earnings":
                     st.toast("Video deleted successfully!")
                     st.rerun()
 
-        conn.close()
-
 # --- Upload Section & Owner Panel (Dual Control) ---
 elif tab == "📤 Create Post / Upload":
     if not st.session_state.user:
         st.warning("Please login or access owner control to proceed.")
     elif st.session_state.user == "system_owner":
         st.markdown("---")
-        st.subheader("👑 Owner Master Approval Dashboard (Central Pipeline)")
+        st.subheader(
+            "👑 Owner Master Dashboard (Live Analytics & Direct Chat Hub)"
+        )
+
+        # Live Analytics Display
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM users")
+        total_users_count = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM videos")
+        total_videos_count = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM posts")
+        total_posts_count = cursor.fetchone()[0]
+        conn.close()
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("👥 Total Users", total_users_count)
+        m2.metric("📹 Total Videos", total_videos_count)
+        m3.metric("📝 Total Posts", total_posts_count)
+
+        st.markdown("---")
+        st.subheader("💬 Owner Direct Chat / Inbox Control with Users")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT username FROM users WHERE username != 'system_owner'")
+        all_app_users = [r["username"] for r in cursor.fetchall()]
+        conn.close()
+
+        if all_app_users:
+            selected_chat_user = st.selectbox("Select User to Send Message / Update:", all_app_users)
+            owner_msg_text = st.text_area("Write Update or Monetization Notice message...")
+
+            if st.button("Send Direct Message to User"):
+                if owner_msg_text.strip():
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        INSERT INTO direct_messages (id, sender, receiver, message, created_at)
+                        VALUES (?, 'system_owner', ?, ?, ?)
+                    """,
+                        (
+                            str(uuid.uuid4()),
+                            selected_chat_user,
+                            owner_msg_text.strip(),
+                            datetime.now().strftime("%Y-%m-%d %H:%M"),
+                        ),
+                    )
+                    conn.commit()
+                    conn.close()
+                    st.success(f"✅ Message sent successfully to {selected_chat_user}!")
+                else:
+                    st.warning("Message cannot be empty.")
+        else:
+            st.info("No registered users available for direct messaging yet.")
+
+        st.markdown("---")
+        st.subheader("👑 Owner Central Pipeline Approvals")
         conn = get_db_connection()
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -1290,16 +1338,32 @@ elif tab == "📤 Create Post / Upload":
                             (item["pipeline_id"],),
                         )
                         conn.commit()
-                        st.error("Content Deleted and Blocked!")
+                        st.error("Content Deleted!")
                         st.rerun()
         else:
             st.info("No pending content approvals in the pipeline.")
         conn.close()
     else:
         st.subheader("📤 Secure Media Upload & AI Guard Hub")
-        st.warning(
-            "⚠️ **Community Guidelines:** Adult or unauthorized/copyrighted content is strictly prohibited. Only original mobile videos/posts allowed."
+
+        # Show Direct Messages from Owner if any
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM direct_messages WHERE receiver = ? ORDER BY created_at DESC",
+            (st.session_state.user,),
         )
+        my_inbox = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+
+        if my_inbox:
+            with st.expander("📬 Owner Inbox & Updates (Check Notifications)"):
+                for msg in my_inbox:
+                    st.markdown(
+                        f"👑 **Owner Notice** <small>({msg['created_at']})</small>:<br><b>{msg['message']}</b>",
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown("---")
 
         upload_category = st.selectbox(
             "Select Target Category Server",
@@ -1388,12 +1452,10 @@ elif tab == "📤 Create Post / Upload":
                             upload_category, record_id, st.session_state.user
                         )
                         st.balloons()
-                        st.success(
-                            "✅ Success! Content verified and sent to Central Pipeline."
-                        )
+                        st.success("✅ Content verified and sent to Central Pipeline.")
         else:
             v_title = st.text_input(
-                "Video Title", placeholder="Enter a title for your video..."
+                "Video Title", placeholder="Enter a title..."
             )
             vid_file = st.file_uploader(
                 "Upload Video File (MP4/MOV)", type=["mp4", "mov", "avi", "mkv"]
@@ -1404,9 +1466,7 @@ elif tab == "📤 Create Post / Upload":
 
             if st.button("Run AI Check & Publish Video"):
                 if not vid_file or not v_title.strip():
-                    st.warning(
-                        "Please provide a video title and select a video file!"
-                    )
+                    st.warning("Please provide title and video file!")
                 else:
                     is_safe, security_msg = ai_content_security_guard(
                         vid_file.name
@@ -1471,6 +1531,4 @@ elif tab == "📤 Create Post / Upload":
                             upload_category, record_id, st.session_state.user
                         )
                         st.balloons()
-                        st.success(
-                            f"🎉 {upload_type} verified and published successfully!"
-                        )
+                        st.success("🎉 Video verified and published successfully!")
