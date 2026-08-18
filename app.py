@@ -21,7 +21,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Meta Tags & Monetization Scripts
 components.html(
     """
     <meta name="msvalidate.01" content="e776b8ce73ea3dcc07551e8a021a0907">
@@ -55,7 +54,7 @@ def init_all_16_servers_and_vault():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 0. Special Sovereign Vault (ইউজার ফোন, জিমেইল ও ফেস লক ডেটা সার্ভার)
+    # 0. Special Sovereign Vault (মালিক ও ইউজারদের ফোন, জিমেইল, পাসওয়ার্ড ও ফেস লক ডেটা)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS global_sovereign_vault (
             vault_id TEXT PRIMARY KEY,
@@ -64,7 +63,7 @@ def init_all_16_servers_and_vault():
             gmail_address TEXT UNIQUE,
             hashed_password TEXT NOT NULL,
             biometric_face_hash TEXT,
-            security_tier INTEGER DEFAULT 999,
+            security_tier INTEGER DEFAULT 1,
             created_at TEXT
         )
     """)
@@ -246,7 +245,7 @@ def init_all_16_servers_and_vault():
         )
     """)
 
-    # 16. Central Electric Pipeline Hub (সকল টেবিলের সংযোগস্থল)
+    # 16. Central Electric Pipeline Hub
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tb_16_global_central_pipeline (
             pipeline_id TEXT PRIMARY KEY,
@@ -258,11 +257,12 @@ def init_all_16_servers_and_vault():
         )
     """)
 
-    # Legacy compatibility tables for app feed & interactions
+    # Legacy compatibility tables
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
+            phone_number TEXT UNIQUE,
             full_name TEXT,
             profile_pic TEXT,
             is_verified INTEGER DEFAULT 1,
@@ -291,8 +291,7 @@ def init_all_16_servers_and_vault():
             views INTEGER DEFAULT 0,
             views_count INTEGER DEFAULT 0,
             followers INTEGER DEFAULT 0,
-            created_at TEXT,
-            FOREIGN KEY (user_id) REFERENCES users (id)
+            created_at TEXT
         )
     """)
 
@@ -319,14 +318,19 @@ def init_all_16_servers_and_vault():
         )
     """)
 
-    # Default Owner Master Account Setup
-    cursor.execute("SELECT * FROM global_sovereign_vault WHERE username = 'system_owner'")
+    # Default Owner Master Account Setup (Tier 999 - Hidden Secure Sovereign Owner)
+    cursor.execute(
+        "SELECT * FROM global_sovereign_vault WHERE username = 'system_owner'"
+    )
     if not cursor.fetchone():
         owner_pass = hashlib.sha256("OwnerMasterKey2026#".encode()).hexdigest()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO global_sovereign_vault (vault_id, username, phone_number, hashed_password, security_tier, created_at)
             VALUES ('vault_owner_01', 'system_owner', '01722003172', ?, 999, ?)
-        """, (owner_pass, datetime.now().strftime("%Y-%m-%d")))
+        """,
+            (owner_pass, datetime.now().strftime("%Y-%m-%d")),
+        )
 
     conn.commit()
     conn.close()
@@ -339,10 +343,21 @@ init_all_16_servers_and_vault()
 # 3. AI SECURITY GUARD & PIPELINE ENGINE
 # ==========================================
 def ai_content_security_guard(file_name):
-    banned_keywords = ["tiktok", "instagram_dl", "facebook_video", "adult", "x_rated", "pirated", "hack"]
+    banned_keywords = [
+        "tiktok",
+        "instagram_dl",
+        "facebook_video",
+        "adult",
+        "x_rated",
+        "pirated",
+        "hack",
+    ]
     for keyword in banned_keywords:
         if keyword in file_name.lower():
-            return False, f"🚨 AI Security Block: Unauthorized or third-party content ('{keyword}') is strictly prohibited!"
+            return (
+                False,
+                f"🚨 AI Security Block: Copyright/Third-party content ('{keyword}') is strictly prohibited! No third-party downloads allowed.",
+            )
     return True, "✅ AI Verified: Original Mobile Content Approved."
 
 
@@ -350,31 +365,40 @@ def push_to_central_pipeline(source_table, record_id, username):
     conn = get_db_connection()
     cursor = conn.cursor()
     pipeline_id = f"pipe_{uuid.uuid4().hex[:10]}"
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT INTO tb_16_global_central_pipeline 
         (pipeline_id, source_table, record_id, username, owner_approval_status, transferred_at)
         VALUES (?, ?, ?, ?, 'Pending Owner Approval', ?)
-    """, (pipeline_id, source_table, record_id, username, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    """,
+        (
+            pipeline_id,
+            source_table,
+            record_id,
+            username,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        ),
+    )
     conn.commit()
     conn.close()
 
 
-def register_or_get_user(username):
+def register_or_get_user(username, phone_number=None):
     conn = get_db_connection()
     c = conn.cursor()
     c.execute(
-        "SELECT id, username, followers_count, watch_time_mins, monetization_status, earnings FROM users WHERE username = ?",
-        (username,),
+        "SELECT id, username, phone_number, followers_count, watch_time_mins, monetization_status, earnings FROM users WHERE username = ? OR phone_number = ?",
+        (username, phone_number),
     )
     user = c.fetchone()
     if not user:
         c.execute(
-            "INSERT INTO users (username, created_at) VALUES (?, ?)",
-            (username, datetime.now().strftime("%Y-%m-%d")),
+            "INSERT INTO users (username, phone_number, created_at) VALUES (?, ?, ?)",
+            (username, phone_number, datetime.now().strftime("%Y-%m-%d")),
         )
         conn.commit()
         c.execute(
-            "SELECT id, username, followers_count, watch_time_mins, monetization_status, earnings FROM users WHERE username = ?",
+            "SELECT id, username, phone_number, followers_count, watch_time_mins, monetization_status, earnings FROM users WHERE username = ?",
             (username,),
         )
         user = c.fetchone()
@@ -382,6 +406,7 @@ def register_or_get_user(username):
     return {
         "id": user["id"],
         "username": user["username"],
+        "phone_number": user["phone_number"],
         "followers_count": user["followers_count"] or 0,
         "watch_time_mins": user["watch_time_mins"] or 0.0,
         "monetization_status": user["monetization_status"] or "none",
@@ -570,12 +595,21 @@ st.markdown(
 )
 
 # ==========================================
-# 5. MAIN HEADER LOGO SECTION
+# 5. MAIN HEADER LOGO SECTION (Waterproof Circular Global Logo)
 # ==========================================
-if os.path.exists("logo.jpg"):
-    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
-    with col_l2:
-        st.image("logo.jpg", use_container_width=True)
+LOGO_PATH = "logo.jpg"
+if os.path.exists(LOGO_PATH):
+    b64_logo = get_image_base64(LOGO_PATH)
+    st.markdown(
+        f"""
+        <div style="text-align: center; padding: 15px 0;">
+            <img src="data:image/jpeg;base64,{b64_logo}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00c853; box-shadow: 0 0 20px rgba(0,200,83,0.5);">
+            <h1 style="color: #00c853; font-weight: 900; margin-top: 10px;">🛡️ BD AI Book — Enterprise Master Hub 🛡️</h1>
+            <p style="color: #b0b3b8; margin: 0;">Autonomous AI & 16-Table Master Pipeline Hub (Global Verified)</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 else:
     st.markdown(
         """
@@ -601,8 +635,16 @@ if "active_tab" not in st.session_state:
 # ==========================================
 # 6. SIDEBAR NAVIGATION, AUTH & SEARCH
 # ==========================================
-if os.path.exists("logo.jpg"):
-    st.sidebar.image("logo.jpg", use_container_width=True)
+if os.path.exists(LOGO_PATH):
+    b64_sidebar_logo = get_image_base64(LOGO_PATH)
+    st.sidebar.markdown(
+        f"""
+        <div style="text-align: center; margin-bottom: 15px;">
+            <img src="data:image/jpeg;base64,{b64_sidebar_logo}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #00c853;">
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # --- 🔍 SEARCH BAR SECTION ---
 st.sidebar.markdown("### 🔍 Search Feed")
@@ -620,53 +662,90 @@ st.sidebar.markdown("---")
 st.sidebar.header("🔐 Portal Access & Auth")
 
 mode = st.sidebar.radio(
-    "Select Mode", ["Login", "Register (Face & Mobile)", "👑 Owner Control"]
+    "Select Mode",
+    [
+        "Login (Phone & Password)",
+        "Register (Phone, Gmail & Face)",
+        "👑 Owner Exclusive Portal",
+    ],
 )
 
-if mode == "👑 Owner Control":
-    owner_key_input = st.sidebar.text_input("Owner Master Key", type="password")
-    if st.sidebar.button("Access Owner Panel"):
-        if (
-            hashlib.sha256(owner_key_input.encode()).hexdigest()
-            == hashlib.sha256("OwnerMasterKey2026#".encode()).hexdigest()
-        ):
-            st.session_state.user = "system_owner"
-            st.success("Owner Logged In Successfully!")
-            st.rerun()
-        else:
-            st.error("Invalid Master Key!")
+# 👑 OWNER EXCLUSIVE PORTAL (Separate Private Vault & Face Lock / Password)
+if mode == "👑 Owner Exclusive Portal":
+    st.sidebar.markdown("### 🔒 Owner Secure Chamber")
+    owner_phone = st.sidebar.text_input("Owner Phone Number", value="01722003172")
+    owner_pass_input = st.sidebar.text_input(
+        "Owner Master Password", type="password"
+    )
+    owner_face_capture = st.sidebar.camera_input(
+        "Owner Biometric Face Lock Verification"
+    )
 
-elif mode == "Login":
-    login_user = st.sidebar.text_input("Username or Phone")
-    login_pass = st.sidebar.text_input("Password", type="password")
-    if st.sidebar.button("Login"):
+    if st.sidebar.button("Enter Owner Chamber"):
         conn = get_db_connection()
         cursor = conn.cursor()
-        hashed_pass = hashlib.sha256(login_pass.encode()).hexdigest()
+        hashed_owner_pass = hashlib.sha256(owner_pass_input.encode()).hexdigest()
         cursor.execute(
-            "SELECT * FROM global_sovereign_vault WHERE (username = ? OR phone_number = ?) AND hashed_password = ?",
-            (login_user, login_user, hashed_pass),
+            "SELECT * FROM global_sovereign_vault WHERE username = 'system_owner' AND phone_number = ? AND hashed_password = ?",
+            (owner_phone, hashed_owner_pass),
         )
-        vault_user = cursor.fetchone()
-        if vault_user or login_user:
-            st.session_state.user = login_user
-            st.session_state.pic = None
+        owner_vault_match = cursor.fetchone()
+        conn.close()
+
+        if owner_vault_match and owner_face_capture:
+            st.session_state.user = "system_owner"
             st.session_state.is_verified = 1
-            conn.close()
-            st.success("Login Successful!")
+            st.sidebar.success(
+                "👑 Owner Verified Successfully! Access Granted."
+            )
             st.rerun()
         else:
-            st.error("Invalid Username/Phone or Password!")
+            st.sidebar.error(
+                "❌ Access Denied: Invalid Owner Phone, Password or Face Lock Verification!"
+            )
+
+elif mode == "Login (Phone & Password)":
+    login_phone = st.sidebar.text_input("Mobile Number")
+    login_pass = st.sidebar.text_input("Password", type="password")
+
+    if st.sidebar.button("Login"):
+        if login_phone and login_pass:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            hashed_pass = hashlib.sha256(login_pass.encode()).hexdigest()
+            cursor.execute(
+                "SELECT * FROM global_sovereign_vault WHERE phone_number = ? AND hashed_password = ?",
+                (login_phone, hashed_pass),
+            )
+            vault_user = cursor.fetchone()
             conn.close()
 
-elif mode == "Register (Face & Mobile)":
-    reg_user = st.sidebar.text_input("New Username")
-    reg_phone = st.sidebar.text_input("Mobile Number")
-    reg_pass = st.sidebar.text_input("Password", type="password")
-    face_capture = st.sidebar.camera_input("Capture Face for Secure Vault")
+            if vault_user:
+                st.session_state.user = vault_user["username"]
+                st.session_state.pic = None
+                st.session_state.is_verified = 1
+                st.sidebar.success(
+                    f"✅ Welcome back, {vault_user['username']}!"
+                )
+                st.rerun()
+            else:
+                st.sidebar.error(
+                    "❌ Invalid Mobile Number or Password! Please check credentials."
+                )
+        else:
+            st.sidebar.warning("Please enter both phone number and password.")
 
-    if st.sidebar.button("Register to Vault"):
-        if reg_user and reg_phone and reg_pass and face_capture:
+elif mode == "Register (Phone, Gmail & Face)":
+    reg_user = st.sidebar.text_input("Your Full Name / Username")
+    reg_phone = st.sidebar.text_input("Mobile Number (World Login)")
+    reg_gmail = st.sidebar.text_input("Gmail Address")
+    reg_pass = st.sidebar.text_input("Password", type="password")
+    face_capture = st.sidebar.camera_input(
+        "Capture Face Lock for Global Account"
+    )
+
+    if st.sidebar.button("Register & Sync to Servers"):
+        if reg_user and reg_phone and reg_gmail and reg_pass and face_capture:
             conn = get_db_connection()
             cursor = conn.cursor()
             try:
@@ -676,28 +755,32 @@ elif mode == "Register (Face & Mobile)":
                 with open(fname, "wb") as f:
                     f.write(face_capture.getvalue())
 
+                # Save to Global Sovereign Vault
                 cursor.execute(
                     """
                     INSERT INTO global_sovereign_vault 
-                    (vault_id, username, phone_number, hashed_password, security_tier, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    (vault_id, username, phone_number, gmail_address, hashed_password, security_tier, created_at)
+                    VALUES (?, ?, ?, ?, ?, 1, ?)
                 """,
-                (
-                    vault_id,
-                    reg_user,
-                    reg_phone,
-                    hashed_pass,
-                    999,
-                    datetime.now().strftime("%Y-%m-%d"),
-                ),
+                    (
+                        vault_id,
+                        reg_user,
+                        reg_phone,
+                        reg_gmail,
+                        hashed_pass,
+                        datetime.now().strftime("%Y-%m-%d"),
+                    ),
                 )
+
+                # Sync across user tables and databases
                 cursor.execute(
                     """
-                    INSERT INTO users (username, full_name, profile_pic, is_verified, created_at)
-                    VALUES (?, ?, ?, 1, ?)
+                    INSERT INTO users (username, phone_number, full_name, profile_pic, is_verified, created_at)
+                    VALUES (?, ?, ?, ?, 1, ?)
                 """,
                     (
                         reg_user,
+                        reg_phone,
                         reg_user,
                         fname,
                         datetime.now().strftime("%Y-%m-%d"),
@@ -706,13 +789,17 @@ elif mode == "Register (Face & Mobile)":
                 conn.commit()
                 conn.close()
                 st.sidebar.success(
-                    "🎉 Registration Complete! Please switch to Login mode."
+                    "🎉 Registration Complete! Phone & Database Synced. Please switch to Login mode."
                 )
             except Exception as e:
-                st.sidebar.error(f"Error: Username or Phone already exists!")
+                st.sidebar.error(
+                    f"Error: Mobile Number or Username already registered!"
+                )
                 conn.close()
         else:
-            st.sidebar.error("Please fill all fields and capture your face!")
+            st.sidebar.error(
+                "Please fill all fields (Name, Phone, Gmail, Password) and capture your face!"
+            )
 
 if st.session_state.user and st.session_state.user != "system_owner":
     if st.session_state.pic and os.path.exists(st.session_state.pic):
@@ -722,6 +809,11 @@ if st.session_state.user and st.session_state.user != "system_owner":
         st.session_state.user = None
         st.session_state.pic = None
         st.session_state.is_verified = 1
+        st.rerun()
+elif st.session_state.user == "system_owner":
+    st.sidebar.markdown("👑 **Owner Master Active**")
+    if st.sidebar.button("Owner Logout"):
+        st.session_state.user = None
         st.rerun()
 
 # Navigation Tabs
@@ -1115,7 +1207,9 @@ elif tab == "👤 My Profile & Earnings":
             f"📹 Videos/Shorts: **{len(my_videos)}** | 🖼️ Posts: **{len(my_posts)}** | ❤️ Likes: **{format_value(total_likes)}** | 👁️ Views: **{format_value(total_views)}** | 👥 Followers: **{followers}/300**"
         )
 
-        st.markdown("#### 📊 Monetization Progress (Requirements: 300 Followers & 3000 Hours)")
+        st.markdown(
+            "#### 📊 Monetization Progress (Requirements: 300 Followers & 3000 Hours)"
+        )
         col_p1, col_p2 = st.columns(2)
         with col_p1:
             st.write(f"👥 Followers Goal: **{followers}/300**")
@@ -1204,7 +1298,7 @@ elif tab == "📤 Create Post / Upload":
     else:
         st.subheader("📤 Secure Media Upload & AI Guard Hub")
         st.warning(
-            "⚠️ **Community Guidelines:** Adult or unauthorized content is strictly prohibited."
+            "⚠️ **Community Guidelines:** Adult or unauthorized/copyrighted content is strictly prohibited. Only original mobile videos/posts allowed."
         )
 
         upload_category = st.selectbox(
