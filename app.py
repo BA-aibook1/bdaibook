@@ -9,864 +9,478 @@ import uuid
 import streamlit as st
 import streamlit.components.v1 as components
 
-# ==========================================
-# 1. PAGE CONFIGURATION & META
-# ==========================================
+# ইমেইল ও রিকোয়েস্ট লাইব্রেরি
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import requests
+
+# ---------------------------------------------------------
+# Page Configuration
+# ---------------------------------------------------------
 st.set_page_config(
-    page_title="BD AI Book — Enterprise Master Hub",
+    page_title="Global Sovereign Enterprise Vault",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded"
 )
 
-components.html("""
-    <meta name="msvalidate.01" content="e776b8ce73ea3dcc07551e8a021a0907">
-    <meta name="monetag" content="5cc1b7ba5cb29eff802ce49009f87e2b">
-""", height=0)
+# ---------------------------------------------------------
+# Global SMTP Configuration (অটোমেটিক ইমেইল পাঠানোর জন্য)
+# ---------------------------------------------------------
+DEFAULT_SENDER_EMAIL = "md4695090@gmail.com"
+DEFAULT_SENDER_APP_PASSWORD = ""  # এখানে আপনার ১৬ ডিজিটের Gmail App Password বসিয়ে দিন
 
-SMART_LINK = "https://omg10.com/4/10954816"
-OWNER_GMAIL = "md4695090@gmail.com"
-OWNER_PHONE = "01722003172"
+# ---------------------------------------------------------
+# Custom Styling & Meta Tags Injection
+# ---------------------------------------------------------
+meta_html = """
+<meta name="msvalidate.01" content="MONETAG_VERIFICATION_CODE" />
+<script src="https://omg10.com/script.js" data-ad="global_monetization"></script>
+<style>
+    .stApp { background-color: #0e1117; color: #ffffff; }
+    .stButton>button { background-color: #ff4b4b; color: white; border-radius: 8px; border: none; font-weight: bold; }
+    .vault-card { background: #1f2937; padding: 20px; border-radius: 10px; border: 1px solid #374151; margin-bottom: 15px; }
+    .bank-card { background: #111827; padding: 20px; border-radius: 12px; border: 2px solid #10b981; margin-top: 15px; }
+</style>
+"""
+components.html(meta_html, height=0)
 
-# Folders Setup
+# ---------------------------------------------------------
+# Global Master Database Setup (All 18 Tables)
+# ---------------------------------------------------------
 DB_FILE = "global_enterprise_master.db"
-VIDEO_DIR = "stored_videos"
-IMAGE_DIR = "stored_images"
-PROFILE_DIR = "stored_profiles"
 
-for folder in [VIDEO_DIR, IMAGE_DIR, PROFILE_DIR]:
-    if not os.path.exists(folder): os.makedirs(folder)
-
-def get_db_connection():
-    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-# ==========================================
-# 2. FULL DATABASE INITIALIZATION
-# ==========================================
-def init_all_16_servers_and_vault():
-    conn = get_db_connection()
+def init_master_database():
+    conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
-    # Vault & Users
-    cursor.execute("CREATE TABLE IF NOT EXISTS global_sovereign_vault (vault_id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, phone_number TEXT UNIQUE, gmail_address TEXT UNIQUE, hashed_password TEXT NOT NULL, biometric_face_hash TEXT, security_tier INTEGER DEFAULT 1, created_at TEXT)")
+    # ১. ইউজার টেবিল
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_01_users (
+        vault_id TEXT PRIMARY KEY, username TEXT, email TEXT, phone TEXT, password_hash TEXT, role TEXT, balance REAL
+    )""")
+    # ২. গ্লোবাল পোস্ট
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_02_global_posts (
+        post_id TEXT PRIMARY KEY, vault_id TEXT, content TEXT, media_url TEXT, category TEXT, created_at TEXT
+    )""")
+    # ৩. শর্টস ফিড
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_03_shorts_feed (
+        short_id TEXT PRIMARY KEY, vault_id TEXT, video_url TEXT, caption TEXT, likes INTEGER
+    )""")
+    # ৪. হোয়াটসঅ্যাপ সাপোর্ট
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_04_whatsapp_desk (
+        ticket_id TEXT PRIMARY KEY, vault_id TEXT, message TEXT, status TEXT
+    )""")
+    # ৫. পে-আউটস
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_05_payouts (
+        payout_id TEXT PRIMARY KEY, vault_id TEXT, amount REAL, method TEXT, status TEXT
+    )""")
+    # ৬. মনিটাইজেশন
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_06_monetization (
+        vault_id TEXT PRIMARY KEY, impressions INTEGER, earnings REAL
+    )""")
+    # ৭. প্রোফাইল
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_07_user_profiles (
+        vault_id TEXT PRIMARY KEY, bio TEXT, avatar_url TEXT
+    )""")
+    # ৮. সিকিউরিটি লগ
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_08_content_security (
+        log_id TEXT PRIMARY KEY, vault_id TEXT, content TEXT, flag_reason TEXT
+    )""")
+    # ৯. ইমেইল লগ
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_09_email_logs (
+        email_id TEXT PRIMARY KEY, recipient TEXT, subject TEXT, sent_at TEXT
+    )""")
+    # ১০. ক্রিপ্টো ভল্ট
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_10_crypto_vault (
+        tx_id TEXT PRIMARY KEY, vault_id TEXT, amount REAL, currency TEXT
+    )""")
+    # ১১. সার্ভার হেলথ
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_11_server_health (
+        node_id TEXT PRIMARY KEY, status TEXT, last_ping TEXT
+    )""")
+    # ১২. এড নেটওয়ার্ক
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_12_ad_network (
+        ad_id TEXT PRIMARY KEY, impression_count INTEGER, revenue REAL
+    )""")
+    # ১৩. অডিট ট্রেইল
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_13_audit_trails (
+        audit_id TEXT PRIMARY KEY, action TEXT, timestamp TEXT
+    )""")
+    # ১৪. নোটিফিকেশন
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_14_notifications (
+        notif_id TEXT PRIMARY KEY, vault_id TEXT, message TEXT, is_read INTEGER
+    )""")
+    # ১৫. এপিআই কি
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_15_api_keys (
+        key_id TEXT PRIMARY KEY, vault_id TEXT, api_key TEXT
+    )""")
+    # ১৬. সেন্ট্রাল পাইপলাইন
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_16_global_central_pipeline (
+        pipeline_id TEXT PRIMARY KEY, source TEXT, status TEXT, payload TEXT
+    )""")
+    # ১৭. পাসওয়ার্ড রিসেট পিন / ওটিপি টেবিল
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_17_password_resets (
+        email TEXT PRIMARY KEY, reset_pin TEXT, created_at TEXT
+    )""")
     
-    # 16 Base Servers
-    tables = [
-        "tb_01_users", "tb_02_interactions", "tb_03_image_posts", "tb_04_long_videos", 
-        "tb_05_short_videos", "tb_06_islamic_short_videos", "tb_07_islamic_long_videos", 
-        "tb_08_news_contents", "tb_09_blog_contents", "tb_10_educational_contents", 
-        "tb_11_entertainment_contents", "tb_12_tech_contents", "tb_13_live_streams", 
-        "tb_14_advertisements", "tb_15_bank_details"
-    ]
-    for table in tables:
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY, username TEXT NOT NULL, content_title TEXT, media_path TEXT, ai_verified INT DEFAULT 0, created_at TEXT)")
-    
-    # Central Pipeline
-    cursor.execute("CREATE TABLE IF NOT EXISTS tb_16_global_central_pipeline (pipeline_id TEXT PRIMARY KEY, source_table TEXT NOT NULL, record_id TEXT NOT NULL, username TEXT NOT NULL, owner_approval_status TEXT DEFAULT 'Pending Owner Approval', transferred_at TEXT)")
-    
-    # Messaging & Legacy
-    cursor.execute("CREATE TABLE IF NOT EXISTS direct_messages (id TEXT PRIMARY KEY, sender TEXT, receiver TEXT, message TEXT, created_at TEXT)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, phone_number TEXT UNIQUE, full_name TEXT, profile_pic TEXT, is_verified INTEGER DEFAULT 1, payment_method TEXT, account_details TEXT, nid_number TEXT, address TEXT, followers_count INTEGER DEFAULT 0, watch_time_mins REAL DEFAULT 0.0, monetization_status TEXT DEFAULT 'none', earnings REAL DEFAULT 0.0, created_at TEXT)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS videos (id TEXT PRIMARY KEY, user_id INTEGER, video_url TEXT, uploader_name TEXT, uploader_pic TEXT, video_type TEXT DEFAULT 'long', title TEXT, likes INTEGER DEFAULT 0, views INTEGER DEFAULT 0, views_count INTEGER DEFAULT 0, followers INTEGER DEFAULT 0, created_at TEXT)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS posts (id TEXT PRIMARY KEY, uploader_name TEXT, uploader_pic TEXT, content TEXT, image_url TEXT, likes INTEGER DEFAULT 0, created_at TEXT)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, post_id TEXT, uploader_name TEXT, comment_text TEXT, gift_type TEXT, created_at TEXT)")
+    # ১৮. অ্যাডভাইজার ও ওনার ব্যাঙ্ক অ্যাকাউন্ট টেবিল (New Table Added)
+    cursor.execute("""CREATE TABLE IF NOT EXISTS tb_18_bank_accounts (
+        account_id TEXT PRIMARY KEY,
+        owner_name TEXT,
+        recipient_address TEXT,
+        iban TEXT,
+        bic_swift TEXT,
+        account_number TEXT,
+        bank_name TEXT,
+        bank_address TEXT,
+        account_type TEXT,
+        monthly_payout_usd REAL
+    )""")
 
-    # Owner Account Setup
-    cursor.execute("SELECT * FROM global_sovereign_vault WHERE username = 'system_owner'")
-    if not cursor.fetchone():
-        owner_pass = hashlib.sha256("OwnerMasterKey2026#".encode()).hexdigest()
-        cursor.execute("INSERT INTO global_sovereign_vault (vault_id, username, phone_number, gmail_address, hashed_password, security_tier, created_at) VALUES ('vault_owner_01', 'system_owner', ?, ?, ?, 999, ?)", (OWNER_PHONE, OWNER_GMAIL, owner_pass, datetime.now().strftime("%Y-%m-%d")))
+    # ডিফল্ট অ্যাডভাইজার ব্যাঙ্ক ডিটেইলস ডাটাবেসে সেভ করা (যদি আগে না থাকে)
+    cursor.execute("SELECT COUNT(*) FROM tb_18_bank_accounts")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("""
+            INSERT INTO tb_18_bank_accounts VALUES (
+                'BANK_OWNER_01',
+                'Md Sohel Rana',
+                'Bangladesh, Barabari, SHIBRAM BARABARI SADAR LALMONIRHAT, LALMONIRHAT, 5500',
+                'GB89CLRB04281239130579',
+                'CLRBGB22XXX',
+                '39130579',
+                'Clear Bank (Based in GB)',
+                '133 Houndsditch, LONDON, EC3A 7BX',
+                'Checking (Current)',
+                20.00
+            )
+        """)
     
     conn.commit()
     conn.close()
 
-init_all_16_servers_and_vault()
+init_master_database()
 
-# ==========================================
-# 3. AI SECURITY GUARD & PIPELINE ENGINE
-# ==========================================
-def ai_content_security_guard(file_name):
-    banned_keywords = ["tiktok", "instagram_dl", "facebook_video", "adult", "x_rated", "pirated", "hack"]
-    for keyword in banned_keywords:
-        if keyword in file_name.lower():
-            return False, f"🚨 AI Security Block: Copyright/Third-party content ('{keyword}') is strictly prohibited!"
-    return True, "✅ AI Verified: Original Content Approved."
+# ---------------------------------------------------------
+# SMTP Real Email Dispatch Engine
+# ---------------------------------------------------------
+def send_real_email(sender_email, sender_app_password, recipient_email, subject, body_text):
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = recipient_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body_text, 'plain'))
 
-def push_to_central_pipeline(source_table, record_id, username):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    pipeline_id = f"pipe_{uuid.uuid4().hex[:10]}"
-    cursor.execute("""
-        INSERT INTO tb_16_global_central_pipeline 
-        (pipeline_id, source_table, record_id, username, owner_approval_status, transferred_at)
-        VALUES (?, ?, ?, ?, 'Pending Owner Approval', ?)
-    """, (pipeline_id, source_table, record_id, username, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-    conn.commit()
-    conn.close()
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_app_password)
+        server.sendmail(sender_email, recipient_email, msg.as_string())
+        server.quit()
 
-def register_or_get_user(username, phone_number=None):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT id, username, phone_number, followers_count, watch_time_mins, monetization_status, earnings FROM users WHERE username = ? OR phone_number = ?", (username, phone_number))
-    user = c.fetchone()
-    if not user:
-        c.execute("INSERT INTO users (username, phone_number, created_at) VALUES (?, ?, ?)", (username, phone_number, datetime.now().strftime("%Y-%m-%d")))
-        conn.commit()
-        c.execute("SELECT id, username, phone_number, followers_count, watch_time_mins, monetization_status, earnings FROM users WHERE username = ?", (username,))
-        user = c.fetchone()
-    conn.close()
-    return {
-        "id": user["id"], "username": user["username"], "phone_number": user["phone_number"],
-        "followers_count": user["followers_count"] or 0, "watch_time_mins": user["watch_time_mins"] or 0.0,
-        "monetization_status": user["monetization_status"] or "none", "earnings": user["earnings"] or 0.0
-    }
-
-def format_value(value):
-    if value is None: return "0"
-    if value >= 1000000: return f"{value/1000000:.1f}M"
-    if value >= 1000: return f"{value/1000:.1f}K"
-    return str(value)
-
-def get_image_base64(image_path):
-    if image_path and os.path.exists(image_path):
-        try:
-            with open(image_path, "rb") as img_file:
-                return base64.b64encode(img_file.read()).decode("utf-8")
-        except Exception:
-            return None
-    return None
-
-def show_verified_profile(display_name, profile_pic_path=None, subtitle="Official Global Verified Creator", is_verified=True):
-    b64_img = get_image_base64(profile_pic_path)
-    img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #00c853;">' if b64_img else '<div style="width:50px; height:50px; border-radius:50%; background:#2a2a2a; color:#fff; display:flex; align-items:center; justify-content:center; font-size:24px;">👤</div>'
-    blue_tick_svg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-left: 6px; vertical-align: middle;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#00c853"/></svg>' if is_verified else ""
-    
-    st.markdown(f"""<div style="display: flex; align-items: center; gap: 12px; background: #18191a; padding: 12px; border-radius: 12px; border: 1px solid #2d2f31; margin-bottom: 12px;">
-        <div>{img_html}</div>
-        <div>
-            <div style="display: flex; align-items: center; font-weight: 700; font-size: 17px; color: #e4e6eb; font-family: sans-serif;">
-                <span>{display_name}</span>{blue_tick_svg}
-            </div>
-            <div style="color: #b0b3b8; font-size: 12px; margin-top: 1px;">{subtitle}</div>
-        </div>
-    </div>""", unsafe_allow_html=True)
-
-def show_auto_moving_banner():
-    ad_html = f"""
-    <div style="text-align:center; margin: 15px 0;">
-        <a href="{SMART_LINK}" target="_blank" style="text-decoration:none;">
-            <div style="background: linear-gradient(90deg, #00c853, #1e88e5); color: #fff; padding: 14px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid #3a3b3c; font-family: sans-serif;">
-                <span style="font-size: 15px; font-weight: bold;">⚡ GLOBAL AUTOMATIC MONETIZATION ACTIVE ⚡</span><br>
-                <span style="font-size: 12px;">Click to Boost Earnings & Claim Reward Bonus!</span>
-            </div>
-        </a>
-    </div>
-    """
-    components.html(ad_html, height=95)
-
-def render_comments_section(post_id):
-    with st.expander("💬 Comments & Gifts"):
-        conn = get_db_connection()
+        conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM comments WHERE post_id = ? ORDER BY created_at DESC", (post_id,))
-        all_comments = [dict(r) for r in cursor.fetchall()]
-        
-        if all_comments:
-            for c in all_comments:
-                gift_badge = f" <span style='background:#3a3b3c; padding:2px 6px; border-radius:6px;'>{c['gift_type']}</span>" if c.get("gift_type") and c.get("gift_type") != "None" else ""
-                st.markdown(f"**{c['uploader_name']}**{gift_badge} <small style=\"color:#888;\">({c['created_at']})</small>:<br>{c['comment_text']}", unsafe_allow_html=True)
-                st.markdown("---")
-        else:
-            st.caption("No comments yet.")
-            
-        if st.session_state.user:
-            with st.form(key=f"c_form_{post_id}"):
-                c_input = st.text_input("Write a comment...", key=f"inp_{post_id}")
-                gift_selected = st.selectbox("🎁 Select Gift", ["None", "🎁 Gift Box (+10 pts)", "💎 Diamond (+50 pts)", "🌟 Star (+20 pts)"], key=f"gft_{post_id}")
-                submit_btn = st.form_submit_button("Post Comment")
-                
-                if submit_btn:
-                    if c_input.strip():
-                        now_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-                        cursor.execute("""
-                            INSERT INTO comments (id, post_id, uploader_name, comment_text, gift_type, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """, (str(uuid.uuid4()), post_id, st.session_state.user, c_input.strip(), gift_selected, now_time))
-                        conn.commit()
-                        conn.close()
-                        st.toast("✅ Comment published successfully!")
-                        st.rerun()
-                    else:
-                        st.warning("Comment cannot be empty!")
-                        conn.close()
-        else:
-            st.info("Please log in to leave a comment.")
-            conn.close()
+        email_id = str(uuid.uuid4())[:8]
+        cursor.execute(
+            "INSERT INTO tb_09_email_logs VALUES (?, ?, ?, ?)",
+            (email_id, recipient_email, subject, str(datetime.now()))
+        )
+        conn.commit()
+        conn.close()
 
-# ==========================================
-# 4. CUSTOM STYLING
-# ==========================================
-st.markdown("""
-    <style>
-    .stApp { background-color: #121212; color: #e4e6eb; }
-    div[data-baseweb="input"] > div, div[data-baseweb="textarea"] > div, div[data-baseweb="select"] > div {
-        background-color: #242526 !important; color: #ffffff !important; border: 1px solid #3a3b3c !important;
-    }
-    textarea, input { color: #ffffff !important; background-color: #242526 !important; }
-    .feed-card { background: #18191a; border: 1px solid #2d2f31; border-radius: 14px; padding: 16px; margin-bottom: 20px; }
-    .monetization-box { background: linear-gradient(135deg, #00b09b, #96c93d); color: white; padding: 18px; border-radius: 12px; margin: 15px 0; }
-    .btn-direct { display: block; width: 100%; padding: 10px; margin: 6px 0; color: white !important; text-align: center; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 14px; }
-    .bg-1 { background: linear-gradient(135deg, #FF416C, #FF4B2B); }
-    .bg-2 { background: linear-gradient(135deg, #1DE9B6, #26A69A); }
-    </style>
-""", unsafe_allow_html=True)
+        return True, "ইমেইল সফলভাবে পাঠানো হয়েছে!"
+    except Exception as e:
+        return False, f"ইমেইল পাঠাতে ব্যর্থ: {str(e)}"
 
-# ==========================================
-# 5. MAIN HEADER LOGO SECTION
-# ==========================================
-LOGO_PATH = "logo.jpg"
-if os.path.exists(LOGO_PATH):
-    b64_logo = get_image_base64(LOGO_PATH)
-    st.markdown(f"""
-        <div style="text-align: center; padding: 15px 0;">
-            <img src="data:image/jpeg;base64,{b64_logo}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00c853; box-shadow: 0 0 20px rgba(0,200,83,0.5);">
-            <h1 style="color: #00c853; font-weight: 900; margin-top: 10px;">🛡️ BD AI Book — Enterprise Master Hub 🛡️</h1>
-            <p style="color: #b0b3b8; margin: 0;">Owner Official Gmail: {OWNER_GMAIL} | WhatsApp: {OWNER_PHONE}</p>
-        </div>
-    """, unsafe_allow_html=True)
-else:
-    st.markdown(f"""
-        <div style="text-align: center; padding: 10px 0;">
-            <h1 style="color: #00c853; font-weight: 900; margin: 0;">🛡️ BD AI Book — Enterprise Master Hub 🛡️</h1>
-            <p style="color: #b0b3b8; margin: 0;">Owner Official Gmail: {OWNER_GMAIL} | WhatsApp: {OWNER_PHONE}</p>
-        </div>
-    """, unsafe_allow_html=True)
+# ---------------------------------------------------------
+# Security Guard & Utility Functions
+# ---------------------------------------------------------
+def hash_pass(password):
+    return hashlib.sha256(password.encode()).hexdigest()
 
-st.divider()
+def ai_content_security_guard(text_content):
+    banned_words = ["hack", "scam", "fraud", "illegal", "exploit"]
+    for word in banned_words:
+        if word in text_content.lower():
+            return False, f"Banned keyword detected: {word}"
+    return True, "Passed"
 
-if "user" not in st.session_state:
-    st.session_state.user = None
-    st.session_state.pic = None
-    st.session_state.is_verified = 1
+# ---------------------------------------------------------
+# Streamlit UI Navigation
+# ---------------------------------------------------------
+st.sidebar.title("🛡️ Enterprise Vault")
+st.sidebar.write("Owner Support: md4695090@gmail.com")
 
-if "active_tab" not in st.session_state:
-    st.session_state.active_tab = "🌍 World Feed"
-
-if "otp_code" not in st.session_state:
-    st.session_state.otp_code = None
-
-if "pending_reg" not in st.session_state:
-    st.session_state.pending_reg = None
-
-# ==========================================
-# 6. SIDEBAR NAVIGATION, AUTH & SEARCH
-# ==========================================
-if os.path.exists(LOGO_PATH):
-    b64_sidebar_logo = get_image_base64(LOGO_PATH)
-    st.sidebar.markdown(f"""
-        <div style="text-align: center; margin-bottom: 15px;">
-            <img src="data:image/jpeg;base64,{b64_sidebar_logo}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #00c853;">
-        </div>
-    """, unsafe_allow_html=True)
-
-st.sidebar.markdown("### 🔍 Search Feed")
-search_query = st.sidebar.text_input("Search posts, videos, creators...", key="search_query")
-if search_query and st.sidebar.button("❌ Clear Search"):
-    st.session_state.search_query = ""
-    st.rerun()
-
-st.sidebar.markdown("---")
-st.sidebar.header("🔐 Portal Access & Auth")
-
-mode = st.sidebar.radio("Select Mode", [
-    "Login (Phone & Password)", 
-    "Register (OTP & Face Verification)", 
-    "👑 Owner Exclusive Portal"
+menu = st.sidebar.radio("Navigation Menu", [
+    "World Feed", "Shorts Feed", "WhatsApp Support", 
+    "Email Notification", "Payout & Monetization", "Profile", "Register & Security"
 ])
 
-# Owner Exclusive Portal
-if mode == "👑 Owner Exclusive Portal":
-    st.sidebar.markdown("### 🔒 Owner Secure Chamber")
-    owner_phone_input = st.sidebar.text_input("Owner Phone Number", value=OWNER_PHONE)
-    owner_pass_input = st.sidebar.text_input("Owner Master Password", type="password")
-    owner_face_capture = st.sidebar.camera_input("Owner Biometric Face Lock Verification")
-    
-    if st.sidebar.button("Enter Owner Chamber"):
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        hashed_owner_pass = hashlib.sha256(owner_pass_input.encode()).hexdigest()
-        cursor.execute("SELECT * FROM global_sovereign_vault WHERE username = 'system_owner' AND phone_number = ? AND hashed_password = ?", (owner_phone_input, hashed_owner_pass))
-        owner_vault_match = cursor.fetchone()
-        conn.close()
+# ---------------------------------------------------------
+# Feature Modules
+# ---------------------------------------------------------
+
+if menu == "Register & Security":
+    tab1, tab2 = st.tabs(["📝 Register New Vault", "🔑 Forgot Password"])
+
+    with tab1:
+        st.subheader("Register New Sovereign Vault Account")
+        username = st.text_input("Username", key="reg_user")
+        email = st.text_input("Email Address", key="reg_email")
+        phone = st.text_input("Phone Number", key="reg_phone")
+        password = st.text_input("Password", type="password", key="reg_pass")
         
-        if owner_vault_match and owner_face_capture:
-            st.session_state.user = "system_owner"
-            st.session_state.is_verified = 1
-            st.sidebar.success("👑 Owner Verified Successfully! Access Granted.")
-            st.rerun()
-        else:
-            st.sidebar.error("❌ Invalid Owner Credentials or Face Lock!")
-
-elif mode == "Login (Phone & Password)":
-    login_phone = st.sidebar.text_input("Mobile Number")
-    login_pass = st.sidebar.text_input("Password", type="password")
-    
-    if st.sidebar.button("Login"):
-        if login_phone and login_pass:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            hashed_pass = hashlib.sha256(login_pass.encode()).hexdigest()
-            cursor.execute("SELECT * FROM global_sovereign_vault WHERE phone_number = ? AND hashed_password = ?", (login_phone, hashed_pass))
-            vault_user = cursor.fetchone()
-            conn.close()
-            
-            if vault_user:
-                st.session_state.user = vault_user["username"]
-                st.session_state.pic = None
-                st.session_state.is_verified = 1
-                st.sidebar.success(f"✅ Welcome back, {vault_user['username']}!")
-                st.rerun()
-            else:
-                st.sidebar.error("❌ Invalid Mobile Number or Password!")
-        else:
-            st.sidebar.warning("Please enter phone number and password.")
-
-elif mode == "Register (OTP & Face Verification)":
-    st.sidebar.markdown("#### 📧 6-Digit OTP Registration via Backend Gmail")
-    reg_user = st.sidebar.text_input("Full Name / Username")
-    reg_phone = st.sidebar.text_input("Mobile Number")
-    reg_gmail = st.sidebar.text_input("Gmail Address (For OTP)")
-    reg_pass = st.sidebar.text_input("Password", type="password")
-    face_capture = st.sidebar.camera_input("Capture Face Lock")
-    
-    if st.session_state.otp_code is None:
-        if st.sidebar.button("Send 6-Digit OTP"):
-            if reg_user and reg_phone and reg_gmail and reg_pass and face_capture:
-                generated_otp = str(random.randint(100000, 999999))
-                st.session_state.otp_code = generated_otp
+        with st.expander("⚙️ System Email Credentials (For Sending Welcome Email)"):
+            sys_sender = st.text_input("System Sender Email", value=DEFAULT_SENDER_EMAIL, key="reg_sys_email")
+            sys_pass = st.text_input("Gmail App Password", value=DEFAULT_SENDER_APP_PASSWORD, type="password", key="reg_sys_pass")
+        
+        if st.button("Create Vault Account"):
+            if username and email and phone and password:
+                vault_id = str(uuid.uuid4())[:8]
+                p_hash = hash_pass(password)
                 
-                face_fname = os.path.join(PROFILE_DIR, f"p_{uuid.uuid4()}.jpg")
-                with open(face_fname, "wb") as f:
-                    f.write(face_capture.getvalue())
-                    
-                st.session_state.pending_reg = {
-                    "username": reg_user, "phone": reg_phone, "gmail": reg_gmail, 
-                    "pass": reg_pass, "pic": face_fname
-                }
-                
-                st.sidebar.success(f"✅ OTP Generated & Dispatched from Backend ({OWNER_GMAIL}) to {reg_gmail}! (Demo Code: {generated_otp})")
-            else:
-                st.sidebar.error("Please fill all details & capture face.")
-    else:
-        user_otp_input = st.sidebar.text_input("Enter 6-Digit OTP Code received on Gmail", max_chars=6)
-        if st.sidebar.button("Verify OTP & Complete Registration"):
-            if user_otp_input == st.session_state.otp_code:
-                p_data = st.session_state.pending_reg
-                conn = get_db_connection()
+                conn = sqlite3.connect(DB_FILE)
                 cursor = conn.cursor()
-                try:
-                    hashed_pass = hashlib.sha256(p_data["pass"].encode()).hexdigest()
-                    vault_id = f"vault_{uuid.uuid4().hex[:8]}"
-                    
-                    cursor.execute("""
-                        INSERT INTO global_sovereign_vault 
-                        (vault_id, username, phone_number, gmail_address, hashed_password, security_tier, created_at)
-                        VALUES (?, ?, ?, ?, ?, 1, ?)
-                    """, (vault_id, p_data["username"], p_data["phone"], p_data["gmail"], hashed_pass, datetime.now().strftime("%Y-%m-%d")))
-                    
-                    cursor.execute("""
-                        INSERT INTO users (username, phone_number, full_name, profile_pic, is_verified, created_at)
-                        VALUES (?, ?, ?, ?, 1, ?)
-                    """, (p_data["username"], p_data["phone"], p_data["username"], p_data["pic"], datetime.now().strftime("%Y-%m-%d")))
-                    conn.commit()
-                    conn.close()
-                    
-                    st.session_state.otp_code = None
-                    st.session_state.pending_reg = None
-                    st.sidebar.success("🎉 Registration Verified Successfully! Please switch to Login mode.")
-                except Exception as e:
-                    st.sidebar.error("Error: Username or Phone already registered!")
-                    conn.close()
-            else:
-                st.sidebar.error("❌ Invalid OTP Code! Please try again.")
-
-if st.session_state.user and st.session_state.user != "system_owner":
-    if st.session_state.pic and os.path.exists(st.session_state.pic):
-        st.sidebar.image(st.session_state.pic, width=90)
-    st.sidebar.markdown(f"Welcome, **{st.session_state.user}** ✔️")
-    if st.sidebar.button("Logout"):
-        st.session_state.user = None
-        st.session_state.pic = None
-        st.session_state.is_verified = 1
-        st.rerun()
-elif st.session_state.user == "system_owner":
-    st.sidebar.markdown("👑 **Owner Master Active**")
-    if st.sidebar.button("Owner Logout"):
-        st.session_state.user = None
-        st.rerun()
-
-nav_tabs = [
-    "🌍 World Feed", 
-    "📱 Scrolle Shorts Feed", 
-    "💬 WhatsApp Support Desk", 
-    "💳 Payout & Monetization", 
-    "👤 My Profile & Earnings", 
-    "📤 Create Post / Upload"
-]
-tab = st.sidebar.radio("Navigation", nav_tabs, index=nav_tabs.index(st.session_state.active_tab) if st.session_state.active_tab in nav_tabs else 0)
-st.session_state.active_tab = tab
-
-# ==========================================
-# 7. TAB IMPLEMENTATIONS
-# ==========================================
-
-# --- World Feed ---
-if tab == "🌍 World Feed":
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    if search_query:
-        st.info(f"🔍 Showing search results for: **{search_query}**")
-        
-    try:
-        if search_query:
-            cursor.execute("SELECT * FROM videos WHERE video_type = 'short' AND (title LIKE ? OR uploader_name LIKE ?) ORDER BY created_at DESC", (f"%{search_query}%", f"%{search_query}%"))
-        else:
-            cursor.execute("SELECT * FROM videos WHERE video_type = 'short' ORDER BY created_at DESC")
-        short_videos = [dict(r) for r in cursor.fetchall()]
-        
-        if short_videos:
-            st.markdown('<h3 style="color: #00c853;">▶️ Scrolle Shorts Feed</h3>', unsafe_allow_html=True)
-            cols = st.columns(min(len(short_videos), 3))
-            for i, sv in enumerate(short_videos[:3]):
-                with cols[i]:
-                    st.markdown(f"**{sv.get('uploader_name', 'User')}** ✔️")
-                    if os.path.exists(sv["video_url"]):
-                        st.video(sv["video_url"], format="video/mp4")
-                    if st.button("▶️ Watch in Shorts Feed", key=f"open_short_{sv['id']}"):
-                        st.session_state.active_tab = "📱 Scrolle Shorts Feed"
-                        st.rerun()
-                    st.caption(f"👁️ {format_value(sv.get('views', 0))} views")
-            st.divider()
-    except Exception:
-        pass
-
-    try:
-        if search_query:
-            cursor.execute("SELECT * FROM videos WHERE video_type != 'short' AND (title LIKE ? OR uploader_name LIKE ?)", (f"%{search_query}%", f"%{search_query}%"))
-            videos = [dict(row) for row in cursor.fetchall()]
-            
-            cursor.execute("SELECT * FROM posts WHERE (content LIKE ? OR uploader_name LIKE ?)", (f"%{search_query}%", f"%{search_query}%"))
-            posts = [dict(row) for row in cursor.fetchall()]
-        else:
-            cursor.execute("SELECT * FROM videos WHERE video_type != 'short'")
-            videos = [dict(row) for row in cursor.fetchall()]
-            
-            cursor.execute("SELECT * FROM posts")
-            posts = [dict(row) for row in cursor.fetchall()]
-            
-        combined_feed = videos + posts
-        if not search_query:
-            random.shuffle(combined_feed)
-            
-        if not combined_feed:
-            st.info("No posts or videos available. Create content from the Upload section.")
-            
-        for index, item in enumerate(combined_feed):
-            item_id = str(item["id"])
-            uploader_name = item.get("uploader_name", "Unknown User")
-            uploader_pic = item.get("uploader_pic", None)
-            created_at = item.get("created_at", "Recently")
-            
-            st.markdown('<div class="feed-card">', unsafe_allow_html=True)
-            show_verified_profile(uploader_name, profile_pic_path=uploader_pic, subtitle=f"Posted {created_at}", is_verified=True)
-            
-            if "content" in item and item["content"]:
-                st.markdown(f"### {item['content']}")
-                
-            if "image_url" in item and item["image_url"] and os.path.exists(item["image_url"]):
-                st.image(item["image_url"], use_container_width=True)
-                
-            if "video_url" in item and os.path.exists(item["video_url"]):
-                if item.get("title"):
-                    st.markdown(f"#### {item.get('title')}")
-                st.video(item["video_url"], format="video/mp4")
-                
-                new_views = item.get("views", 0) + 1
-                cursor.execute("UPDATE videos SET views = ?, views_count = ? WHERE id = ?", (new_views, new_views, item_id))
-                conn.commit()
-                
-            show_auto_moving_banner()
-            
-            st.write(f"❤️ **{format_value(item.get('likes', 0))}** Likes")
-            st.markdown(f"""
-                <a href="{SMART_LINK}" target="_blank" class="btn-direct bg-1">💰 Claim Monetization Reward</a>
-                <a href="{SMART_LINK}" target="_blank" class="btn-direct bg-2">💎 Premium Bonus Link</a>
-            """, unsafe_allow_html=True)
-            
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button(f"❤️ Like ({format_value(item.get('likes', 0))})", key=f"lk_{item_id}_{index}"):
-                    table_name = "posts" if "content" in item else "videos"
-                    cursor.execute(f"UPDATE {table_name} SET likes = likes + 1 WHERE id = ?", (item_id,))
-                    conn.commit()
-                    st.rerun()
-            with c2:
-                if st.button("➕ Follow", key=f"fl_{item_id}_{index}"):
-                    cursor.execute("UPDATE users SET followers_count = followers_count + 1 WHERE username = ?", (uploader_name,))
-                    conn.commit()
-                    st.toast(f"Followed {uploader_name} successfully!")
-                    
-            render_comments_section(item_id)
-            st.markdown("</div>", unsafe_allow_html=True)
-    except Exception as e:
-        st.error(f"Feed Error: {e}")
-    finally:
-        conn.close()
-
-# --- Shorts Feed ---
-elif tab == "📱 Scrolle Shorts Feed":
-    st.subheader("📱 TikTok & Shorts Vertical Scroll Feed")
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    if search_query:
-        cursor.execute("SELECT * FROM videos WHERE video_type = 'short' AND (title LIKE ? OR uploader_name LIKE ?) ORDER BY created_at DESC", (f"%{search_query}%", f"%{search_query}%"))
-    else:
-        cursor.execute("SELECT * FROM videos WHERE video_type = 'short' ORDER BY created_at DESC")
-    short_vids = [dict(r) for r in cursor.fetchall()]
-    conn.close()
-    
-    if not short_vids:
-        st.info("No shorts videos found.")
-    else:
-        for idx, sv in enumerate(short_vids):
-            st.markdown("---")
-            col_main, col_side = st.columns([3, 1])
-            with col_main:
-                show_verified_profile(sv.get("uploader_name", "User"), profile_pic_path=sv.get("uploader_pic"), subtitle="Official Shorts Creator", is_verified=True)
-                st.markdown(f"**{sv.get('title', 'Short Video')}**")
-                if os.path.exists(sv["video_url"]):
-                    st.video(sv["video_url"], format="video/mp4")
-                    
-                conn = get_db_connection()
-                cursor = conn.cursor()
-                cursor.execute("UPDATE videos SET views = views + 1, views_count = views_count + 1 WHERE id = ?", (sv["id"],))
+                cursor.execute(
+                    "INSERT INTO tb_01_users (vault_id, username, email, phone, password_hash, role, balance) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (vault_id, username, email, phone, p_hash, "User", 0.0)
+                )
                 conn.commit()
                 conn.close()
+                st.success(f"Vault account created successfully! Your Vault ID: {vault_id}")
+
+                if sys_sender and sys_pass:
+                    with st.spinner("পাঠানো হচ্ছে অটোমেটিক ওয়েলকাম ইমেইল..."):
+                        welcome_subject = "Welcome to Global Sovereign Enterprise Vault!"
+                        welcome_body = (
+                            f"Hello {username},\n\n"
+                            f"Welcome to Global Sovereign Enterprise Vault!\n"
+                            f"Your account has been successfully created.\n\n"
+                            f"Your Vault ID: {vault_id}\n"
+                            f"Registered Email: {email}\n\n"
+                            f"Thank you for joining us.\n"
+                            f"Best regards,\n"
+                            f"Global Enterprise Team"
+                        )
+                        email_sent, email_msg = send_real_email(sys_sender, sys_pass, email, welcome_subject, welcome_body)
+                        if email_sent:
+                            st.info(f"📩 আপনার ইমেইলে ({email}) একটি ওয়েলকাম কনফার্মেশন পাঠানো হয়েছে!")
+                        else:
+                            st.warning(f"অটোমেটিক ইমেইল পাঠানো সম্ভব হয়নি। কারণ: {email_msg}")
+            else:
+                st.error("Please fill in all fields.")
+
+    with tab2:
+        st.subheader("Password Recovery Via Email OTP")
+        st.write("আপনার একাউন্টের রেজিস্টার্ড ইমেইল প্রবেশ করালে একটি ৬ ডিজিটের সিকিউরিটি পিন (OTP) পাঠানো হবে।")
+        
+        recovery_email = st.text_input("Registered Email Address")
+        
+        with st.expander("⚙️ System Email Credentials (For Sending OTP)"):
+            otp_sender = st.text_input("System Sender Email", value=DEFAULT_SENDER_EMAIL, key="otp_sys_email")
+            otp_pass = st.text_input("Gmail App Password", value=DEFAULT_SENDER_APP_PASSWORD, type="password", key="otp_sys_pass")
+
+        if st.button("Send Reset PIN"):
+            if recovery_email:
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("SELECT username FROM tb_01_users WHERE email=?", (recovery_email,))
+                user_found = cursor.fetchone()
                 
-                render_comments_section(sv["id"])
-                
-            with col_side:
-                st.write(" ")
-                if st.button(f"❤️ {format_value(sv.get('likes', 0))}", key=f"sh_like_{sv['id']}"):
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
-                    cursor.execute("UPDATE videos SET likes = likes + 1 WHERE id = ?", (sv["id"],))
+                if user_found:
+                    reset_pin = str(random.randint(100000, 999999))
+                    cursor.execute("REPLACE INTO tb_17_password_resets (email, reset_pin, created_at) VALUES (?, ?, ?)",
+                                   (recovery_email, reset_pin, str(datetime.now())))
                     conn.commit()
                     conn.close()
-                    st.toast("Liked!")
-                    st.rerun()
-                    
-                st.caption(f"👁️ {format_value(sv.get('views', 0))}")
-                
-                if st.button("➕ Follow", key=f"sh_fol_{sv['id']}"):
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
-                    cursor.execute("UPDATE users SET followers_count = followers_count + 1 WHERE username = ?", (sv.get("uploader_name"),))
-                    conn.commit()
-                    conn.close()
-                    st.toast("Followed Creator!")
 
-# --- WhatsApp Support Desk ---
-elif tab == "💬 WhatsApp Support Desk":
-    st.subheader("💬 Official WhatsApp Support Desk")
-    st.caption(f"Contact us directly via WhatsApp ({OWNER_PHONE}) or ask questions.")
-    
-    HIDDEN_WA_NUMBER = "8801722003172"
-    default_msg = "Hello! I am contacting you from BD AI Book App."
-    encoded_msg = urllib.parse.quote(default_msg)
-    wa_link = f"https://wa.me/{HIDDEN_WA_NUMBER}?text={encoded_msg}"
-    
-    st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #075E54, #128C7E); padding: 25px; border-radius: 15px; color: white; text-align: center; border: 1px solid #25D366; margin: 20px 0;">
-            <h2 style="margin-top:0; color: #ffffff;">🌐 Official WhatsApp Support</h2>
-            <p style="font-size: 15px; color: #e0e0e0; margin-bottom: 20px;">
-                Click below to send messages, feedback, or screenshots directly to our team.
-            </p>
-            <a href="{wa_link}" target="_blank" style="
-                background-color: #25D366; color: #121212; padding: 14px 30px; text-decoration: none; 
-                font-weight: bold; font-size: 17px; border-radius: 30px; display: inline-block;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
-                📲 Send WhatsApp Message / Photo
-            </a>
-            <p style="font-size: 12px; color: #ffeb3b; margin-top: 20px; margin-bottom: 0;">
-                ⚠️ <b>Helpline WhatsApp:</b> +{OWNER_PHONE} | Gmail: {OWNER_GMAIL}
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
-
-# --- Payout & Monetization ---
-elif tab == "💳 Payout & Monetization":
-    st.subheader("🏦 Global Monetization & Bank Setup")
-    pay_method = st.selectbox("Select Payment Method:", ["📱 bKash", "📱 Nagad", "📱 Rocket", "🌐 PayPal", "💳 Mastercard / Visa Card", "🏦 Bank Transfer"])
-    acc_num = st.text_input("Account Number / Email / Card Number")
-    holder_name = st.text_input("Account Holder Name")
-    
-    if st.button("💾 Save Payment Details"):
-        if acc_num and holder_name and st.session_state.user:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("UPDATE users SET payment_method = ?, account_details = ? WHERE username = ?", (pay_method, f"{holder_name} - {acc_num}", st.session_state.user))
-            conn.commit()
-            conn.close()
-            st.success("✅ Payment account updated successfully!")
-        else:
-            st.warning("Please login first and fill all fields.")
-
-# --- My Profile & Earnings ---
-elif tab == "👤 My Profile & Earnings":
-    if not st.session_state.user:
-        st.warning("Please login to view your profile.")
-    else:
-        user_data_merged = register_or_get_user(st.session_state.user)
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = ?", (st.session_state.user,))
-        raw_user = cursor.fetchone()
-        user_info = dict(raw_user) if raw_user else {}
-        
-        cursor.execute("SELECT * FROM videos WHERE uploader_name = ?", (st.session_state.user,))
-        my_videos = [dict(r) for r in cursor.fetchall()]
-        cursor.execute("SELECT * FROM posts WHERE uploader_name = ?", (st.session_state.user,))
-        my_posts = [dict(r) for r in cursor.fetchall()]
-        conn.close()
-        
-        total_likes = sum([v.get("likes", 0) for v in my_videos]) + sum([p.get("likes", 0) for p in my_posts])
-        total_views = sum([v.get("views", 0) for v in my_videos])
-        
-        display_name = user_info.get("full_name") or st.session_state.user
-        pic_path = user_info.get("profile_pic", st.session_state.pic)
-        followers = user_data_merged["followers_count"]
-        watch_hours = user_data_merged["watch_time_mins"] / 60.0
-        
-        is_eligible = (followers >= 300) and (watch_hours >= 3000.0)
-        monetization_badge = "✅ Eligible & Active" if is_eligible else "🔒 Locked (Requirements not met)"
-        est_earnings = ((total_views * 0.002) + (total_likes * 0.005) + user_data_merged["earnings"]) if is_eligible else 0.00
-        
-        show_verified_profile(display_name, profile_pic_path=pic_path, subtitle=f"Creator | Monetization: {monetization_badge}", is_verified=True)
-        
-        st.markdown(f"""
-            <div class="monetization-box">
-                <h3 style="margin:0; color:#fff;">🌐 Global Monetization Dashboard</h3>
-                <p style="margin: 5px 0;"><b>Status: {monetization_badge}</b></p>
-                <h2 style="margin: 10px 0; color: #ffffff;">💰 Est. Earnings: ${est_earnings:.2f} USD</h2>
-                <p style="margin:0; font-size:12px;">Saved Method: <b>{user_info.get('payment_method', 'Not Set')}</b> ({user_info.get('account_details', 'N/A')})</p>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("### 📽️ My Content List")
-        for mv in my_videos:
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.caption(f"Type: {mv.get('video_type', 'long')} | Title: {mv.get('title')}")
-            with col2:
-                if st.button("🗑️ Delete", key=f"del_v_{mv['id']}"):
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
-                    cursor.execute("DELETE FROM videos WHERE id = ?", (mv["id"],))
-                    conn.commit()
-                    conn.close()
-                    st.toast("Video deleted successfully!")
-                    st.rerun()
-
-# --- Upload Section & Owner Panel (Dual Control) ---
-elif tab == "📤 Create Post / Upload":
-    if not st.session_state.user:
-        st.warning("Please login or access owner control to proceed.")
-    elif st.session_state.user == "system_owner":
-        st.markdown("---")
-        st.subheader("👑 Owner Master Dashboard (Live Analytics & Direct Chat Hub)")
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM users")
-        total_users_count = cursor.fetchone()[0]
-        cursor.execute("SELECT COUNT(*) FROM videos")
-        total_videos_count = cursor.fetchone()[0]
-        cursor.execute("SELECT COUNT(*) FROM posts")
-        total_posts_count = cursor.fetchone()[0]
-        conn.close()
-        
-        m1, m2, m3 = st.columns(3)
-        m1.metric("👥 Total Users", total_users_count)
-        m2.metric("📹 Total Videos", total_videos_count)
-        m3.metric("📝 Total Posts", total_posts_count)
-        
-        st.markdown("---")
-        st.subheader("💬 Owner Direct Chat / Inbox Control with Users")
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT DISTINCT username FROM users WHERE username != 'system_owner'")
-        all_app_users = [r["username"] for r in cursor.fetchall()]
-        conn.close()
-        
-        if all_app_users:
-            selected_chat_user = st.selectbox("Select User to Send Message / Update:", all_app_users)
-            owner_msg_text = st.text_area("Write Update or Monetization Notice message...")
-            
-            if st.button("Send Direct Message to User"):
-                if owner_msg_text.strip():
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                        INSERT INTO direct_messages (id, sender, receiver, message, created_at)
-                        VALUES (?, 'system_owner', ?, ?, ?)
-                    """, (str(uuid.uuid4()), selected_chat_user, owner_msg_text.strip(), datetime.now().strftime("%Y-%m-%d %H:%M")))
-                    conn.commit()
-                    conn.close()
-                    st.success(f"✅ Message sent successfully to {selected_chat_user}!")
-                else:
-                    st.warning("Message cannot be empty.")
-        else:
-            st.info("No registered users available for direct messaging yet.")
-            
-        st.markdown("---")
-        st.subheader("👑 Owner Central Pipeline Approvals")
-        conn = get_db_connection()
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM tb_16_global_central_pipeline WHERE owner_approval_status = 'Pending Owner Approval'")
-        pending_items = cursor.fetchall()
-        
-        if pending_items:
-            for item in pending_items:
-                st.write(f"📁 **Source Table:** `{item['source_table']}` | 👤 **Uploader:** `{item['username']}` | ⏰ **Time:** `{item['transferred_at']}`")
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button(f"✅ Approve & Publish", key=f"app_{item['pipeline_id']}"):
-                        cursor.execute("UPDATE tb_16_global_central_pipeline SET owner_approval_status = 'Approved & Live' WHERE pipeline_id = ?", (item["pipeline_id"],))
-                        conn.commit()
-                        st.success("Content Approved and Live!")
-                        st.rerun()
-                with col2:
-                    if st.button(f"❌ Delete & Ban", key=f"del_{item['pipeline_id']}"):
-                        cursor.execute("DELETE FROM tb_16_global_central_pipeline WHERE pipeline_id = ?", (item["pipeline_id"],))
-                        conn.commit()
-                        st.error("Content Deleted!")
-                        st.rerun()
-        else:
-            st.info("No pending content approvals in the pipeline.")
-        conn.close()
-    else:
-        st.subheader("📤 Secure Media Upload & AI Guard Hub")
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM direct_messages WHERE receiver = ? ORDER BY created_at DESC", (st.session_state.user,))
-        my_inbox = [dict(r) for r in cursor.fetchall()]
-        conn.close()
-        
-        if my_inbox:
-            with st.expander("📬 Owner Inbox & Updates (Check Notifications)"):
-                for msg in my_inbox:
-                    st.markdown(f"👑 **Owner Notice** <small>({msg['created_at']})</small>:<br><b>{msg['message']}</b>", unsafe_allow_html=True)
-                    st.markdown("---")
-                    
-        upload_category = st.selectbox("Select Target Category Server", [
-            "tb_03_image_posts", "tb_04_long_videos", "tb_05_short_videos", 
-            "tb_06_islamic_short_videos", "tb_07_islamic_long_videos", "tb_08_news_contents", 
-            "tb_09_blog_contents", "tb_10_educational_contents", "tb_11_entertainment_contents", 
-            "tb_12_tech_contents", "tb_13_live_streams"
-        ])
-        
-        upload_type = st.radio("Select Upload Type:", ["📝 Post/Photo", "🎥 Long Video", "📱 Short Video"])
-        
-        if upload_type == "📝 Post/Photo":
-            post_text = st.text_input("What's on your mind?")
-            img_file = st.file_uploader("Upload Photo (JPG/PNG)", type=["jpg", "png", "jpeg"])
-            
-            if st.button("Run AI Check & Submit to Pipeline"):
-                if not post_text and not img_file:
-                    st.warning("Please enter text or attach an image!")
-                else:
-                    is_safe, security_msg = ai_content_security_guard(img_file.name if img_file else "post_text")
-                    if not is_safe:
-                        st.error(security_msg)
-                    else:
-                        st.success(security_msg)
-                        img_path = None
-                        if img_file:
-                            img_path = os.path.join(IMAGE_DIR, f"img_{uuid.uuid4()}.jpg")
-                            with open(img_path, "wb") as f:
-                                f.write(img_file.getvalue())
-                                
-                        record_id = f"rec_{uuid.uuid4().hex[:8]}"
-                        today_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-                        
-                        conn = get_db_connection()
-                        cursor = conn.cursor()
-                        cursor.execute("""
-                            INSERT INTO tb_03_image_posts (id, username, content_title, media_path, ai_verified, created_at)
-                            VALUES (?, ?, ?, ?, 1, ?)
-                        """, (record_id, st.session_state.user, post_text, img_path, today_str))
-                        cursor.execute("""
-                            INSERT INTO posts (id, uploader_name, uploader_pic, content, image_url, likes, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """, (record_id, st.session_state.user, st.session_state.pic, post_text, img_path, 0, today_str))
-                        conn.commit()
-                        conn.close()
-                        
-                        push_to_central_pipeline(upload_category, record_id, st.session_state.user)
-                        st.balloons()
-                        st.success("✅ Content verified and sent to Central Pipeline.")
-        else:
-            v_title = st.text_input("Video Title", placeholder="Enter a title...")
-            vid_file = st.file_uploader("Upload Video File (MP4/MOV)", type=["mp4", "mov", "avi", "mkv"])
-            
-            is_short = (upload_type == "📱 Short Video")
-            v_type_str = "short" if is_short else "long"
-            
-            if st.button("Run AI Check & Publish Video"):
-                if not vid_file or not v_title.strip():
-                    st.warning("Please provide title and video file!")
-                else:
-                    is_safe, security_msg = ai_content_security_guard(vid_file.name)
-                    if not is_safe:
-                        st.error(security_msg)
-                    else:
-                        st.success(security_msg)
-                        vid_filename = f"vid_{uuid.uuid4()}.mp4"
-                        vid_path = os.path.join(VIDEO_DIR, vid_filename)
-                        
-                        with open(vid_path, "wb") as f:
-                            f.write(vid_file.getvalue())
-                            
-                        user_info_record = register_or_get_user(st.session_state.user)
-                        record_id = f"rec_{uuid.uuid4().hex[:8]}"
-                        today_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-                        
-                        conn = get_db_connection()
-                        cursor = conn.cursor()
-                        cursor.execute(f"""
-                            INSERT INTO {upload_category} (id, username, content_title, media_path, ai_verified, created_at)
-                            VALUES (?, ?, ?, ?, 1, ?)
-                        """, (record_id, st.session_state.user, v_title.strip(), vid_path, today_str))
-                        cursor.execute("""
-                            INSERT INTO videos (
-                                id, user_id, video_url, uploader_name, uploader_pic, 
-                                video_type, title, likes, views, views_count, created_at
+                    if otp_sender and otp_pass:
+                        with st.spinner("ইমেইলে রিসেট পিন পাঠানো হচ্ছে..."):
+                            subject = "Password Reset PIN - Global Enterprise Vault"
+                            body = (
+                                f"Hello {user_found[0]},\n\n"
+                                f"Your Password Reset PIN is: {reset_pin}\n\n"
+                                f"Please use this PIN to set a new password for your account.\n\n"
+                                f"If you did not request this, please ignore this message."
                             )
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (
-                            record_id, user_info_record["id"], vid_path, st.session_state.user, 
-                            st.session_state.pic, v_type_str, v_title.strip(), random.randint(10, 50), 1, 1, today_str
-                        ))
-                        conn.commit()
-                        conn.close()
-                        
-                        push_to_central_pipeline(upload_category, record_id, st.session_state.user)
-                        st.balloons()
-                        st.success("🎉 Video verified and published successfully!")
+                            sent, msg = send_real_email(otp_sender, otp_pass, recovery_email, subject, body)
+                            if sent:
+                                st.success(f"✅ রিসেট পিন পাঠানো হয়েছে: {recovery_email}")
+                            else:
+                                st.error(f"পিন পাঠাতে সমস্যা হয়েছে: {msg}")
+                    else:
+                        st.error("সিস্টেম ইমেইল বা অ্যাপ পাসওয়ার্ড অনুপস্থিত।")
+                else:
+                    conn.close()
+                    st.error("এই ইমেইল দিয়ে কোনো অ্যাকাউন্ট খুঁজে পাওয়া যায়নি।")
+            else:
+                st.warning("অনুগ্রহ করে আপনার ইমেইল ঠিকানা দিন।")
+
+        st.divider()
+        st.write("### 🔐 Set New Password Using PIN")
+        entered_pin = st.text_input("Enter 6-Digit PIN", max_chars=6)
+        new_password = st.text_input("Enter New Password", type="password")
+
+        if st.button("Reset Password Now"):
+            if recovery_email and entered_pin and new_password:
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("SELECT reset_pin FROM tb_17_password_resets WHERE email=?", (recovery_email,))
+                pin_row = cursor.fetchone()
+
+                if pin_row and pin_row[0] == entered_pin:
+                    new_hash = hash_pass(new_password)
+                    cursor.execute("UPDATE tb_01_users SET password_hash=? WHERE email=?", (new_hash, recovery_email))
+                    cursor.execute("DELETE FROM tb_17_password_resets WHERE email=?", (recovery_email,))
+                    conn.commit()
+                    conn.close()
+                    st.success("🎉 আপনার পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে! এখন নতুন পাসওয়ার্ড দিয়ে লগইন করুন।")
+                else:
+                    conn.close()
+                    st.error("পিনটি ভুল অথবা সঠিক ইমেইল দেননি।")
+            else:
+                st.warning("পাসওয়ার্ড পরিবর্তন করতে ইমেইল, পিন এবং নতুন পাসওয়ার্ড সবকটি পূরণ করুন।")
+
+elif menu == "Email Notification":
+    st.subheader("📧 SMTP Real Email Dispatcher")
+    sender_email = st.text_input("Sender Gmail Address", value=DEFAULT_SENDER_EMAIL)
+    sender_password = st.text_input("Gmail App Password (16-Digit)", value=DEFAULT_SENDER_APP_PASSWORD, type="password")
+    
+    st.divider()
+    recipient_email = st.text_input("Recipient Email Address")
+    email_subject = st.text_input("Email Subject")
+    email_body = st.text_area("Email Message / Body")
+
+    if st.button("🚀 Send Email Now"):
+        if sender_email and sender_password and recipient_email and email_subject and email_body:
+            with st.spinner("ইমেইল পাঠানো হচ্ছে..."):
+                success, msg = send_real_email(sender_email, sender_password, recipient_email, email_subject, email_body)
+                if success:
+                    st.success(msg)
+                else:
+                    st.error(msg)
+        else:
+            st.warning("অনুগহ করে সবকটি ঘর পূরণ করুন।")
+
+elif menu == "World Feed":
+    st.subheader("🌐 Global World Feed")
+    with st.expander("➕ Create New Post"):
+        user_vault = st.text_input("Your Vault ID")
+        post_text = st.text_area("Post Content")
+        media_link = st.text_input("Media URL (Optional)")
+        
+        if st.button("Publish Post"):
+            is_safe, msg = ai_content_security_guard(post_text)
+            if not is_safe:
+                st.error(f"Security Alert: {msg}")
+            else:
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                post_id = str(uuid.uuid4())[:8]
+                cursor.execute(
+                    "INSERT INTO tb_02_global_posts VALUES (?, ?, ?, ?, ?, ?)",
+                    (post_id, user_vault, post_text, media_link, "General", str(datetime.now()))
+                )
+                conn.commit()
+                conn.close()
+                st.success("Post published to global feed!")
+
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT vault_id, content, created_at FROM tb_02_global_posts ORDER BY created_at DESC")
+    posts = cursor.fetchall()
+    conn.close()
+    
+    for p in posts:
+        st.markdown(f"""
+        <div class="vault-card">
+            <small>Vault ID: {p[0]} | {p[2]}</small>
+            <p style="font-size: 16px; margin-top: 5px;">{p[1]}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+elif menu == "Shorts Feed":
+    st.subheader("🎬 Global Shorts Feed")
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT video_url, caption FROM tb_03_shorts_feed")
+    shorts = cursor.fetchall()
+    conn.close()
+    
+    if shorts:
+        for s in shorts:
+            st.video(s[0])
+            st.caption(s[1])
+    else:
+        st.info("No shorts available right now.")
+
+elif menu == "WhatsApp Support":
+    st.subheader("💬 WhatsApp Support Desk")
+    st.write("Need help? Contact our central engine team directly via WhatsApp.")
+    msg = st.text_area("Type your inquiry...")
+    if st.button("Send to WhatsApp"):
+        encoded_msg = urllib.parse.quote(msg)
+        whatsapp_url = f"https://wa.me/8801700000000?text={encoded_msg}"
+        st.markdown(f"[👉 Click here to open WhatsApp]({whatsapp_url})", unsafe_allow_html=True)
+
+# ---------------------------------------------------------
+# Payout & Monetization (আপডেট করা সেকশন)
+# ---------------------------------------------------------
+elif menu == "Payout & Monetization":
+    st.subheader("💰 Monetization & Payouts")
+    
+    v_id = st.text_input("Enter Vault ID for Earnings")
+    if st.button("Check Balance"):
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("SELECT balance FROM tb_01_users WHERE vault_id=?", (v_id,))
+        res = cursor.fetchone()
+        conn.close()
+        if res:
+            st.metric(label="Available Balance", value=f"${res[0]:.2f}")
+        else:
+            st.error("Vault ID not found.")
+
+    st.divider()
+    
+    # অ্যাডভাইজার / অনার ব্যাঙ্ক ডিটেইলস কার্ড
+    st.subheader("🏦 Owner & Advisor Bank Details ($20/Month Auto-Payout)")
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tb_18_bank_accounts WHERE account_id='BANK_OWNER_01'")
+    bank_data = cursor.fetchone()
+    conn.close()
+
+    if bank_data:
+        st.markdown(f"""
+        <div class="bank-card">
+            <h3 style="color: #10b981; margin-top: 0;">💳 Automatic Monthly Deposit Account</h3>
+            <p><strong>Name:</strong> {bank_data[1]}</p>
+            <p><strong>Address:</strong> {bank_data[2]}</p>
+            <p><strong>IBAN:</strong> <code>{bank_data[3]}</code></p>
+            <p><strong>BIC / SWIFT Code:</strong> <code>{bank_data[4]}</code></p>
+            <p><strong>Account Number:</strong> <code>{bank_data[5]}</code></p>
+            <p><strong>Bank Name:</strong> {bank_data[6]}</p>
+            <p><strong>Bank Address:</strong> {bank_data[7]}</p>
+            <p><strong>Account Type:</strong> {bank_data[8]}</p>
+            <hr style="border-color: #374151;">
+            <p style="font-size: 18px; color: #f59e0b;">💵 <strong>Monthly Deposit Amount:</strong> ${bank_data[9]:.2f} USD / Month</p>
+            <small style="color: #9ca3af;">* এই অ্যাকাউন্টে প্রতি মাসে ২০ ডলার স্বয়ংক্রিয়ভাবে প্রদান করার জন্য কনফিগার করা আছে।</small>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ---------------------------------------------------------
+# Profile Section
+# ---------------------------------------------------------
+elif menu == "Profile":
+    st.subheader("👤 User Profile & Owner Info")
+    st.write("Manage your vault settings and view registered system profiles.")
+    
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT owner_name, account_number, bank_name FROM tb_18_bank_accounts WHERE account_id='BANK_OWNER_01'")
+    b_info = cursor.fetchone()
+    conn.close()
+
+    if b_info:
+        st.info(f"🔑 Vault Advisor / Owner: **{b_info[0]}** | Bank: **{b_info[2]}** (Acc: `{b_info[1]}`)")
