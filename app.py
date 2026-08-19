@@ -32,7 +32,7 @@ components.html(
 SMART_LINK = "https://omg10.com/4/10954816"
 
 # ==========================================
-# 2. LOCAL STORAGE & 16-SERVER MASTER DATABASE SETUP
+# 2. LOCAL STORAGE & DATABASE SETUP
 # ==========================================
 DB_FILE = "global_enterprise_master.db"
 VIDEO_DIR = "stored_videos"
@@ -43,18 +43,15 @@ for folder in [VIDEO_DIR, IMAGE_DIR, PROFILE_DIR]:
     if not os.path.exists(folder):
         os.makedirs(folder)
 
-
 def get_db_connection():
     conn = sqlite3.connect(DB_FILE, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
-
 def init_all_16_servers_and_vault():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 0. Special Sovereign Vault (মালিক ও ইউজারদের ফোন, জিমেইল, পাসওয়ার্ড ও ফেস লক ডেটা)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS global_sovereign_vault (
             vault_id TEXT PRIMARY KEY,
@@ -68,7 +65,6 @@ def init_all_16_servers_and_vault():
         )
     """)
 
-    # 1. User Base Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tb_01_users (
             id TEXT PRIMARY KEY,
@@ -78,7 +74,6 @@ def init_all_16_servers_and_vault():
         )
     """)
 
-    # 2. Interactions Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tb_02_interactions (
             id TEXT PRIMARY KEY,
@@ -89,163 +84,27 @@ def init_all_16_servers_and_vault():
         )
     """)
 
-    # 3. Image Posts Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tb_03_image_posts (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            content_title TEXT,
-            media_path TEXT,
-            ai_verified INT DEFAULT 0,
-            created_at TEXT
-        )
-    """)
+    # Standard Tables setup
+    tables = [
+        "tb_03_image_posts", "tb_04_long_videos", "tb_05_short_videos",
+        "tb_06_islamic_short_videos", "tb_07_islamic_long_videos",
+        "tb_08_news_contents", "tb_09_blog_contents", "tb_10_educational_contents",
+        "tb_11_entertainment_contents", "tb_12_tech_contents", "tb_13_live_streams",
+        "tb_14_advertisements", "tb_15_bank_details"
+    ]
+    
+    for t_name in tables:
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS {t_name} (
+                id TEXT PRIMARY KEY,
+                username TEXT NOT NULL,
+                content_title TEXT,
+                media_path TEXT,
+                ai_verified INT DEFAULT 0,
+                created_at TEXT
+            )
+        """)
 
-    # 4. Long Videos Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tb_04_long_videos (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            content_title TEXT,
-            media_path TEXT,
-            ai_verified INT DEFAULT 0,
-            created_at TEXT
-        )
-    """)
-
-    # 5. Short Videos Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tb_05_short_videos (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            content_title TEXT,
-            media_path TEXT,
-            ai_verified INT DEFAULT 0,
-            created_at TEXT
-        )
-    """)
-
-    # 6. Islamic Short Videos Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tb_06_islamic_short_videos (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            content_title TEXT,
-            media_path TEXT,
-            ai_verified INT DEFAULT 0,
-            created_at TEXT
-        )
-    """)
-
-    # 7. Islamic Long Videos Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tb_07_islamic_long_videos (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            content_title TEXT,
-            media_path TEXT,
-            ai_verified INT DEFAULT 0,
-            created_at TEXT
-        )
-    """)
-
-    # 8. News Contents Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tb_08_news_contents (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            content_title TEXT,
-            media_path TEXT,
-            ai_verified INT DEFAULT 0,
-            created_at TEXT
-        )
-    """)
-
-    # 9. Blog Contents Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tb_09_blog_contents (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            content_title TEXT,
-            media_path TEXT,
-            ai_verified INT DEFAULT 0,
-            created_at TEXT
-        )
-    """)
-
-    # 10. Educational Contents Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tb_10_educational_contents (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            content_title TEXT,
-            media_path TEXT,
-            ai_verified INT DEFAULT 0,
-            created_at TEXT
-        )
-    """)
-
-    # 11. Entertainment Contents Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tb_11_entertainment_contents (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            content_title TEXT,
-            media_path TEXT,
-            ai_verified INT DEFAULT 0,
-            created_at TEXT
-        )
-    """)
-
-    # 12. Tech & Code Contents Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tb_12_tech_contents (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            content_title TEXT,
-            media_path TEXT,
-            ai_verified INT DEFAULT 0,
-            created_at TEXT
-        )
-    """)
-
-    # 13. Live Streams Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tb_13_live_streams (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            content_title TEXT,
-            media_path TEXT,
-            ai_verified INT DEFAULT 0,
-            created_at TEXT
-        )
-    """)
-
-    # 14. Advertisements Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tb_14_advertisements (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            content_title TEXT,
-            media_path TEXT,
-            ai_verified INT DEFAULT 0,
-            created_at TEXT
-        )
-    """)
-
-    # 15. Bank Details Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tb_15_bank_details (
-            id TEXT PRIMARY KEY,
-            username TEXT NOT NULL,
-            content_title TEXT,
-            media_path TEXT,
-            ai_verified INT DEFAULT 0,
-            created_at TEXT
-        )
-    """)
-
-    # 16. Central Electric Pipeline Hub
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tb_16_global_central_pipeline (
             pipeline_id TEXT PRIMARY KEY,
@@ -257,7 +116,6 @@ def init_all_16_servers_and_vault():
         )
     """)
 
-    # Legacy compatibility tables
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -287,6 +145,7 @@ def init_all_16_servers_and_vault():
             uploader_pic TEXT,
             video_type TEXT DEFAULT 'long',
             title TEXT,
+            category TEXT DEFAULT 'General',
             likes INTEGER DEFAULT 0,
             views INTEGER DEFAULT 0,
             views_count INTEGER DEFAULT 0,
@@ -302,6 +161,7 @@ def init_all_16_servers_and_vault():
             uploader_pic TEXT,
             content TEXT,
             image_url TEXT,
+            category TEXT DEFAULT 'General',
             likes INTEGER DEFAULT 0,
             created_at TEXT
         )
@@ -318,101 +178,55 @@ def init_all_16_servers_and_vault():
         )
     """)
 
-    # Default Owner Master Account Setup (Tier 999 - Hidden Secure Sovereign Owner)
-    cursor.execute(
-        "SELECT * FROM global_sovereign_vault WHERE username = 'system_owner'"
-    )
+    # Default Owner Setup
+    cursor.execute("SELECT * FROM global_sovereign_vault WHERE username = 'system_owner'")
     if not cursor.fetchone():
         owner_pass = hashlib.sha256("OwnerMasterKey2026#".encode()).hexdigest()
-        cursor.execute(
-            """
+        cursor.execute("""
             INSERT INTO global_sovereign_vault (vault_id, username, phone_number, hashed_password, security_tier, created_at)
             VALUES ('vault_owner_01', 'system_owner', '01722003172', ?, 999, ?)
-        """,
-            (owner_pass, datetime.now().strftime("%Y-%m-%d")),
-        )
+        """, (owner_pass, datetime.now().strftime("%Y-%m-%d")))
 
     conn.commit()
     conn.close()
 
-
 init_all_16_servers_and_vault()
 
-
 # ==========================================
-# 3. AI SECURITY GUARD & PIPELINE ENGINE
+# 3. HELPER FUNCTIONS & ENGINE
 # ==========================================
 def ai_content_security_guard(file_name):
-    banned_keywords = [
-        "tiktok",
-        "instagram_dl",
-        "facebook_video",
-        "adult",
-        "x_rated",
-        "pirated",
-        "hack",
-    ]
+    banned_keywords = ["tiktok", "instagram_dl", "facebook_video", "adult", "x_rated", "pirated", "hack"]
     for keyword in banned_keywords:
         if keyword in file_name.lower():
-            return (
-                False,
-                f"🚨 AI Security Block: Copyright/Third-party content ('{keyword}') is strictly prohibited! No third-party downloads allowed.",
-            )
-    return True, "✅ AI Verified: Original Mobile Content Approved."
-
+            return False, f"🚨 AI Security Block: Content contains banned phrase ('{keyword}'). Upload denied!"
+    return True, "✅ AI Verified: Approved."
 
 def push_to_central_pipeline(source_table, record_id, username):
     conn = get_db_connection()
     cursor = conn.cursor()
     pipeline_id = f"pipe_{uuid.uuid4().hex[:10]}"
-    cursor.execute(
-        """
+    cursor.execute("""
         INSERT INTO tb_16_global_central_pipeline 
         (pipeline_id, source_table, record_id, username, owner_approval_status, transferred_at)
-        VALUES (?, ?, ?, ?, 'Pending Owner Approval', ?)
-    """,
-        (
-            pipeline_id,
-            source_table,
-            record_id,
-            username,
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        ),
-    )
+        VALUES (?, ?, ?, ?, 'Approved', ?)
+    """, (pipeline_id, source_table, record_id, username, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     conn.commit()
     conn.close()
-
 
 def register_or_get_user(username, phone_number=None):
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute(
-        "SELECT id, username, phone_number, followers_count, watch_time_mins, monetization_status, earnings FROM users WHERE username = ? OR phone_number = ?",
-        (username, phone_number),
-    )
+    c.execute("SELECT * FROM users WHERE username = ? OR phone_number = ?", (username, phone_number))
     user = c.fetchone()
     if not user:
-        c.execute(
-            "INSERT INTO users (username, phone_number, created_at) VALUES (?, ?, ?)",
-            (username, phone_number, datetime.now().strftime("%Y-%m-%d")),
-        )
+        c.execute("INSERT INTO users (username, phone_number, created_at) VALUES (?, ?, ?)",
+                  (username, phone_number, datetime.now().strftime("%Y-%m-%d")))
         conn.commit()
-        c.execute(
-            "SELECT id, username, phone_number, followers_count, watch_time_mins, monetization_status, earnings FROM users WHERE username = ?",
-            (username,),
-        )
+        c.execute("SELECT * FROM users WHERE username = ?", (username,))
         user = c.fetchone()
     conn.close()
-    return {
-        "id": user["id"],
-        "username": user["username"],
-        "phone_number": user["phone_number"],
-        "followers_count": user["followers_count"] or 0,
-        "watch_time_mins": user["watch_time_mins"] or 0.0,
-        "monetization_status": user["monetization_status"] or "none",
-        "earnings": user["earnings"] or 0.0,
-    }
-
+    return dict(user)
 
 def format_value(value):
     if value is None:
@@ -423,7 +237,6 @@ def format_value(value):
         return f"{value/1000:.1f}K"
     return str(value)
 
-
 def get_image_base64(image_path):
     if image_path and os.path.exists(image_path):
         try:
@@ -433,523 +246,187 @@ def get_image_base64(image_path):
             return None
     return None
 
-
-def show_verified_profile(
-    display_name,
-    profile_pic_path=None,
-    subtitle="Official Global Verified Creator",
-    is_verified=True,
-):
+def show_verified_profile(display_name, profile_pic_path=None, subtitle="Official Creator", is_verified=True):
     b64_img = get_image_base64(profile_pic_path)
-    if b64_img:
-        img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #00c853;">'
-    else:
-        img_html = '<div style="width:50px; height:50px; border-radius:50%; background:#2a2a2a; color:#fff; display:flex; align-items:center; justify-content:center; font-size:24px;">👤</div>'
-
-    blue_tick_svg = (
-        """<svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-left: 6px; vertical-align: middle;">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#00c853"/>
-    </svg>"""
-        if is_verified
-        else ""
-    )
-
-    html_code = f"""<div style="display: flex; align-items: center; gap: 12px; background: #18191a; padding: 12px; border-radius: 12px; border: 1px solid #2d2f31; margin-bottom: 12px;">
-<div>{img_html}</div>
-<div>
-<div style="display: flex; align-items: center; font-weight: 700; font-size: 17px; color: #e4e6eb; font-family: sans-serif;">
-<span>{display_name}</span>
-{blue_tick_svg}
-</div>
-<div style="color: #b0b3b8; font-size: 12px; margin-top: 1px;">{subtitle}</div>
-</div>
-</div>"""
-    st.markdown(html_code, unsafe_allow_html=True)
-
-
-def show_auto_moving_banner():
-    ad_html = f"""
-    <div style="text-align:center; margin: 15px 0;">
-        <a href="{SMART_LINK}" target="_blank" style="text-decoration:none;">
-            <div style="background: linear-gradient(90deg, #00c853, #1e88e5); color: #fff; padding: 14px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: 1px solid #3a3b3c; font-family: sans-serif;">
-                <span style="font-size: 15px; font-weight: bold;">⚡ GLOBAL AUTOMATIC MONETIZATION ACTIVE ⚡</span><br>
-                <span style="font-size: 12px;">Click to Boost Earnings & Claim Reward Bonus!</span>
+    img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid #00c853;">' if b64_img else '<div style="width:45px; height:45px; border-radius:50%; background:#3a3b3c; color:#fff; display:flex; align-items:center; justify-content:center;">👤</div>'
+    
+    tick = '<span style="color:#00c853; font-weight:bold; margin-left:5px;">✔️</span>' if is_verified else ''
+    
+    st.markdown(f"""
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+            {img_html}
+            <div>
+                <div style="font-weight:bold; color:#e4e6eb;">{display_name} {tick}</div>
+                <div style="color:#b0b3b8; font-size:12px;">{subtitle}</div>
             </div>
-        </a>
-    </div>
-    """
-    components.html(ad_html, height=95)
-
+        </div>
+    """, unsafe_allow_html=True)
 
 def render_comments_section(post_id):
     with st.expander("💬 Comments & Gifts"):
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute(
-            "SELECT * FROM comments WHERE post_id = ? ORDER BY created_at DESC",
-            (post_id,),
-        )
+        cursor.execute("SELECT * FROM comments WHERE post_id = ? ORDER BY created_at DESC", (post_id,))
         all_comments = [dict(r) for r in cursor.fetchall()]
 
         if all_comments:
             for c in all_comments:
-                gift_badge = (
-                    f" <span style='background:#3a3b3c; padding:2px 6px; border-radius:6px;'>{c['gift_type']}</span>"
-                    if c.get("gift_type") and c.get("gift_type") != "None"
-                    else ""
-                )
-                st.markdown(
-                    f"**{c['uploader_name']}**{gift_badge} <small style=\"color:#888;\">({c['created_at']})</small>:<br>{c['comment_text']}",
-                    unsafe_allow_html=True,
-                )
-                st.markdown("---")
+                st.markdown(f"**{c['uploader_name']}**: {c['comment_text']} <small style='color:#888;'>({c['created_at']})</small>", unsafe_allow_html=True)
         else:
             st.caption("No comments yet.")
 
         if st.session_state.user:
             with st.form(key=f"c_form_{post_id}"):
-                c_input = st.text_input(
-                    "Write a comment...",
-                    key=f"inp_{post_id}",
-                    placeholder="Share your thoughts...",
-                )
-                gift_selected = st.selectbox(
-                    "🎁 Select Gift",
-                    [
-                        "None",
-                        "🎁 Gift Box (+10 pts)",
-                        "💎 Diamond (+50 pts)",
-                        "🌟 Star (+20 pts)",
-                        "🔥 Fire (+15 pts)",
-                    ],
-                    key=f"gft_{post_id}",
-                )
+                c_input = st.text_input("Write a comment...", key=f"inp_{post_id}")
                 submit_btn = st.form_submit_button("Post Comment")
-
-                if submit_btn:
-                    if c_input.strip():
-                        now_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-                        cursor.execute(
-                            """
-                            INSERT INTO comments (id, post_id, uploader_name, comment_text, gift_type, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                            """,
-                            (
-                                str(uuid.uuid4()),
-                                post_id,
-                                st.session_state.user,
-                                c_input.strip(),
-                                gift_selected,
-                                now_time,
-                            ),
-                        )
-                        conn.commit()
-                        conn.close()
-                        st.toast("✅ Comment published successfully!")
-                        st.rerun()
-                    else:
-                        st.warning("Comment cannot be empty!")
-                        conn.close()
-        else:
-            st.info("Please log in to leave a comment.")
-            conn.close()
-
+                if submit_btn and c_input.strip():
+                    cursor.execute("INSERT INTO comments (id, post_id, uploader_name, comment_text, created_at) VALUES (?, ?, ?, ?, ?)",
+                                   (str(uuid.uuid4()), post_id, st.session_state.user, c_input.strip(), datetime.now().strftime("%Y-%m-%d %H:%M")))
+                    conn.commit()
+                    conn.close()
+                    st.rerun()
+                conn.close()
 
 # ==========================================
-# 4. CUSTOM STYLING
+# 4. CUSTOM STYLING & HEADER
 # ==========================================
-st.markdown(
-    """
+st.markdown("""
     <style>
     .stApp { background-color: #121212; color: #e4e6eb; }
-    div[data-baseweb="input"] > div, div[data-baseweb="textarea"] > div, div[data-baseweb="select"] > div {
-        background-color: #242526 !important;
-        color: #ffffff !important;
-        border: 1px solid #3a3b3c !important;
-    }
-    textarea, input {
-        color: #ffffff !important;
-        background-color: #242526 !important;
-    }
-    .feed-card {
-        background: #18191a;
-        border: 1px solid #2d2f31;
-        border-radius: 14px;
-        padding: 16px;
-        margin-bottom: 20px;
-    }
-    .monetization-box {
-        background: linear-gradient(135deg, #00b09b, #96c93d);
-        color: white;
-        padding: 18px;
-        border-radius: 12px;
-        margin-top: 15px;
-        margin-bottom: 15px;
-    }
-    .btn-direct { display: block; width: 100%; padding: 10px; margin: 6px 0; color: white !important; text-align: center; border-radius: 8px; font-weight: bold; text-decoration: none; font-size: 14px; }
-    .bg-1 { background: linear-gradient(135deg, #FF416C, #FF4B2B); }
-    .bg-2 { background: linear-gradient(135deg, #1DE9B6, #26A69A); }
+    .feed-card { background: #18191a; border: 1px solid #2d2f31; border-radius: 14px; padding: 16px; margin-bottom: 20px; }
     </style>
-    """,
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
-# ==========================================
-# 5. MAIN HEADER LOGO SECTION (Waterproof Circular Global Logo)
-# ==========================================
-LOGO_PATH = "logo.jpg"
-if os.path.exists(LOGO_PATH):
-    b64_logo = get_image_base64(LOGO_PATH)
-    st.markdown(
-        f"""
-        <div style="text-align: center; padding: 15px 0;">
-            <img src="data:image/jpeg;base64,{b64_logo}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid #00c853; box-shadow: 0 0 20px rgba(0,200,83,0.5);">
-            <h1 style="color: #00c853; font-weight: 900; margin-top: 10px;">🛡️ BD AI Book — Enterprise Master Hub 🛡️</h1>
-            <p style="color: #b0b3b8; margin: 0;">Autonomous AI & 16-Table Master Pipeline Hub (Global Verified)</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-else:
-    st.markdown(
-        """
-        <div style="text-align: center; padding: 10px 0;">
-            <h1 style="color: #00c853; font-weight: 900; margin: 0;">🛡️ BD AI Book — Enterprise Master Hub 🛡️</h1>
-            <p style="color: #b0b3b8; margin: 0;">Autonomous AI & 16-Table Master Pipeline Hub</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+st.markdown("""
+    <div style="text-align: center; padding: 10px 0;">
+        <h1 style="color: #00c853; font-weight: 900; margin: 0;">🛡️ BD AI Book — Enterprise Master Hub 🛡️</h1>
+        <p style="color: #b0b3b8; margin: 0;">Autonomous AI & 16-Table Master Pipeline Hub</p>
+    </div>
+""", unsafe_allow_html=True)
 
 st.divider()
 
-# Session State Initialization
 if "user" not in st.session_state:
     st.session_state.user = None
     st.session_state.pic = None
-    st.session_state.is_verified = 1
-
 if "active_tab" not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
 
 # ==========================================
-# 6. SIDEBAR NAVIGATION, AUTH & SEARCH
+# 5. SIDEBAR AUTHENTICATION
 # ==========================================
-if os.path.exists(LOGO_PATH):
-    b64_sidebar_logo = get_image_base64(LOGO_PATH)
-    st.sidebar.markdown(
-        f"""
-        <div style="text-align: center; margin-bottom: 15px;">
-            <img src="data:image/jpeg;base64,{b64_sidebar_logo}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #00c853;">
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-# --- 🔍 SEARCH BAR SECTION ---
 st.sidebar.markdown("### 🔍 Search Feed")
-search_query = st.sidebar.text_input(
-    "Search posts, videos, creators...",
-    placeholder="Type to search...",
-    key="search_query",
-)
-if search_query:
-    if st.sidebar.button("❌ Clear Search"):
-        st.session_state.search_query = ""
-        st.rerun()
+search_query = st.sidebar.text_input("Search posts, videos, creators...", placeholder="Type to search...", key="search_query")
 
 st.sidebar.markdown("---")
 st.sidebar.header("🔐 Portal Access & Auth")
 
-mode = st.sidebar.radio(
-    "Select Mode",
-    [
-        "Login (Phone & Password)",
-        "Register (Phone, Gmail & Face)",
-        "👑 Owner Exclusive Portal",
-    ],
-)
+mode = st.sidebar.radio("Select Mode", ["Login (Phone & Password)", "Register (Phone, Gmail & Face)", "👑 Owner Exclusive Portal"])
 
-# 👑 OWNER EXCLUSIVE PORTAL (Separate Private Vault & Face Lock / Password)
 if mode == "👑 Owner Exclusive Portal":
-    st.sidebar.markdown("### 🔒 Owner Secure Chamber")
     owner_phone = st.sidebar.text_input("Owner Phone Number", value="01722003172")
-    owner_pass_input = st.sidebar.text_input(
-        "Owner Master Password", type="password"
-    )
-    owner_face_capture = st.sidebar.camera_input(
-        "Owner Biometric Face Lock Verification"
-    )
-
+    owner_pass_input = st.sidebar.text_input("Owner Master Password", type="password")
     if st.sidebar.button("Enter Owner Chamber"):
         conn = get_db_connection()
         cursor = conn.cursor()
         hashed_owner_pass = hashlib.sha256(owner_pass_input.encode()).hexdigest()
-        cursor.execute(
-            "SELECT * FROM global_sovereign_vault WHERE username = 'system_owner' AND phone_number = ? AND hashed_password = ?",
-            (owner_phone, hashed_owner_pass),
-        )
-        owner_vault_match = cursor.fetchone()
-        conn.close()
-
-        if owner_vault_match and owner_face_capture:
+        cursor.execute("SELECT * FROM global_sovereign_vault WHERE username = 'system_owner' AND phone_number = ? AND hashed_password = ?", (owner_phone, hashed_owner_pass))
+        if cursor.fetchone():
             st.session_state.user = "system_owner"
-            st.session_state.is_verified = 1
-            st.sidebar.success(
-                "👑 Owner Verified Successfully! Access Granted."
-            )
+            st.sidebar.success("👑 Owner Verified Successfully!")
             st.rerun()
         else:
-            st.sidebar.error(
-                "❌ Access Denied: Invalid Owner Phone, Password or Face Lock Verification!"
-            )
+            st.sidebar.error("❌ Access Denied!")
+        conn.close()
 
 elif mode == "Login (Phone & Password)":
     login_phone = st.sidebar.text_input("Mobile Number")
     login_pass = st.sidebar.text_input("Password", type="password")
-
     if st.sidebar.button("Login"):
-        if login_phone and login_pass:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            hashed_pass = hashlib.sha256(login_pass.encode()).hexdigest()
-            cursor.execute(
-                "SELECT * FROM global_sovereign_vault WHERE phone_number = ? AND hashed_password = ?",
-                (login_phone, hashed_pass),
-            )
-            vault_user = cursor.fetchone()
-            conn.close()
-
-            if vault_user:
-                st.session_state.user = vault_user["username"]
-                st.session_state.pic = None
-                st.session_state.is_verified = 1
-                st.sidebar.success(
-                    f"✅ Welcome back, {vault_user['username']}!"
-                )
-                st.rerun()
-            else:
-                st.sidebar.error(
-                    "❌ Invalid Mobile Number or Password! Please check credentials."
-                )
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        hashed_pass = hashlib.sha256(login_pass.encode()).hexdigest()
+        cursor.execute("SELECT * FROM global_sovereign_vault WHERE phone_number = ? AND hashed_password = ?", (login_phone, hashed_pass))
+        vault_user = cursor.fetchone()
+        conn.close()
+        if vault_user:
+            st.session_state.user = vault_user["username"]
+            st.sidebar.success(f"✅ Welcome, {vault_user['username']}!")
+            st.rerun()
         else:
-            st.sidebar.warning("Please enter both phone number and password.")
+            st.sidebar.error("❌ Invalid Credentials!")
 
 elif mode == "Register (Phone, Gmail & Face)":
-    reg_user = st.sidebar.text_input("Your Full Name / Username")
-    reg_phone = st.sidebar.text_input("Mobile Number (World Login)")
+    reg_user = st.sidebar.text_input("Username")
+    reg_phone = st.sidebar.text_input("Mobile Number")
     reg_gmail = st.sidebar.text_input("Gmail Address")
     reg_pass = st.sidebar.text_input("Password", type="password")
-    face_capture = st.sidebar.camera_input(
-        "Capture Face Lock for Global Account"
-    )
-
-    if st.sidebar.button("Register & Sync to Servers"):
-        if reg_user and reg_phone and reg_gmail and reg_pass and face_capture:
+    if st.sidebar.button("Register & Sync"):
+        if reg_user and reg_phone and reg_pass:
             conn = get_db_connection()
             cursor = conn.cursor()
             try:
                 hashed_pass = hashlib.sha256(reg_pass.encode()).hexdigest()
-                vault_id = f"vault_{uuid.uuid4().hex[:8]}"
-                fname = os.path.join(PROFILE_DIR, f"p_{uuid.uuid4()}.jpg")
-                with open(fname, "wb") as f:
-                    f.write(face_capture.getvalue())
-
-                # Save to Global Sovereign Vault
-                cursor.execute(
-                    """
-                    INSERT INTO global_sovereign_vault 
-                    (vault_id, username, phone_number, gmail_address, hashed_password, security_tier, created_at)
-                    VALUES (?, ?, ?, ?, ?, 1, ?)
-                """,
-                    (
-                        vault_id,
-                        reg_user,
-                        reg_phone,
-                        reg_gmail,
-                        hashed_pass,
-                        datetime.now().strftime("%Y-%m-%d"),
-                    ),
-                )
-
-                # Sync across user tables and databases
-                cursor.execute(
-                    """
-                    INSERT INTO users (username, phone_number, full_name, profile_pic, is_verified, created_at)
-                    VALUES (?, ?, ?, ?, 1, ?)
-                """,
-                    (
-                        reg_user,
-                        reg_phone,
-                        reg_user,
-                        fname,
-                        datetime.now().strftime("%Y-%m-%d"),
-                    ),
-                )
+                cursor.execute("INSERT INTO global_sovereign_vault (vault_id, username, phone_number, gmail_address, hashed_password, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                               (f"vault_{uuid.uuid4().hex[:8]}", reg_user, reg_phone, reg_gmail, hashed_pass, datetime.now().strftime("%Y-%m-%d")))
+                cursor.execute("INSERT INTO users (username, phone_number, created_at) VALUES (?, ?, ?)",
+                               (reg_user, reg_phone, datetime.now().strftime("%Y-%m-%d")))
+                cursor.execute("INSERT INTO tb_01_users (id, username, created_at) VALUES (?, ?, ?)",
+                               (str(uuid.uuid4()), reg_user, datetime.now().strftime("%Y-%m-%d")))
                 conn.commit()
-                conn.close()
-                st.sidebar.success(
-                    "🎉 Registration Complete! Phone & Database Synced. Please switch to Login mode."
-                )
+                st.sidebar.success("🎉 Registered successfully!")
             except Exception as e:
-                st.sidebar.error(
-                    f"Error: Mobile Number or Username already registered!"
-                )
+                st.sidebar.error(f"Error: Username or Phone already exists!")
+            finally:
                 conn.close()
-        else:
-            st.sidebar.error(
-                "Please fill all fields (Name, Phone, Gmail, Password) and capture your face!"
-            )
 
-if st.session_state.user and st.session_state.user != "system_owner":
-    if st.session_state.pic and os.path.exists(st.session_state.pic):
-        st.sidebar.image(st.session_state.pic, width=90)
-    st.sidebar.markdown(f"Welcome, **{st.session_state.user}** ✔️")
+if st.session_state.user:
+    st.sidebar.markdown(f"User: **{st.session_state.user}**")
     if st.sidebar.button("Logout"):
-        st.session_state.user = None
-        st.session_state.pic = None
-        st.session_state.is_verified = 1
-        st.rerun()
-elif st.session_state.user == "system_owner":
-    st.sidebar.markdown("👑 **Owner Master Active**")
-    if st.sidebar.button("Owner Logout"):
         st.session_state.user = None
         st.rerun()
 
 # Navigation Tabs
-nav_tabs = [
-    "🌍 World Feed",
-    "📱 Scrolle Shorts Feed",
-    "💬 WhatsApp Support Desk",
-    "💳 Payout & Monetization",
-    "👤 My Profile & Earnings",
-    "📤 Create Post / Upload",
-]
-tab = st.sidebar.radio(
-    "Navigation",
-    nav_tabs,
-    index=nav_tabs.index(st.session_state.active_tab)
-    if st.session_state.active_tab in nav_tabs
-    else 0,
-)
+nav_tabs = ["🌍 World Feed", "📱 Scrolle Shorts Feed", "💬 WhatsApp Support Desk", "💳 Payout & Monetization", "👤 My Profile & Earnings", "📤 Create Post / Upload"]
+tab = st.sidebar.radio("Navigation", nav_tabs, index=nav_tabs.index(st.session_state.active_tab) if st.session_state.active_tab in nav_tabs else 0)
 st.session_state.active_tab = tab
 
 # ==========================================
-# 7. TAB IMPLEMENTATIONS
+# 6. TAB CONTENT
 # ==========================================
 
 # --- World Feed ---
 if tab == "🌍 World Feed":
     conn = get_db_connection()
     cursor = conn.cursor()
+    cursor.execute("SELECT * FROM posts ORDER BY created_at DESC")
+    posts = [dict(r) for r in cursor.fetchall()]
+    cursor.execute("SELECT * FROM videos WHERE video_type != 'short' ORDER BY created_at DESC")
+    videos = [dict(r) for r in cursor.fetchall()]
+    conn.close()
 
-    if search_query:
-        st.info(f"🔍 Showing search results for: **{search_query}**")
+    feed = posts + videos
+    random.shuffle(feed)
 
-    try:
-        if search_query:
-            cursor.execute(
-                "SELECT * FROM videos WHERE video_type = 'short' AND (title LIKE ? OR uploader_name LIKE ?) ORDER BY created_at DESC",
-                (f"%{search_query}%", f"%{search_query}%"),
-            )
-        else:
-            cursor.execute(
-                "SELECT * FROM videos WHERE video_type = 'short' ORDER BY created_at DESC"
-            )
-        short_videos = [dict(r) for r in cursor.fetchall()]
+    if not feed:
+        st.info("No content available yet.")
 
-        if short_videos:
-            st.markdown(
-                '<h3 style="color: #00c853;">▶️ Scrolle Shorts Feed</h3>',
-                unsafe_allow_html=True,
-            )
-            cols = st.columns(min(len(short_videos), 3))
-            for i, sv in enumerate(short_videos[:3]):
-                with cols[i]:
-                    st.markdown(f"**{sv.get('uploader_name', 'User')}** ✔️")
-                    if os.path.exists(sv["video_url"]):
-                        st.video(sv["video_url"], format="video/mp4")
-
-                    if st.button(
-                        "▶️ Watch in Shorts Feed", key=f"open_short_{sv['id']}"
-                    ):
-                        st.session_state.active_tab = "📱 Scrolle Shorts Feed"
-                        st.rerun()
-                    st.caption(f"👁️ {format_value(sv.get('views', 0))} views")
-            st.divider()
-    except Exception:
-        pass
-
-    try:
-        if search_query:
-            cursor.execute(
-                "SELECT * FROM videos WHERE video_type != 'short' AND (title LIKE ? OR uploader_name LIKE ?)",
-                (f"%{search_query}%", f"%{search_query}%"),
-            )
-            videos = [dict(row) for row in cursor.fetchall()]
-
-            cursor.execute(
-                "SELECT * FROM posts WHERE (content LIKE ? OR uploader_name LIKE ?)",
-                (f"%{search_query}%", f"%{search_query}%"),
-            )
-            posts = [dict(row) for row in cursor.fetchall()]
-        else:
-            cursor.execute("SELECT * FROM videos WHERE video_type != 'short'")
-            videos = [dict(row) for row in cursor.fetchall()]
-
-            cursor.execute("SELECT * FROM posts")
-            posts = [dict(row) for row in cursor.fetchall()]
-
-        combined_feed = videos + posts
-        if not search_query:
-            random.shuffle(combined_feed)
-
-        if not combined_feed:
-            if search_query:
-                st.warning("No posts or videos found matching your search term.")
-            else:
-                st.info(
-                    "No posts or videos available. Create content from the Upload section."
-                )
-
-        for index, item in enumerate(combined_feed):
-            item_id = str(item["id"])
-            uploader_name = item.get("uploader_name", "Unknown User")
-            uploader_pic = item.get("uploader_pic", None)
-            created_at = item.get("created_at", "Recently")
-
-            st.markdown('<div class="feed-card">', unsafe_allow_html=True)
-            show_verified_profile(
-                uploader_name,
-                profile_pic_path=uploader_pic,
-                subtitle=f"Posted {created_at}",
-                is_verified=True,
-            )
-
-            if "title" in item and item["title"]:
-                st.markdown(f"### {item['title']}")
-            if "content" in item and item["content"]:
-                st.markdown(f"#### {item['content']}")
-
-            if "video_url" in item and item["video_url"]:
-                if os.path.exists(item["video_url"]):
-                    st.video(item["video_url"])
-
-            if "image_url" in item and item["image_url"]:
-                if os.path.exists(item["image_url"]):
-                    st.image(item["image_url"], use_container_width=True)
-
-            render_comments_section(item_id)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    except Exception as e:
-        st.error(f"Error loading feed: {e}")
-    finally:
-        conn.close()
+    for item in feed:
+        st.markdown('<div class="feed-card">', unsafe_allow_html=True)
+        show_verified_profile(item.get("uploader_name", "User"), subtitle=f"Posted {item.get('created_at')}")
+        if "content" in item:
+            st.write(item["content"])
+            if item.get("image_url") and os.path.exists(item["image_url"]):
+                st.image(item["image_url"], use_container_width=True)
+        elif "title" in item:
+            st.subheader(item["title"])
+            if item.get("video_url") and os.path.exists(item["video_url"]):
+                st.video(item["video_url"])
+        render_comments_section(str(item["id"]))
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Shorts Feed ---
 elif tab == "📱 Scrolle Shorts Feed":
-    st.markdown("### 📱 Shorts Feed")
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM videos WHERE video_type = 'short' ORDER BY created_at DESC")
@@ -959,9 +436,8 @@ elif tab == "📱 Scrolle Shorts Feed":
     if shorts:
         for sv in shorts:
             st.markdown('<div class="feed-card">', unsafe_allow_html=True)
-            show_verified_profile(sv.get("uploader_name", "User"), profile_pic_path=sv.get("uploader_pic"))
-            if sv.get("title"):
-                st.write(sv["title"])
+            show_verified_profile(sv.get("uploader_name", "User"))
+            st.write(sv.get("title", ""))
             if os.path.exists(sv["video_url"]):
                 st.video(sv["video_url"])
             render_comments_section(sv["id"])
@@ -969,39 +445,42 @@ elif tab == "📱 Scrolle Shorts Feed":
     else:
         st.info("No shorts uploaded yet.")
 
-# --- WhatsApp Support Desk ---
+# --- Support ---
 elif tab == "💬 WhatsApp Support Desk":
     st.markdown("### 💬 WhatsApp Support Desk")
     st.write("Direct Support Line: +8801722003172")
-    st.markdown('<a href="https://wa.me/8801722003172" target="_blank" class="btn-direct bg-1">Chat on WhatsApp</a>', unsafe_allow_html=True)
 
-# --- Payout & Monetization ---
+# --- Monetization ---
 elif tab == "💳 Payout & Monetization":
     st.markdown("### 💳 Payout & Monetization")
-    show_auto_moving_banner()
-    st.info("Automatic monetization tracking active across all 16 pipeline servers.")
+    st.info("Automatic monetization pipeline connected with 16 Master Servers.")
 
-# --- My Profile & Earnings ---
+# --- Profile ---
 elif tab == "👤 My Profile & Earnings":
     st.markdown("### 👤 User Dashboard")
     if st.session_state.user:
         u_data = register_or_get_user(st.session_state.user)
         col1, col2, col3 = st.columns(3)
-        col1.metric("Followers", format_value(u_data["followers_count"]))
-        col2.metric("Watch Time (Mins)", format_value(u_data["watch_time_mins"]))
-        col3.metric("Earnings ($)", f"${u_data['earnings']:.2f}")
+        col1.metric("Followers", format_value(u_data.get("followers_count", 0)))
+        col2.metric("Watch Time", f"{u_data.get('watch_time_mins', 0):.1f} Mins")
+        col3.metric("Earnings", f"${u_data.get('earnings', 0):.2f}")
     else:
-        st.warning("Please login to view profile details.")
+        st.warning("Please login first.")
 
-# --- Create Post / Upload ---
+# --- Dynamic Upload (16 Server Unified) ---
 elif tab == "📤 Create Post / Upload":
-    st.markdown("### 📤 Upload Content")
+    st.markdown("### 📤 Dynamic Content Upload")
     if not st.session_state.user:
-        st.warning("Please login first to upload content.")
+        st.warning("Please login to upload content.")
     else:
-        u_type = st.selectbox("Select Content Type", ["Post", "Long Video", "Short Video"])
-        title_in = st.text_input("Title / Content Text")
-        file_up = st.file_uploader("Upload Media File", type=["jpg", "jpeg", "png", "mp4"])
+        cat = st.selectbox("Select Content Type & Server Target", [
+            "Image Post (tb_03)", "Long Video (tb_04)", "Short Video (tb_05)",
+            "Islamic Short (tb_06)", "Islamic Long (tb_07)", "News Content (tb_08)",
+            "Blog Content (tb_09)", "Educational Content (tb_10)", "Entertainment (tb_11)",
+            "Tech & Code (tb_12)"
+        ])
+        title_in = st.text_input("Title / Post Content")
+        file_up = st.file_uploader("Choose File", type=["jpg", "jpeg", "png", "mp4"])
 
         if st.button("Publish Content"):
             if file_up and title_in:
@@ -1011,36 +490,36 @@ elif tab == "📤 Create Post / Upload":
                 else:
                     ext = file_up.name.split(".")[-1]
                     f_id = str(uuid.uuid4())
-                    
-                    if u_type == "Post":
+                    conn = get_db_connection()
+                    c = conn.cursor()
+
+                    if "Image" in cat or "Blog" in cat or "News" in cat:
                         save_path = os.path.join(IMAGE_DIR, f"{f_id}.{ext}")
                         with open(save_path, "wb") as f:
                             f.write(file_up.getbuffer())
                         
-                        conn = get_db_connection()
-                        c = conn.cursor()
-                        c.execute("INSERT INTO posts (id, uploader_name, content, image_url, created_at) VALUES (?, ?, ?, ?, ?)",
-                                  (f_id, st.session_state.user, title_in, save_path, datetime.now().strftime("%Y-%m-%d %H:%M")))
-                        conn.commit()
-                        conn.close()
-                        push_to_central_pipeline("tb_03_image_posts", f_id, st.session_state.user)
+                        c.execute("INSERT INTO posts (id, uploader_name, content, image_url, category, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                                  (f_id, st.session_state.user, title_in, save_path, cat, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                        target_tbl = "tb_03_image_posts"
                     else:
                         save_path = os.path.join(VIDEO_DIR, f"{f_id}.{ext}")
                         with open(save_path, "wb") as f:
                             f.write(file_up.getbuffer())
                         
-                        v_type = "short" if u_type == "Short Video" else "long"
-                        target_table = "tb_05_short_videos" if v_type == "short" else "tb_04_long_videos"
-                        
-                        conn = get_db_connection()
-                        c = conn.cursor()
-                        c.execute("INSERT INTO videos (id, video_url, uploader_name, video_type, title, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                                  (f_id, save_path, st.session_state.user, v_type, title_in, datetime.now().strftime("%Y-%m-%d %H:%M")))
-                        conn.commit()
-                        conn.close()
-                        push_to_central_pipeline(target_table, f_id, st.session_state.user)
-                        
-                    st.success("✅ Published successfully and synced to 16-Server Pipeline!")
+                        v_type = "short" if "Short" in cat else "long"
+                        c.execute("INSERT INTO videos (id, video_url, uploader_name, video_type, title, category, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                  (f_id, save_path, st.session_state.user, v_type, title_in, cat, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                        target_tbl = "tb_05_short_videos" if v_type == "short" else "tb_04_long_videos"
+
+                    # Sync directly to targeted pipeline server
+                    c.execute(f"INSERT INTO {target_tbl} (id, username, content_title, media_path, ai_verified, created_at) VALUES (?, ?, ?, ?, 1, ?)",
+                              (f_id, st.session_state.user, title_in, save_path, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                    
+                    conn.commit()
+                    conn.close()
+
+                    push_to_central_pipeline(target_tbl, f_id, st.session_state.user)
+                    st.success("✅ Content Published and Synced to 16-Server Network!")
                     st.rerun()
             else:
-                st.warning("Please provide both content text and media file.")
+                st.warning("Provide both Title and File!")
