@@ -199,7 +199,7 @@ def ai_content_shield(title, description, tags, file_name):
     full_text = f"{title} {description} {tags} {file_name}".lower()
     for word in BANNED_WORDS:
         if word in full_text:
-            return False, f"⚠️ Blocked by AI Security Protocol! Inappropriate content is prohibited."
+            return False, "⚠️ Blocked by AI Security Protocol! Inappropriate content is prohibited."
     return True, "OK"
 
 def check_upload_limit(username, upload_type):
@@ -270,26 +270,14 @@ def show_verified_profile(display_name, subtitle="Member"):
     b64_img = get_image_base64(profile_pic)
     img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid #00c853;">' if b64_img else '<div style="width:45px; height:45px; border-radius:50%; background:#2a2a2a; color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px;">👤</div>'
     
-    # SVG দিয়ে তৈরি ফেসবুক স্টাইলের অরিজিনাল ব্লু ভেরিফাইড ব্যাজ
-    verified_svg = """
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px;">
-        <path fill="#1877F2" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.2 14.2l-3.5-3.5 1.41-1.41 2.09 2.08 5.68-5.67 1.41 1.41-7.09 7.09z"/>
-    </svg>
-    """
+    # Clean SVG verified badge
+    verified_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block;"><path fill="#1877F2" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.2 14.2l-3.5-3.5 1.41-1.41 2.09 2.08 5.68-5.67 1.41 1.41-7.09 7.09z"/></svg>'
     
     tick = verified_svg if is_verified else ''
     
-    st.markdown(f"""
-        <div style="display:flex; align-items:center; gap:12px; background: #18191a; padding: 10px; border-radius: 10px; border: 1px solid #2d2f31; margin-bottom: 12px;">
-            {img_html}
-            <div>
-                <div style="font-weight:bold; color:#e4e6eb; font-size: 16px; display: flex; align-items: center;">
-                    {display_name} {tick}
-                </div>
-                <div style="color:#b0b3b8; font-size:12px;">{subtitle} • 🌐 {user_country}</div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    card_html = f"""<div style="display:flex; align-items:center; gap:12px; background: #18191a; padding: 10px; border-radius: 10px; border: 1px solid #2d2f31; margin-bottom: 12px;">{img_html}<div><div style="font-weight:bold; color:#e4e6eb; font-size: 16px; display: flex; align-items: center;">{display_name} {tick}</div><div style="color:#b0b3b8; font-size:12px;">{subtitle} • 🌐 {user_country}</div></div></div>"""
+    
+    st.markdown(card_html, unsafe_allow_html=True)
 
 # ==========================================
 # 4. CUSTOM UI STYLING & HEADER
