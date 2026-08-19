@@ -74,18 +74,32 @@ def init_all_16_servers_and_vault():
     ]
     
     for table in tables:
-        cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS {table} (
-                id TEXT PRIMARY KEY, 
-                username TEXT NOT NULL, 
-                content_title TEXT, 
-                media_path TEXT, 
-                ai_verified INT DEFAULT 1, 
-                likes INT DEFAULT 0,
-                views INT DEFAULT 0,
-                created_at TEXT
-            )
-        """)
+        if table == "tb_15_bank_details":
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tb_15_bank_details (
+                    id TEXT PRIMARY KEY,
+                    username TEXT NOT NULL,
+                    payment_method TEXT,
+                    account_number TEXT,
+                    account_holder TEXT,
+                    bank_name TEXT,
+                    swift_code TEXT,
+                    created_at TEXT
+                )
+            """)
+        else:
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS {table} (
+                    id TEXT PRIMARY KEY, 
+                    username TEXT NOT NULL, 
+                    content_title TEXT, 
+                    media_path TEXT, 
+                    ai_verified INT DEFAULT 1, 
+                    likes INT DEFAULT 0,
+                    views INT DEFAULT 0,
+                    created_at TEXT
+                )
+            """)
     
     # Central Pipeline (Table 16)
     cursor.execute("""
@@ -372,7 +386,6 @@ elif mode == "Register (OTP & Face Verification)":
                 generated_otp = str(random.randint(100000, 999999))
                 st.session_state.otp_code = generated_otp
                 
-                # Real Face Hash Generation
                 face_bytes = face_capture.getvalue()
                 face_hash = generate_face_hash(face_bytes)
                 
@@ -400,20 +413,17 @@ elif mode == "Register (OTP & Face Verification)":
                     vault_id = f"vault_{uuid.uuid4().hex[:8]}"
                     now_date = datetime.now().strftime("%Y-%m-%d")
                     
-                    # 1. Global Sovereign Vault Insertion
                     cursor.execute("""
                         INSERT INTO global_sovereign_vault 
                         (vault_id, username, phone_number, gmail_address, hashed_password, biometric_face_hash, security_tier, created_at)
                         VALUES (?, ?, ?, ?, ?, ?, 1, ?)
                     """, (vault_id, p_data["username"], p_data["phone"], p_data["gmail"], hashed_pass, p_data["face_hash"], now_date))
                     
-                    # 2. Main Users Table Insertion
                     cursor.execute("""
                         INSERT INTO users (username, phone_number, full_name, profile_pic, is_verified, created_at)
                         VALUES (?, ?, ?, ?, 1, ?)
                     """, (p_data["username"], p_data["phone"], p_data["username"], p_data["pic"], now_date))
                     
-                    # 3. tb_01_users Table Inter-Connection
                     cursor.execute("""
                         INSERT INTO tb_01_users (id, username, content_title, media_path, ai_verified, created_at)
                         VALUES (?, ?, 'User Profile Registered', ?, 1, ?)
@@ -421,9 +431,7 @@ elif mode == "Register (OTP & Face Verification)":
                     
                     conn.commit()
                     
-                    # 4. Central Pipeline Sync (Table 16)
                     push_to_central_pipeline("tb_01_users", vault_id, p_data["username"])
-                    
                     conn.close()
                     
                     st.session_state.otp_code = None
@@ -629,19 +637,22 @@ elif tab == "📤 Create Post / Upload":
     if not st.session_state.user:
         st.warning("🔒 Please Log In first to publish content!")
     else:
-        post_type = st.selectbox("Select Content Type & Destination Server:", [
-            "📷 Image Post (tb_03_image_posts)",
-            "🎬 Long Video (tb_04_long_videos)",
-            "📱 Short Video (tb_05_short_videos)",
-            "☪️ Islamic Short Video (tb_06_islamic_short_videos)",
-            "🕌 Islamic Long Video (tb_07_islamic_long_videos)",
-            "📰 News Content (tb_08_news_contents)",
-            "📝 Blog Article (tb_09_blog_contents)",
-            "🎓 Educational Content (tb_10_educational_contents)",
-            "🎭 Entertainment Content (tb_11_entertainment_contents)",
-            "💻 Tech Content (tb_12_tech_contents)",
-            "📢 Advertisement (tb_14_advertisements)"
-        ])
+        server_options = {
+            "📷 Image Post (tb_03_image_posts)": "tb_03_image_posts",
+            "🎬 Long Video (tb_04_long_videos)": "tb_04_long_videos",
+            "📱 Short Video (tb_05_short_videos)": "tb_05_short_videos",
+            "☪️ Islamic Short Video (tb_06_islamic_short_videos)": "tb_06_islamic_short_videos",
+            "🕌 Islamic Long Video (tb_07_islamic_long_videos)": "tb_07_islamic_long_videos",
+            "📰 News Content (tb_08_news_contents)": "tb_08_news_contents",
+            "📝 Blog Article (tb_09_blog_contents)": "tb_09_blog_contents",
+            "🎓 Educational Content (tb_10_educational_contents)": "tb_10_educational_contents",
+            "🎭 Entertainment Content (tb_11_entertainment_contents)": "tb_11_entertainment_contents",
+            "💻 Tech Content (tb_12_tech_contents)": "tb_12_tech_contents",
+            "📢 Advertisement (tb_14_advertisements)": "tb_14_advertisements"
+        }
+        
+        selected_option = st.selectbox("Select Content Type & Destination Server:", list(server_options.keys()))
+        target_table = server_options[selected_option]
         
         title_text = st.text_input("Content Title / Description")
         uploaded_file = st.file_uploader("Upload Media File (Image/Video)", type=["jpg", "png", "jpeg", "mp4", "mov"])
@@ -657,139 +668,133 @@ elif tab == "📤 Create Post / Upload":
                     record_id = str(uuid.uuid4())
                     now_date = datetime.now().strftime("%Y-%m-%d %H:%M")
                     
-                    # Target Server Mapping
-                    table_map = {
-                        "📷 Image Post (tb_03_image_posts)": "tb_03_image_posts",
-                        "🎬 Long Video (tb_04_long_videos)": "tb_04_long_videos",
-                        "📱 Short Video (tb_05_short_videos)": "tb_05_short_videos",
-                        "☪️ Islamic Short Video (tb_06_islamic_short_videos)": "tb_06_islamic_short_videos",
-                        "🕌 Islamic Long Video (tb_07_islamic_long_videos)": "tb_07_islamic_long_videos",
-                        "📰 News Content (tb_08_news_contents)": "tb_08_news_contents",
-                        "📝 Blog Article (tb_09_blog_contents)": "tb_09_blog_contents",
-                        "🎓 Educational Content (tb_10_educational_contents)": "tb_10_educational_contents",
-                        "🎭 Entertainment Content (tb_11_entertainment_contents)": "tb_11_entertainment_contents",
-                        "💻 Tech Content (tb_12_tech_contents)": "tb_12_tech_contents",
-                        "📢 Advertisement (tb_14_advertisements)": "tb_14_advertisements"
-                    }
-                    target_table = table_map.get(post_type, "tb_03_image_posts")
-                    
-                    # File Storage
                     ext = file_name.split(".")[-1]
-                    is_video = ext.lower() in ["mp4", "mov"]
+                    is_video = ext in ["mp4", "mov"]
                     save_dir = VIDEO_DIR if is_video else IMAGE_DIR
-                    file_path = os.path.join(save_dir, f"{record_id}.{ext}")
+                    media_path = os.path.join(save_dir, f"{record_id}.{ext}")
                     
-                    with open(file_path, "wb") as f:
+                    with open(media_path, "wb") as f:
                         f.write(uploaded_file.getbuffer())
                         
                     conn = get_db_connection()
                     cursor = conn.cursor()
                     
-                    # 1. Insert into Specific Server Table (1-15)
+                    # Target Table Insert
                     cursor.execute(f"""
                         INSERT INTO {target_table} (id, username, content_title, media_path, ai_verified, created_at)
                         VALUES (?, ?, ?, ?, 1, ?)
-                    """, (record_id, st.session_state.user, title_text, file_path, now_date))
+                    """, (record_id, st.session_state.user, title_text, media_path, now_date))
                     
-                    # 2. Insert into Legacy Tables for World Feed compatibility
+                    # Legacy Feeds Insert
                     if is_video:
                         v_type = "short" if "short" in target_table else "long"
                         cursor.execute("""
-                            INSERT INTO videos (id, user_id, video_url, uploader_name, uploader_pic, video_type, title, created_at)
-                            VALUES (?, 1, ?, ?, ?, ?, ?, ?)
-                        """, (record_id, file_path, st.session_state.user, st.session_state.pic, v_type, title_text, now_date))
+                            INSERT INTO videos (id, video_url, uploader_name, uploader_pic, video_type, title, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (record_id, media_path, st.session_state.user, st.session_state.pic, v_type, title_text, now_date))
                     else:
                         cursor.execute("""
                             INSERT INTO posts (id, uploader_name, uploader_pic, content, image_url, created_at)
                             VALUES (?, ?, ?, ?, ?, ?)
-                        """, (record_id, st.session_state.user, st.session_state.pic, title_text, file_path, now_date))
+                        """, (record_id, st.session_state.user, st.session_state.pic, title_text, media_path, now_date))
                         
                     conn.commit()
+                    
+                    # Push to Table 16 Pipeline
+                    push_to_central_pipeline(target_table, record_id, st.session_state.user)
                     conn.close()
                     
-                    # 3. Automatic Synchronization to Central Pipeline (Table 16)
-                    push_to_central_pipeline(target_table, record_id, st.session_state.user)
-                    
-                    st.success(f"✅ Published successfully to {target_table} and synced with Central Pipeline (Table 16)!")
+                    st.success("🎉 Content Successfully Published and Synced to Central Pipeline (Table 16)!")
             else:
-                st.warning("Please provide both title/description and a media file.")
-
-# --- WhatsApp Support Desk ---
-elif tab == "💬 WhatsApp Support Desk":
-    st.subheader("💬 BD AI Book WhatsApp Support Desk")
-    st.caption(f"Contact us directly via WhatsApp ({OWNER_PHONE}) for help.")
-    
-    HIDDEN_WA_NUMBER = "8801722003172"
-    default_msg = "Hello! I am contacting you from BD AI Book App."
-    encoded_msg = urllib.parse.quote(default_msg)
-    wa_link = f"https://wa.me/{HIDDEN_WA_NUMBER}?text={encoded_msg}"
-    
-    st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #075E54, #128C7E); padding: 25px; border-radius: 15px; color: white; text-align: center; border: 1px solid #25D366; margin: 20px 0;">
-            <h2 style="margin-top:0; color: #ffffff;">📖 BD AI Book WhatsApp Helpdesk</h2>
-            <p style="font-size: 15px; color: #e0e0e0; margin-bottom: 20px;">
-                Click below to send messages, feedback, or screenshots directly to our team.
-            </p>
-            <a href="{wa_link}" target="_blank" style="
-                background-color: #25D366; color: #121212; padding: 14px 30px; text-decoration: none; 
-                font-weight: bold; font-size: 17px; border-radius: 30px; display: inline-block;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
-                📲 Send WhatsApp Message
-            </a>
-            <p style="font-size: 12px; color: #ffeb3b; margin-top: 20px; margin-bottom: 0;">
-                ⚠️ <b>WhatsApp Helpline:</b> +{OWNER_PHONE} | Gmail: {OWNER_GMAIL}
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
+                st.warning("Please enter a title and attach media file.")
 
 # --- Payout & Monetization ---
 elif tab == "💳 Payout & Monetization":
-    st.subheader("🏦 BD AI Book Payout & Bank Setup")
-    pay_method = st.selectbox("Select Payment Method:", ["📱 bKash", "📱 Nagad", "📱 Rocket", "🌐 PayPal", "💳 Mastercard / Visa Card", "🏦 Bank Transfer"])
-    acc_num = st.text_input("Account Number / Email / Card Number")
-    holder_name = st.text_input("Account Holder Name")
+    st.subheader("💳 Bank & Monetization Management (Server tb_15_bank_details)")
     
-    if st.button("💾 Save Payment Details"):
-        if acc_num and holder_name and st.session_state.user:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute("UPDATE users SET payment_method = ?, account_details = ? WHERE username = ?", (pay_method, f"{holder_name} - {acc_num}", st.session_state.user))
-            
-            # tb_15_bank_details Inter-connection
-            rec_id = str(uuid.uuid4())
-            now_d = datetime.now().strftime("%Y-%m-%d")
-            cursor.execute("""
-                INSERT INTO tb_15_bank_details (id, username, content_title, media_path, ai_verified, created_at)
-                VALUES (?, ?, ?, ?, 1, ?)
-            """, (rec_id, st.session_state.user, f"{pay_method}: {holder_name}", acc_num, now_d))
-            
-            conn.commit()
-            conn.close()
-            
-            push_to_central_pipeline("tb_15_bank_details", rec_id, st.session_state.user)
-            st.success("✅ BD AI Book Payment account details saved & synced to Server 15 & Central Pipeline!")
-        else:
-            st.warning("Please log in and fill in all details.")
-
-# --- My Profile & Earnings ---
-elif tab == "👤 My Profile & Earnings":
-    st.subheader("👤 BD AI Book Creator Profile")
     if not st.session_state.user:
-        st.info("Please log in to view your profile & earnings.")
+        st.warning("🔒 Please log in to manage your bank payout details.")
     else:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        cursor.execute("SELECT * FROM tb_15_bank_details WHERE username = ?", (st.session_state.user,))
+        existing_bank = cursor.fetchone()
+        
+        with st.form("bank_form"):
+            st.markdown("### 🏦 Enter Payment/Bank Details")
+            pay_method = st.selectbox("Select Payment Method", ["bKash", "Nagad", "Rocket", "Bank Transfer"], index=0)
+            acc_holder = st.text_input("Account Holder Name", value=existing_bank["account_holder"] if existing_bank else "")
+            acc_number = st.text_input("Account / Mobile Number", value=existing_bank["account_number"] if existing_bank else "")
+            bank_name = st.text_input("Bank Name (Optional for Mobile Banking)", value=existing_bank["bank_name"] if existing_bank else "")
+            swift_code = st.text_input("SWIFT / Routing Code (Optional)", value=existing_bank["swift_code"] if existing_bank else "")
+            
+            submit_bank = st.form_submit_button("💾 Save Payout Info")
+            
+            if submit_bank:
+                if acc_holder and acc_number:
+                    bank_id = existing_bank["id"] if existing_bank else str(uuid.uuid4())
+                    now_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    
+                    if existing_bank:
+                        cursor.execute("""
+                            UPDATE tb_15_bank_details 
+                            SET payment_method=?, account_number=?, account_holder=?, bank_name=?, swift_code=?
+                            WHERE username=?
+                        """, (pay_method, acc_number, acc_holder, bank_name, swift_code, st.session_state.user))
+                    else:
+                        cursor.execute("""
+                            INSERT INTO tb_15_bank_details 
+                            (id, username, payment_method, account_number, account_holder, bank_name, swift_code, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (bank_id, st.session_state.user, pay_method, acc_number, acc_holder, bank_name, swift_code, now_time))
+                        
+                    conn.commit()
+                    push_to_central_pipeline("tb_15_bank_details", bank_id, st.session_state.user)
+                    st.success("✅ Bank details updated and synced with Table 16 pipeline!")
+                else:
+                    st.error("Please fill in the Account Holder Name and Account Number!")
+                    
+        conn.close()
+
+# --- My Profile & Earnings ---
+elif tab == "👤 My Profile & Earnings":
+    st.subheader("👤 Creator Profile & Analytics Dashboard")
+    
+    if not st.session_state.user:
+        st.info("Please log in to view your profile.")
+    else:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
         cursor.execute("SELECT * FROM users WHERE username = ?", (st.session_state.user,))
         usr = cursor.fetchone()
-        conn.close()
         
-        if usr:
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write(f"**Username:** {usr['username']}")
-                st.write(f"**Phone:** {usr['phone_number']}")
-                st.write(f"**Followers:** {format_value(usr['followers_count'])}")
-            with col2:
-                st.write(f"**Monetization:** {usr['monetization_status'].upper()}")
-                st.write(f"**Total Earnings:** ${usr['earnings']:.2f}")
-                st.write(f"**Payment Details:** {usr['account_details'] or 'Not Set'}")
+        show_verified_profile(st.session_state.user, profile_pic_path=st.session_state.pic, subtitle="Official Creator Profile", is_verified=True)
+        
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Followers", format_value(usr["followers_count"] if usr else 0))
+        col2.metric("Est. Earnings", f"${usr['earnings'] if usr else 0.0:.2f}")
+        col3.metric("Status", "Monetized ⚡")
+        
+        st.markdown("### 📊 Central Pipeline Submissions (Table 16)")
+        cursor.execute("SELECT * FROM tb_16_global_central_pipeline WHERE username = ? ORDER BY transferred_at DESC", (st.session_state.user,))
+        pipes = cursor.fetchall()
+        
+        if pipes:
+            for p in pipes:
+                st.caption(f"📁 Source: `{p['source_table']}` | ID: `{p['record_id']}` | Status: **{p['owner_approval_status']}** | Time: {p['transferred_at']}")
+        else:
+            st.write("No synced pipeline records found.")
+            
+        conn.close()
+
+# --- WhatsApp Support Desk ---
+elif tab == "💬 WhatsApp Support Desk":
+    st.subheader("💬 Contact BD AI Book Support Team")
+    st.markdown(f"""
+        Need urgent assist or owner verification? 
+        
+        * 📱 **WhatsApp Direct:** [{OWNER_PHONE}](https://wa.me/88{OWNER_PHONE})
+        * 📧 **Official Email:** {OWNER_GMAIL}
+    """)
