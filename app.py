@@ -52,7 +52,6 @@ def init_all_16_servers_and_vault():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 0. Global Sovereign Vault
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS global_sovereign_vault (
             vault_id TEXT PRIMARY KEY,
@@ -66,7 +65,6 @@ def init_all_16_servers_and_vault():
         )
     """)
 
-    # 1. Users Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tb_01_users (
             id TEXT PRIMARY KEY,
@@ -76,7 +74,6 @@ def init_all_16_servers_and_vault():
         )
     """)
 
-    # 2. Interactions Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tb_02_interactions (
             id TEXT PRIMARY KEY,
@@ -87,7 +84,6 @@ def init_all_16_servers_and_vault():
         )
     """)
 
-    # 3 to 15: Content Category Tables
     tables = [
         "tb_03_image_posts", "tb_04_long_videos", "tb_05_short_videos",
         "tb_06_islamic_short_videos", "tb_07_islamic_long_videos",
@@ -108,7 +104,6 @@ def init_all_16_servers_and_vault():
             )
         """)
 
-    # 16. Central Pipeline Hub
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS tb_16_global_central_pipeline (
             pipeline_id TEXT PRIMARY KEY,
@@ -120,7 +115,6 @@ def init_all_16_servers_and_vault():
         )
     """)
 
-    # UI Feed Compatibility Tables
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -177,7 +171,6 @@ def init_all_16_servers_and_vault():
         )
     """)
 
-    # System Owner Account Initialization
     cursor.execute("SELECT * FROM global_sovereign_vault WHERE username = 'system_owner'")
     if not cursor.fetchone():
         owner_pass = hashlib.sha256("OwnerMasterKey2026#".encode()).hexdigest()
@@ -248,7 +241,6 @@ def get_image_base64(image_path):
 def show_verified_profile(display_name, profile_pic_path=None, subtitle="Official Verified Creator", is_verified=True):
     b64_img = get_image_base64(profile_pic_path)
     img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid #00c853;">' if b64_img else '<div style="width:45px; height:45px; border-radius:50%; background:#2a2a2a; color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px;">👤</div>'
-    
     tick = '<span style="color:#00c853; font-weight:bold; margin-left:6px;">✔️</span>' if is_verified else ''
     
     st.markdown(f"""
@@ -302,7 +294,7 @@ def render_comments_section(post_id):
                     conn.close()
                     st.toast("✅ Comment added!")
                     st.rerun()
-                conn.close()
+        conn.close()
 
 # ==========================================
 # 4. CUSTOM STYLING & UI HEADER
@@ -536,7 +528,10 @@ elif tab == "📤 Create Post / Upload":
             "Blog Content (tb_09)": "tb_09_blog_contents",
             "Educational Content (tb_10)": "tb_10_educational_contents",
             "Entertainment (tb_11)": "tb_11_entertainment_contents",
-            "Tech & Code (tb_12)": "tb_12_tech_contents"
+            "Tech & Code (tb_12)": "tb_12_tech_contents",
+            "Live Streams (tb_13)": "tb_13_live_streams",
+            "Advertisements (tb_14)": "tb_14_advertisements",
+            "Bank Details / Payment (tb_15)": "tb_15_bank_details"
         }
         
         cat = st.selectbox("Select Content Type & Target Server", list(target_server_map.keys()))
@@ -556,12 +551,11 @@ elif tab == "📤 Create Post / Upload":
                     
                     target_tbl = target_server_map[cat]
 
-                    if "Image" in cat or "Blog" in cat or "News" in cat:
+                    if "Image" in cat or "Blog" in cat or "News" in cat or "Bank" in cat:
                         save_path = os.path.join(IMAGE_DIR, f"{f_id}.{ext}")
                         with open(save_path, "wb") as f:
                             f.write(file_up.getbuffer())
                         
-                        # UI Global Feed Table Sync
                         c.execute("INSERT INTO posts (id, uploader_name, content, image_url, category, created_at) VALUES (?, ?, ?, ?, ?, ?)",
                                   (f_id, st.session_state.user, title_in, save_path, cat, datetime.now().strftime("%Y-%m-%d %H:%M")))
                     else:
@@ -570,18 +564,15 @@ elif tab == "📤 Create Post / Upload":
                             f.write(file_up.getbuffer())
                         
                         v_type = "short" if "Short" in cat else "long"
-                        # UI Global Feed Table Sync
                         c.execute("INSERT INTO videos (id, video_url, uploader_name, video_type, title, category, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
                                   (f_id, save_path, st.session_state.user, v_type, title_in, cat, datetime.now().strftime("%Y-%m-%d %H:%M")))
 
-                    # Target 16-Server Entry
                     c.execute(f"INSERT INTO {target_tbl} (id, username, content_title, media_path, ai_verified, created_at) VALUES (?, ?, ?, ?, 1, ?)",
                               (f_id, st.session_state.user, title_in, save_path, datetime.now().strftime("%Y-%m-%d %H:%M")))
                     
                     conn.commit()
                     conn.close()
 
-                    # Electric Central Pipeline Hub Forwarding
                     push_to_central_pipeline(target_tbl, f_id, st.session_state.user)
                     st.success(f"✅ Published & Synced to {target_tbl} and Central Pipeline!")
                     st.rerun()
