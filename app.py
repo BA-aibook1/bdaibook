@@ -1,6 +1,7 @@
 import base64
 from datetime import datetime
 import os
+import random
 import sqlite3
 import uuid
 
@@ -28,7 +29,7 @@ components.html(
 SECRET_OWNER_KEY = "S$s123456789112233"
 
 # ==========================================
-# 2. LOCAL STORAGE & DATABASE SETUP (4 CORE TABLES ONLY)
+# 2. LOCAL STORAGE & DATABASE SETUP
 # ==========================================
 DB_FILE = "global_enterprise_master.db"
 VIDEO_DIR = "stored_videos"
@@ -49,7 +50,6 @@ def init_clean_database():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # ১. ইউজার টেবিল (User Collection)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,7 +75,6 @@ def init_clean_database():
         )
     """)
 
-    # ২. পোস্ট টেবিল (Post Collection)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS posts (
             id TEXT PRIMARY KEY,
@@ -85,12 +84,12 @@ def init_clean_database():
             tags TEXT,
             image_url TEXT,
             likes INTEGER DEFAULT 0,
+            comments INTEGER DEFAULT 0,
             shares INTEGER DEFAULT 0,
             created_at TEXT
         )
     """)
 
-    # ৩. ভিডিও টেবিল (Video Collection - Short & Long)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS videos (
             id TEXT PRIMARY KEY,
@@ -103,12 +102,12 @@ def init_clean_database():
             tags TEXT,
             likes INTEGER DEFAULT 0,
             views INTEGER DEFAULT 0,
+            comments INTEGER DEFAULT 0,
             shares INTEGER DEFAULT 0,
             created_at TEXT
         )
     """)
 
-    # ৪. ওনার আপডেট টেবিল (Owner Updates Collection)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS owner_updates (
             id TEXT PRIMARY KEY,
@@ -130,11 +129,10 @@ def init_clean_database():
     conn.commit()
     conn.close()
 
-# ডাটাবেস ইনিশিয়ালাইজেশন
 init_clean_database()
 
 # ==========================================
-# 3. HELPER & SECURITY FUNCTIONS
+# 3. HELPER & ALGORITHM FUNCTIONS
 # ==========================================
 BANNED_WORDS = ["sex", "adult", "18+", "porn", "nude", "stolen"]
 
@@ -147,20 +145,16 @@ ALLOWED_COUNTRIES = [
 
 MONTHS_LIST = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
+def generate_initial_boost_views():
+    """অ্যালগরিদম: ভিডিও আপলোড হওয়া মাত্রই অটোমেটিক ১০,০০০ থেকে ২০,০০০ ইনিশিয়াল ভিউ জেনারেট করবে"""
+    return random.randint(10000, 20000)
+
 def ai_content_shield(title, description, tags, file_name):
     full_text = f"{title} {description} {tags} {file_name}".lower()
     for word in BANNED_WORDS:
         if word in full_text:
             return False, "⚠️ Blocked by AI Security Shield!"
     return True, "OK"
-
-def get_setting(key, default=None):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT value FROM app_settings WHERE key = ?", (key,))
-    row = c.fetchone()
-    conn.close()
-    return row["value"] if row else default
 
 def get_image_base64(image_path):
     if image_path and os.path.exists(image_path):
@@ -198,6 +192,7 @@ st.markdown("""
     <style>
     .stApp { background-color: #121212; color: #e4e6eb; }
     .feed-card { background: #18191a; border: 1px solid #2d2f31; border-radius: 14px; padding: 16px; margin-bottom: 20px; }
+    .short-container { max-width: 380px; margin: 0 auto; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -234,7 +229,7 @@ if st.session_state.user == "system_owner":
 mode = st.sidebar.radio("Select Access Mode", available_modes)
 
 if mode == "📱 Quick Login":
-    login_phone = st.sidebar.text_input("Mobile Number (মোবাইল নম্বর)")
+    login_phone = st.sidebar.text_input("Mobile Number")
     if st.sidebar.button("Login"):
         clean_phone = login_phone.strip()
         if clean_phone:
@@ -323,7 +318,9 @@ if tab == "🌍 World Feed":
 
     for item in posts:
         st.markdown('<div class="feed-card">', unsafe_allow_html=True)
+        # প্রোফাইল পিকচার এবং ভেরিফাইড হেডার পোস্টের উপরে রাখা হয়েছে
         show_verified_profile(item.get("uploader_name", "User"), subtitle=f"Posted {item.get('created_at')}")
+        
         if item.get("title"):
             st.markdown(f"#### {item['title']}")
         st.write(item.get("content", ""))
@@ -331,16 +328,30 @@ if tab == "🌍 World Feed":
         if item.get("image_url") and os.path.exists(item["image_url"]):
             st.image(item["image_url"], use_container_width=True)
             
-        c1, c2 = st.columns(2)
-        if c1.button(f"👍 Like ({item.get('likes', 0)})", key=f"like_p_{item['id']}"):
+        c1, c2, c3, c4 = st.columns(4)
+        if c1.button(f"👍 ({item.get('likes', 0)})", key=f"like_p_{item['id']}"):
             conn = get_db_connection()
             conn.cursor().execute("UPDATE posts SET likes = likes + 1 WHERE id = ?", (item['id'],))
             conn.commit()
             conn.close()
             st.rerun()
 
+        if c2.button(f"💬 ({item.get('comments', 0)})", key=f"comm_p_{item['id']}"):
+            conn = get_db_connection()
+            conn.cursor().execute("UPDATE posts SET comments = comments + 1 WHERE id = ?", (item['id'],))
+            conn.commit()
+            conn.close()
+            st.rerun()
+
+        if c3.button(f"🔄 ({item.get('shares', 0)})", key=f"share_p_{item['id']}"):
+            conn = get_db_connection()
+            conn.cursor().execute("UPDATE posts SET shares = shares + 1 WHERE id = ?", (item['id'],))
+            conn.commit()
+            conn.close()
+            st.rerun()
+
         if st.session_state.user in [item.get("uploader_name"), "system_owner"]:
-            if c2.button("🗑️ Delete Post", key=f"del_p_{item['id']}"):
+            if c4.button("🗑️ Delete", key=f"del_p_{item['id']}"):
                 c = get_db_connection()
                 c.cursor().execute("DELETE FROM posts WHERE id = ?", (item['id'],))
                 c.commit()
@@ -365,23 +376,47 @@ elif tab in ["📱 TikTok Shorts Feed", "📺 Direct Long Videos"]:
 
     for vid in vids:
         st.markdown('<div class="feed-card">', unsafe_allow_html=True)
+        # পোস্ট/ভিডিওর ঠিক উপরে প্রোফাইল পিকচার
         show_verified_profile(vid.get("uploader_name", "User"), subtitle=f"Uploaded {vid.get('created_at')}")
         st.subheader(vid.get('title', ''))
         st.write(vid.get('description', ''))
         
         if vid.get("video_url") and os.path.exists(vid["video_url"]):
+            # রিয়েল ভিউ + ইনিশিয়াল ১০k-২০k বুস্ট ভিউ
+            conn = get_db_connection()
+            conn.cursor().execute("UPDATE videos SET views = views + 1 WHERE id = ?", (vid['id'],))
+            conn.commit()
+            conn.close()
+            
             st.video(vid["video_url"])
 
-        c1, c2 = st.columns(2)
-        if c1.button(f"❤️ Like ({vid.get('likes', 0)})", key=f"like_v_{vid['id']}"):
+        # ভিউ, লাইক, কমেন্ট ও শেয়ার কাউন্টার
+        c_views, c_like, c_comm, c_share, c_del = st.columns(5)
+        c_views.markdown(f"👁️ **{vid.get('views', 0):,}** Views")
+
+        if c_like.button(f"❤️ ({vid.get('likes', 0)})", key=f"like_v_{vid['id']}"):
             conn = get_db_connection()
             conn.cursor().execute("UPDATE videos SET likes = likes + 1 WHERE id = ?", (vid['id'],))
             conn.commit()
             conn.close()
             st.rerun()
 
+        if c_comm.button(f"💬 ({vid.get('comments', 0)})", key=f"comm_v_{vid['id']}"):
+            conn = get_db_connection()
+            conn.cursor().execute("UPDATE videos SET comments = comments + 1 WHERE id = ?", (vid['id'],))
+            conn.commit()
+            conn.close()
+            st.rerun()
+
+        if c_share.button(f"🔄 ({vid.get('shares', 0)})", key=f"share_v_{vid['id']}"):
+            conn = get_db_connection()
+            conn.cursor().execute("UPDATE videos SET shares = shares + 1 WHERE id = ?", (vid['id'],))
+            conn.commit()
+            conn.close()
+            st.rerun()
+
         if st.session_state.user in [vid.get("uploader_name"), "system_owner"]:
-            if c2.button("🗑️ Delete Video", key=f"del_v_{vid['id']}"):
+            if c_del.button("🗑️", key=f"del_v_{vid['id']}"):
                 c = get_db_connection()
                 c.cursor().execute("DELETE FROM videos WHERE id = ?", (vid['id'],))
                 c.commit()
@@ -490,15 +525,18 @@ elif tab == "📤 Upload Studio":
                         with open(save_v, "wb") as f:
                             f.write(v_up.getbuffer())
 
+                        # অ্যালগরিদম ভিউ সেট করা (১০,০০০ থেকে ২০,০০০ অটো ভিউ)
+                        initial_views = generate_initial_boost_views()
+
                         conn = get_db_connection()
                         c = conn.cursor()
                         c.execute("""
-                            INSERT INTO videos (id, user_id, uploader_name, video_type, title, description, tags, video_url, created_at) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (v_id, str(st.session_state.user), str(st.session_state.user), v_type, title_in, desc_in, tags_in, save_v, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                            INSERT INTO videos (id, user_id, uploader_name, video_type, title, description, tags, video_url, views, created_at) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (v_id, str(st.session_state.user), str(st.session_state.user), v_type, title_in, desc_in, tags_in, save_v, initial_views, datetime.now().strftime("%Y-%m-%d %H:%M")))
                         conn.commit()
                         conn.close()
-                        st.success("✅ Video uploaded successfully!")
+                        st.success("✅ Video uploaded successfully with algorithm boost!")
                         st.rerun()
 
 # --- Owner Control Center ---
