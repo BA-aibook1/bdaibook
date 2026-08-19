@@ -1,8 +1,6 @@
 import base64
 from datetime import datetime, timedelta
-import hashlib
 import os
-import random
 import sqlite3
 import uuid
 
@@ -48,7 +46,6 @@ def get_db_connection():
     return conn
 
 def auto_repair_table_columns():
-    """স্বয়ংক্রিয়ভাবে নতুন ফিল্ডগুলো টেবিলে যুক্ত করার মেকানিজম"""
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -61,7 +58,8 @@ def auto_repair_table_columns():
         'dob_day': 'TEXT',
         'dob_month': 'TEXT',
         'dob_year': 'TEXT',
-        'gender': 'TEXT'
+        'gender': 'TEXT',
+        'profile_pic': 'TEXT'
     }
     
     for col_name, col_type in fields_to_add.items():
@@ -169,7 +167,6 @@ def init_all_tables():
 
     auto_repair_table_columns()
 
-    # Owner account creation
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM users WHERE phone_number = '01722003172'")
@@ -185,7 +182,7 @@ def init_all_tables():
 init_all_tables()
 
 # ==========================================
-# 3. AI GUARD & MODERATION
+# 3. AI GUARD & HELPER FUNCTIONS
 # ==========================================
 BANNED_WORDS = ["sex", "adult", "18+", "porn", "nude", "tiktok", "youtube", "facebook", "reels", "shorts", "stolen", "watermark"]
 
@@ -242,9 +239,6 @@ def sync_to_16_tables(content_id, username, title, path, target_table):
     conn.commit()
     conn.close()
 
-# ==========================================
-# 4. HELPER FUNCTIONS
-# ==========================================
 def get_setting(key, default=None):
     conn = get_db_connection()
     c = conn.cursor()
@@ -262,16 +256,18 @@ def get_image_base64(image_path):
             return None
     return None
 
-def show_verified_profile(display_name, profile_pic_path=None, subtitle="Member"):
+def show_verified_profile(display_name, subtitle="Member"):
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT is_verified, country FROM users WHERE LOWER(username) = LOWER(?)", (display_name.strip(),))
+    c.execute("SELECT is_verified, country, profile_pic FROM users WHERE LOWER(username) = LOWER(?)", (display_name.strip(),))
     u_data = c.fetchone()
     conn.close()
     
     is_verified = u_data["is_verified"] if u_data else True
     user_country = u_data["country"] if u_data and u_data["country"] else "Global"
-    b64_img = get_image_base64(profile_pic_path)
+    profile_pic = u_data["profile_pic"] if u_data and u_data["profile_pic"] else None
+    
+    b64_img = get_image_base64(profile_pic)
     img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid #00c853;">' if b64_img else '<div style="width:45px; height:45px; border-radius:50%; background:#2a2a2a; color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px;">👤</div>'
     tick = '<span style="color:#1da1f2; font-weight:bold; margin-left:6px;" title="Verified Creator">✔️</span>' if is_verified else ''
     
@@ -286,7 +282,7 @@ def show_verified_profile(display_name, profile_pic_path=None, subtitle="Member"
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 5. CUSTOM UI STYLING
+# 4. CUSTOM UI STYLING & HEADER
 # ==========================================
 st.markdown("""
     <style>
@@ -319,7 +315,7 @@ if "active_tab" not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
 
 # ==========================================
-# 6. SIDEBAR AUTHENTICATION (ONLY PHONE NUMBER)
+# 5. SIDEBAR AUTHENTICATION
 # ==========================================
 st.sidebar.markdown("### 🔍 Search Feed")
 search_query = st.sidebar.text_input("Search content or Secret Code...", key="search_query")
@@ -360,7 +356,7 @@ if mode == "📱 Quick Login":
 
 # --- NEW REGISTRATION FORM ---
 elif mode == "📝 New Registration":
-    reg_name = st.sidebar.text_input("Full Name (নাম)")
+    reg_name = st.sidebar.text_input("Full Name / English Name (নাম)")
     reg_phone = st.sidebar.text_input("Mobile Number (মোবাইল নম্বর)")
     reg_country = st.sidebar.selectbox("Current Country (বর্তমান দেশ)", ALLOWED_COUNTRIES)
     
@@ -368,7 +364,7 @@ elif mode == "📝 New Registration":
     col_d, col_m, col_y = st.sidebar.columns(3)
     dob_day = col_d.selectbox("Day", [str(i) for i in range(1, 32)])
     dob_month = col_m.selectbox("Month", MONTHS_LIST)
-    dob_year = col_y.selectbox("Year", [str(i) for i in range(1950, 2026)][::-1])
+    dob_year = col_y.selectbox("Year", [str(i) for i in range(1950, 2027)][::-1])
     
     reg_gender = st.sidebar.radio("Gender (লিঙ্গ)", ["Male (ছেলে)", "Female (মেয়ে)", "Other (অন্যান্য)"])
 
@@ -410,7 +406,7 @@ if st.session_state.user:
         st.rerun()
 
 # Navigation Tabs
-nav_tabs = ["🌍 World Feed (FB Style)", "📱 TikTok Shorts Feed", "📺 YouTube Long Feed", "💳 Monetization & Earnings", "👤 My Profile & Channel", "📤 Upload Studio"]
+nav_tabs = ["🌍 World Feed (FB Style)", "📱 TikTok Shorts Feed", "📺 YouTube Long Feed", "👤 My Profile & Channel", "💳 Monetization & Earnings", "📤 Upload Studio"]
 if st.session_state.user == "system_owner":
     nav_tabs.append("👑 Owner Control Center")
 
@@ -419,7 +415,7 @@ tab = st.sidebar.radio("Navigation", nav_tabs, index=current_index)
 st.session_state.active_tab = tab
 
 # ==========================================
-# 7. MAIN APPLICATION FEEDS
+# 6. MAIN APPLICATION FEEDS & PROFILE
 # ==========================================
 
 # --- Facebook Style Feed ---
@@ -453,12 +449,14 @@ if tab == "🌍 World Feed (FB Style)":
             conn.close()
             st.rerun()
 
-        if st.session_state.user == "system_owner":
-            if c2.button(f"🗑️ Delete", key=f"del_{item['id']}"):
+        # Delete Option for Content Owner or System Owner
+        if st.session_state.user in [item.get("uploader_name"), "system_owner"]:
+            if c2.button("🗑️ Delete Post", key=f"del_{item['id']}"):
                 c = get_db_connection()
                 c.cursor().execute("DELETE FROM posts WHERE id = ?", (item['id'],))
                 c.commit()
                 c.close()
+                st.success("Post deleted!")
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -480,12 +478,20 @@ elif tab == "📱 TikTok Shorts Feed":
         st.markdown(f"**{vid.get('title', '')}**")
         st.caption(vid.get('description', ''))
         
-        views_display = vid.get('views', 0)
-        likes_display = vid.get('likes', 0)
-        
-        st.write(f"👁️ **{views_display:,} Views** | ❤️ **{likes_display:,} Likes**")
+        st.write(f"👁️ **{vid.get('views', 0):,} Views** | ❤️ **{vid.get('likes', 0):,} Likes**")
         if vid.get("video_url") and os.path.exists(vid["video_url"]):
             st.video(vid["video_url"])
+
+        # Delete option
+        if st.session_state.user in [vid.get("uploader_name"), "system_owner"]:
+            if st.button("🗑️ Delete Video", key=f"del_v_{vid['id']}"):
+                c = get_db_connection()
+                c.cursor().execute("DELETE FROM videos WHERE id = ?", (vid['id'],))
+                c.commit()
+                c.close()
+                st.success("Video deleted!")
+                st.rerun()
+
         st.markdown('</div>', unsafe_allow_html=True)
 
 # --- YouTube Long Feed ---
@@ -506,12 +512,75 @@ elif tab == "📺 YouTube Long Feed":
         st.subheader(vid.get('title', ''))
         st.write(vid.get('description', ''))
         
-        views_display = vid.get('views', 0)
-        st.write(f"👁️ **{views_display:,} Views**")
-        
+        st.write(f"👁️ **{vid.get('views', 0):,} Views**")
         if vid.get("video_url") and os.path.exists(vid["video_url"]):
             st.video(vid["video_url"])
+
+        # Delete option
+        if st.session_state.user in [vid.get("uploader_name"), "system_owner"]:
+            if st.button("🗑️ Delete Long Video", key=f"del_lv_{vid['id']}"):
+                c = get_db_connection()
+                c.cursor().execute("DELETE FROM videos WHERE id = ?", (vid['id'],))
+                c.commit()
+                c.close()
+                st.success("Video deleted!")
+                st.rerun()
+
         st.markdown('</div>', unsafe_allow_html=True)
+
+# --- MY PROFILE & CHANNEL ---
+elif tab == "👤 My Profile & Channel":
+    st.markdown("### 👤 My Profile & Settings")
+    if not st.session_state.user:
+        st.warning("Please login to view and edit your profile.")
+    else:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT * FROM users WHERE username = ?", (st.session_state.user,))
+        u_info = c.fetchone()
+        conn.close()
+
+        if u_info:
+            u_info = dict(u_info)
+            show_verified_profile(u_info["username"], subtitle="Personal Account")
+
+            st.markdown("---")
+            st.subheader("⚙️ Update Profile Details")
+
+            # 1. Profile Picture Upload
+            st.markdown("**Upload Profile Picture (প্রোফাইল পিকচার সেট করুন)**")
+            pic_up = st.file_uploader("Choose Profile Image", type=["jpg", "jpeg", "png"])
+            if pic_up and st.button("Save Profile Picture"):
+                save_pic_path = os.path.join(PROFILE_DIR, f"{st.session_state.user}_profile.jpg")
+                with open(save_pic_path, "wb") as f:
+                    f.write(pic_up.getbuffer())
+                
+                conn = get_db_connection()
+                c = conn.cursor()
+                c.execute("UPDATE users SET profile_pic = ? WHERE username = ?", (save_pic_path, st.session_state.user))
+                conn.commit()
+                conn.close()
+                st.success("✅ Profile Picture updated successfully!")
+                st.rerun()
+
+            # 2. Update Full Name / Display Name
+            st.markdown("---")
+            st.markdown("**Edit Name (নাম পরিবর্তন করুন)**")
+            new_name = st.text_input("Enter New Name / English Name", value=u_info.get("full_name", u_info["username"]))
+            if st.button("Update Name"):
+                if new_name.strip():
+                    conn = get_db_connection()
+                    c = conn.cursor()
+                    c.execute("UPDATE users SET full_name = ?, username = ? WHERE username = ?", (new_name.strip(), new_name.strip(), st.session_state.user))
+                    conn.commit()
+                    conn.close()
+                    st.session_state.user = new_name.strip()
+                    st.success("✅ Name updated successfully!")
+                    st.rerun()
+
+            # 3. View Verified Badge Status
+            st.markdown("---")
+            st.markdown(f"**Verification Status:** {'✔️ Verified (블루টিক প্রাপ্ত)' if u_info.get('is_verified') else '❌ Not Verified'}")
 
 # --- Upload Studio ---
 elif tab == "📤 Upload Studio":
