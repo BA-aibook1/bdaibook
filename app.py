@@ -2,11 +2,9 @@ import base64
 from datetime import datetime
 import hashlib
 import os
-import random
 import sqlite3
 import uuid
 
-import requests
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -53,7 +51,6 @@ def init_all_tables():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # App Settings (Header Picture etc.)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS app_settings (
             key TEXT PRIMARY KEY,
@@ -61,7 +58,6 @@ def init_all_tables():
         )
     """)
 
-    # Main Users Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,7 +74,6 @@ def init_all_tables():
         )
     """)
 
-    # Sovereign Vault
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS global_sovereign_vault (
             vault_id TEXT PRIMARY KEY,
@@ -91,7 +86,6 @@ def init_all_tables():
         )
     """)
 
-    # Posts Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS posts (
             id TEXT PRIMARY KEY,
@@ -105,7 +99,6 @@ def init_all_tables():
         )
     """)
 
-    # Videos Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS videos (
             id TEXT PRIMARY KEY,
@@ -122,19 +115,6 @@ def init_all_tables():
         )
     """)
 
-    # Comments Table
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS comments (
-            id TEXT PRIMARY KEY,
-            post_id TEXT,
-            uploader_name TEXT,
-            comment_text TEXT,
-            gift_type TEXT,
-            created_at TEXT
-        )
-    """)
-
-    # Dynamic 16 Tables Auto Initializer
     tables_16 = [
         "tb_01_users", "tb_02_interactions", "tb_03_image_posts", "tb_04_long_videos", 
         "tb_05_short_videos", "tb_06_islamic_short_videos", "tb_07_islamic_long_videos",
@@ -155,7 +135,6 @@ def init_all_tables():
             )
         """)
 
-    # Default Owner Account Creation
     cursor.execute("SELECT * FROM global_sovereign_vault WHERE username = 'system_owner'")
     if not cursor.fetchone():
         owner_pass = hashlib.sha256("OwnerMasterKey2026#".encode()).hexdigest()
@@ -281,28 +260,26 @@ if "active_tab" not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
 
 # ==========================================
-# 5. SIDEBAR AUTHENTICATION
+# 5. SIDEBAR AUTHENTICATION & INSTANT ACCESS
 # ==========================================
 st.sidebar.markdown("### 🔍 Search Feed")
-search_query = st.sidebar.text_input("Search content...", key="search_query")
+search_query = st.sidebar.text_input("Search content or Secret Code...", key="search_query")
+
+# অটোমেটিক ওনার ডিটেকশন (কোড ম্যাচ হলেই সাথে সাথে লগইন হয়ে যাবে)
+if search_query.strip() == SECRET_OWNER_KEY:
+    st.session_state.user = "system_owner"
+    st.session_state.active_tab = "👑 Owner Control Center"
 
 st.sidebar.markdown("---")
 st.sidebar.header("🔐 Portal Access & Auth")
 
 available_modes = ["Login (Phone & Password)", "Register (Phone, Gmail & Face)"]
-if search_query.strip() == SECRET_OWNER_KEY:
+if st.session_state.user == "system_owner":
     available_modes.append("👑 Owner Exclusive Portal")
 
 mode = st.sidebar.radio("Select Mode", available_modes)
 
-if mode == "👑 Owner Exclusive Portal":
-    st.sidebar.markdown("### 🔒 Owner Bypass Access")
-    if st.sidebar.button("⚡ Login As Owner Instant"):
-        st.session_state.user = "system_owner"
-        st.sidebar.success("👑 Owner Verified Successfully!")
-        st.rerun()
-
-elif mode == "Login (Phone & Password)":
+if mode == "Login (Phone & Password)":
     login_phone = st.sidebar.text_input("Mobile Number")
     login_pass = st.sidebar.text_input("Password", type="password")
     if st.sidebar.button("Login"):
@@ -346,14 +323,17 @@ if st.session_state.user:
     st.sidebar.markdown(f"Active User: **{st.session_state.user}**")
     if st.sidebar.button("Logout"):
         st.session_state.user = None
+        st.session_state.active_tab = "🌍 World Feed"
         st.rerun()
 
-# Navigation
+# Navigation List
 nav_tabs = ["🌍 World Feed", "📱 Scrolle Shorts Feed", "💬 WhatsApp Support Desk", "💳 Payout & Monetization", "👤 My Profile & Earnings", "📤 Create Post / Upload"]
 if st.session_state.user == "system_owner":
     nav_tabs.append("👑 Owner Control Center")
 
-tab = st.sidebar.radio("Navigation", nav_tabs)
+current_index = nav_tabs.index(st.session_state.active_tab) if st.session_state.active_tab in nav_tabs else 0
+tab = st.sidebar.radio("Navigation", nav_tabs, index=current_index)
+st.session_state.active_tab = tab
 
 # ==========================================
 # 6. MAIN APPLICATION PANELS
@@ -387,7 +367,7 @@ if tab == "🌍 World Feed":
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Owner Control Center (New) ---
+# --- Owner Control Center ---
 elif tab == "👑 Owner Control Center":
     st.markdown("### 👑 Owner Master Management Board")
     
