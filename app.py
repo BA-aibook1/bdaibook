@@ -403,17 +403,42 @@ elif mode == "Register (Global Account)":
         elif reg_user and reg_phone and reg_pass and reg_gmail:
             conn = get_db_connection()
             cursor = conn.cursor()
-            try:
-                hashed_pass = hashlib.sha256(reg_pass.encode()).hexdigest()
-                cursor.execute("INSERT INTO global_sovereign_vault (vault_id, username, phone_number, gmail_address, country, hashed_password, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                               (f"vault_{uuid.uuid4().hex[:8]}", reg_user, reg_phone, reg_gmail, reg_country, hashed_pass, datetime.now().strftime("%Y-%m-%d")))
-                conn.commit()
-                register_or_get_user(reg_user, reg_phone, reg_country)
-                st.sidebar.success("🎉 Registration successful! Please log in.")
-            except Exception:
-                st.sidebar.error("User, Gmail, or Phone number already exists!")
-            finally:
+            
+            # Specific validation checks
+            cursor.execute("SELECT username FROM global_sovereign_vault WHERE username = ?", (reg_user,))
+            if cursor.fetchone():
+                st.sidebar.error("❌ Username already taken! Choose a different username.")
                 conn.close()
+            else:
+                cursor.execute("SELECT phone_number FROM global_sovereign_vault WHERE phone_number = ?", (reg_phone,))
+                if cursor.fetchone():
+                    st.sidebar.error("❌ Phone number already registered! Please Login.")
+                    conn.close()
+                else:
+                    cursor.execute("SELECT gmail_address FROM global_sovereign_vault WHERE gmail_address = ?", (reg_gmail,))
+                    if cursor.fetchone():
+                        st.sidebar.error("❌ Gmail already registered! Please Login.")
+                        conn.close()
+                    else:
+                        try:
+                            hashed_pass = hashlib.sha256(reg_pass.encode()).hexdigest()
+                            cursor.execute("""
+                                INSERT INTO global_sovereign_vault 
+                                (vault_id, username, phone_number, gmail_address, country, hashed_password, created_at) 
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """, (f"vault_{uuid.uuid4().hex[:8]}", reg_user, reg_phone, reg_gmail, reg_country, hashed_pass, datetime.now().strftime("%Y-%m-%d")))
+                            
+                            cursor.execute("""
+                                INSERT OR REPLACE INTO users (username, phone_number, full_name, country, is_verified, created_at)
+                                VALUES (?, ?, ?, ?, 0, ?)
+                            """, (reg_user, reg_phone, reg_user, reg_country, datetime.now().strftime("%Y-%m-%d")))
+                            
+                            conn.commit()
+                            st.sidebar.success("🎉 Registration successful! Switch to Login Mode.")
+                        except Exception as e:
+                            st.sidebar.error(f"Error: {e}")
+                        finally:
+                            conn.close()
         else:
             st.sidebar.warning("Please fill in all required fields.")
 
