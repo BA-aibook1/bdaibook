@@ -30,6 +30,7 @@ components.html(
 )
 
 SMART_LINK = "https://omg10.com/4/10954816"
+SECRET_OWNER_KEY = "admin1234"  # 👈 মালিক হিসেবে ঢোকার গোপন কোড (আপনি চাইলে বদলে নিতে পারেন)
 
 # ==========================================
 # 2. LOCAL STORAGE & DATABASE SETUP
@@ -342,7 +343,15 @@ search_query = st.sidebar.text_input("Search content, creators...", placeholder=
 st.sidebar.markdown("---")
 st.sidebar.header("🔐 Portal Access & Auth")
 
-mode = st.sidebar.radio("Select Mode", ["Login (Phone & Password)", "Register (Phone, Gmail & Face)", "👑 Owner Exclusive Portal"])
+# সাধারণ ইউজারদের মোড (এখানে ওনার প্যানেল থাকবে না)
+available_modes = ["Login (Phone & Password)", "Register (Phone, Gmail & Face)"]
+
+# আপনি সার্চ বক্সে গোপন কোড লিখলে মালিকের অপশন চালু হবে
+if search_query.strip() == SECRET_OWNER_KEY:
+    available_modes.append("👑 Owner Exclusive Portal")
+    st.sidebar.success("🔑 Secret Owner Mode Unlocked!")
+
+mode = st.sidebar.radio("Select Mode", available_modes)
 
 if mode == "👑 Owner Exclusive Portal":
     st.sidebar.markdown("### 🔒 Owner Secure Chamber")
@@ -432,7 +441,7 @@ if tab == "🌍 World Feed":
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    if search_query:
+    if search_query and search_query != SECRET_OWNER_KEY:
         cursor.execute("SELECT * FROM posts WHERE content LIKE ? OR uploader_name LIKE ?", (f"%{search_query}%", f"%{search_query}%"))
         posts = [dict(r) for r in cursor.fetchall()]
         cursor.execute("SELECT * FROM videos WHERE video_type != 'short' AND (title LIKE ? OR uploader_name LIKE ?)", (f"%{search_query}%", f"%{search_query}%"))
