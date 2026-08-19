@@ -28,7 +28,7 @@ components.html(
 SECRET_OWNER_KEY = "S$s123456789112233"
 
 # ==========================================
-# 2. LOCAL STORAGE & DATABASE SETUP
+# 2. LOCAL STORAGE & DATABASE SETUP (4 CORE TABLES ONLY)
 # ==========================================
 DB_FILE = "global_enterprise_master.db"
 VIDEO_DIR = "stored_videos"
@@ -45,74 +45,11 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-def auto_repair_all_tables():
-    """ডাটাবেসের সব কলাম অটো-রিপেয়ার করার ফাংশন যাতে কোডে কখনো OperationalError না আসে"""
+def init_clean_database():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 1. Users Table Schema Repair
-    cursor.execute("PRAGMA table_info(users)")
-    u_cols = [col[1] for col in cursor.fetchall()]
-    user_fields = {
-        'username': 'TEXT',
-        'phone_number': 'TEXT',
-        'full_name': 'TEXT',
-        'country': "TEXT DEFAULT 'Bangladesh'",
-        'dob_day': 'TEXT',
-        'dob_month': 'TEXT',
-        'dob_year': 'TEXT',
-        'gender': 'TEXT',
-        'profile_pic': 'TEXT',
-        'is_verified': 'INTEGER DEFAULT 1',
-        'followers_count': 'INTEGER DEFAULT 0',
-        'watch_time_mins': 'REAL DEFAULT 0.0',
-        'monetization_status': "TEXT DEFAULT 'approved'",
-        'earnings': 'REAL DEFAULT 0.0',
-        'is_banned': 'INTEGER DEFAULT 0',
-        'ban_until': 'TEXT',
-        'violations_count': 'INTEGER DEFAULT 0',
-        'created_at': 'TEXT'
-    }
-    for col_name, col_type in user_fields.items():
-        if col_name not in u_cols:
-            cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
-
-    # 2. Posts Table Schema Repair (FIXED HERE)
-    cursor.execute("PRAGMA table_info(posts)")
-    p_cols = [col[1] for col in cursor.fetchall()]
-    post_fields = {
-        'uploader_name': 'TEXT',
-        'content': 'TEXT',
-        'title': 'TEXT',
-        'tags': 'TEXT',
-        'image_url': 'TEXT',
-        'likes': 'INTEGER DEFAULT 0',
-        'created_at': 'TEXT'
-    }
-    for col_name, col_type in post_fields.items():
-        if col_name not in p_cols:
-            cursor.execute(f"ALTER TABLE posts ADD COLUMN {col_name} {col_type}")
-
-    # 3. Videos Table Schema Repair
-    cursor.execute("PRAGMA table_info(videos)")
-    v_cols = [col[1] for col in cursor.fetchall()]
-    video_fields = {
-        'user_id': 'TEXT',
-        'video_url': 'TEXT',
-        'uploader_name': 'TEXT',
-        'video_type': "TEXT DEFAULT 'short'",
-        'title': 'TEXT',
-        'description': 'TEXT',
-        'tags': 'TEXT',
-        'likes': 'INTEGER DEFAULT 0',
-        'views': 'INTEGER DEFAULT 0',
-        'created_at': 'TEXT'
-    }
-    for col_name, col_type in video_fields.items():
-        if col_name not in v_cols:
-            cursor.execute(f"ALTER TABLE videos ADD COLUMN {col_name} {col_type}")
-
-    # 4. 16 Central Pipeline Tables Repair (FIXED HERE)
+    # পুরনো ১৬টি অপ্রয়োজনীয় টেবিল মুছে ফেলা (Cleanup 16 Tables)
     tables_16 = [
         "tb_01_users", "tb_02_interactions", "tb_03_image_posts", "tb_04_long_videos", 
         "tb_05_short_videos", "tb_06_islamic_short_videos", "tb_07_islamic_long_videos",
@@ -120,34 +57,10 @@ def auto_repair_all_tables():
         "tb_11_entertainment_contents", "tb_12_tech_contents", "tb_13_live_streams",
         "tb_14_advertisements", "tb_15_bank_details", "tb_16_global_central_pipeline"
     ]
-    tb_fields = {
-        'username': 'TEXT',
-        'content_title': 'TEXT',
-        'media_path': 'TEXT',
-        'ai_verified': 'INTEGER DEFAULT 1',
-        'created_at': 'TEXT'
-    }
     for t_name in tables_16:
-        cursor.execute(f"PRAGMA table_info({t_name})")
-        t_cols = [col[1] for col in cursor.fetchall()]
-        for col_name, col_type in tb_fields.items():
-            if col_name not in t_cols:
-                cursor.execute(f"ALTER TABLE {t_name} ADD COLUMN {col_name} {col_type}")
+        cursor.execute(f"DROP TABLE IF EXISTS {t_name}")
 
-    conn.commit()
-    conn.close()
-
-def init_all_tables():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS app_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        )
-    """)
-
+    # ১. প্রথম টেবিল: ব্যবহারকারীর তথ্য, লাইক, কমেন্ট, শেয়ার ও একাউন্ট ডাটা
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -162,16 +75,18 @@ def init_all_tables():
             profile_pic TEXT,
             is_verified INTEGER DEFAULT 1,
             followers_count INTEGER DEFAULT 0,
+            likes_count INTEGER DEFAULT 0,
+            comments_count INTEGER DEFAULT 0,
+            shares_count INTEGER DEFAULT 0,
             watch_time_mins REAL DEFAULT 0.0,
             monetization_status TEXT DEFAULT 'approved',
             earnings REAL DEFAULT 0.0,
             is_banned INTEGER DEFAULT 0,
-            ban_until TEXT,
-            violations_count INTEGER DEFAULT 0,
             created_at TEXT
         )
     """)
 
+    # ২. দ্বিতীয় টেবিল: পোস্ট ও শর্ট ভিডিও
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS posts (
             id TEXT PRIMARY KEY,
@@ -181,71 +96,53 @@ def init_all_tables():
             tags TEXT,
             image_url TEXT,
             likes INTEGER DEFAULT 0,
+            shares INTEGER DEFAULT 0,
             created_at TEXT
         )
     """)
 
+    # ৩. তৃতীয় টেবিল: ডাইরেক্ট লং ভিডিও
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS videos (
             id TEXT PRIMARY KEY,
             user_id TEXT,
             video_url TEXT,
             uploader_name TEXT,
-            video_type TEXT DEFAULT 'short',
+            video_type TEXT DEFAULT 'long',
             title TEXT,
             description TEXT,
             tags TEXT,
             likes INTEGER DEFAULT 0,
             views INTEGER DEFAULT 0,
+            shares INTEGER DEFAULT 0,
             created_at TEXT
         )
     """)
 
+    # ৪. চতুর্থ টেবিল: মালিকের তথ্য, পিকচার ও ভিডিও আপডেট
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS comments (
+        CREATE TABLE IF NOT EXISTS owner_updates (
             id TEXT PRIMARY KEY,
-            content_id TEXT,
-            username TEXT,
-            comment TEXT,
+            title TEXT,
+            description TEXT,
+            media_type TEXT, -- 'picture' or 'video'
+            media_url TEXT,
             created_at TEXT
         )
     """)
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS daily_upload_limits (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT,
-            upload_type TEXT,
-            upload_date TEXT
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
         )
     """)
-
-    tables_16 = [
-        "tb_01_users", "tb_02_interactions", "tb_03_image_posts", "tb_04_long_videos", 
-        "tb_05_short_videos", "tb_06_islamic_short_videos", "tb_07_islamic_long_videos",
-        "tb_08_news_contents", "tb_09_blog_contents", "tb_10_educational_contents",
-        "tb_11_entertainment_contents", "tb_12_tech_contents", "tb_13_live_streams",
-        "tb_14_advertisements", "tb_15_bank_details", "tb_16_global_central_pipeline"
-    ]
-    
-    for t_name in tables_16:
-        cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS {t_name} (
-                id TEXT PRIMARY KEY,
-                username TEXT,
-                content_title TEXT,
-                media_path TEXT,
-                ai_verified INTEGER DEFAULT 1,
-                created_at TEXT
-            )
-        """)
 
     conn.commit()
     conn.close()
 
-    auto_repair_all_tables()
-
-init_all_tables()
+# ডাটাবেস ইনিশিয়ালাইজেশন
+init_clean_database()
 
 # ==========================================
 # 3. HELPER & SECURITY FUNCTIONS
@@ -265,7 +162,7 @@ def ai_content_shield(title, description, tags, file_name):
     full_text = f"{title} {description} {tags} {file_name}".lower()
     for word in BANNED_WORDS:
         if word in full_text:
-            return False, "⚠️ Blocked by AI Security Shield! Highly inappropriate content is prohibited."
+            return False, "⚠️ Blocked by AI Security Shield!"
     return True, "OK"
 
 def get_setting(key, default=None):
@@ -280,17 +177,6 @@ def set_setting(key, value):
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)", (key, str(value)))
-    conn.commit()
-    conn.close()
-
-def sync_to_16_tables(content_id, username, title, path, target_table):
-    conn = get_db_connection()
-    c = conn.cursor()
-    user_str = str(username) if username else "Anonymous"
-    c.execute(f"INSERT OR REPLACE INTO {target_table} (id, username, content_title, media_path, created_at) VALUES (?, ?, ?, ?, ?)",
-              (content_id, user_str, title, path, datetime.now().strftime("%Y-%m-%d %H:%M")))
-    c.execute("INSERT OR REPLACE INTO tb_16_global_central_pipeline (id, username, content_title, media_path, created_at) VALUES (?, ?, ?, ?, ?)",
-              (content_id, user_str, title, path, datetime.now().strftime("%Y-%m-%d %H:%M")))
     conn.commit()
     conn.close()
 
@@ -433,7 +319,7 @@ if st.session_state.user:
         st.rerun()
 
 # Navigation Tabs
-nav_tabs = ["🌍 World Feed", "📱 TikTok Shorts Feed", "📺 YouTube Long Feed", "👤 My Profile & Channel", "💳 Monetization & Earnings", "📤 Upload Studio"]
+nav_tabs = ["🌍 World Feed", "📱 TikTok Shorts Feed", "📺 Direct Long Videos", "👤 My Profile & Channel", "💳 Monetization", "📤 Upload Studio"]
 if st.session_state.user == "system_owner":
     nav_tabs.append("👑 Owner Control Center")
 
@@ -442,12 +328,12 @@ tab = st.sidebar.radio("Navigation", nav_tabs, index=current_index)
 st.session_state.active_tab = tab
 
 # ==========================================
-# 6. FEEDS AND CONTROLS
+# 6. FEEDS & CONTROLS
 # ==========================================
 
-# --- World Feed ---
+# --- Table 2: World Feed (Posts / Shorts) ---
 if tab == "🌍 World Feed":
-    st.markdown("### 🌍 World Feed (Image & Text)")
+    st.markdown("### 🌍 World Feed")
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM posts ORDER BY created_at DESC")
@@ -485,23 +371,23 @@ if tab == "🌍 World Feed":
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TikTok Shorts Feed ---
-elif tab == "📱 TikTok Shorts Feed":
-    st.markdown("### 📱 Shorts Reel Feed")
+# --- Table 3: Direct Long Videos ---
+elif tab in ["📱 TikTok Shorts Feed", "📺 Direct Long Videos"]:
+    st.markdown("### 📺 Direct Video Feed")
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT * FROM videos WHERE video_type = 'short' ORDER BY created_at DESC")
+    c.execute("SELECT * FROM videos ORDER BY created_at DESC")
     vids = [dict(r) for r in c.fetchall()]
     conn.close()
 
     if not vids:
-        st.info("No shorts uploaded yet.")
+        st.info("No videos uploaded yet.")
 
     for vid in vids:
         st.markdown('<div class="feed-card">', unsafe_allow_html=True)
         show_verified_profile(vid.get("uploader_name", "User"), subtitle=f"Uploaded {vid.get('created_at')}")
-        st.markdown(f"**{vid.get('title', '')}**")
-        st.caption(vid.get('description', ''))
+        st.subheader(vid.get('title', ''))
+        st.write(vid.get('description', ''))
         
         if vid.get("video_url") and os.path.exists(vid["video_url"]):
             st.video(vid["video_url"])
@@ -515,38 +401,7 @@ elif tab == "📱 TikTok Shorts Feed":
             st.rerun()
 
         if st.session_state.user in [vid.get("uploader_name"), "system_owner"]:
-            if c2.button("🗑️ Delete Video", key=f"del_s_{vid['id']}"):
-                c = get_db_connection()
-                c.cursor().execute("DELETE FROM videos WHERE id = ?", (vid['id'],))
-                c.commit()
-                c.close()
-                st.success("Short deleted!")
-                st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# --- YouTube Long Feed ---
-elif tab == "📺 YouTube Long Feed":
-    st.markdown("### 📺 Long Videos")
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT * FROM videos WHERE video_type = 'long' ORDER BY created_at DESC")
-    vids = [dict(r) for r in c.fetchall()]
-    conn.close()
-
-    if not vids:
-        st.info("No long videos uploaded yet.")
-
-    for vid in vids:
-        st.markdown('<div class="feed-card">', unsafe_allow_html=True)
-        show_verified_profile(vid.get("uploader_name", "User"), subtitle=f"Uploaded {vid.get('created_at')}")
-        st.subheader(vid.get('title', ''))
-        st.write(vid.get('description', ''))
-        
-        if vid.get("video_url") and os.path.exists(vid["video_url"]):
-            st.video(vid["video_url"])
-
-        if st.session_state.user in [vid.get("uploader_name"), "system_owner"]:
-            if st.button("🗑️ Delete Long Video", key=f"del_l_{vid['id']}"):
+            if c2.button("🗑️ Delete Video", key=f"del_v_{vid['id']}"):
                 c = get_db_connection()
                 c.cursor().execute("DELETE FROM videos WHERE id = ?", (vid['id'],))
                 c.commit()
@@ -555,9 +410,9 @@ elif tab == "📺 YouTube Long Feed":
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-# --- My Profile ---
+# --- Table 1: My Profile ---
 elif tab == "👤 My Profile & Channel":
-    st.markdown("### 👤 Account Profile")
+    st.markdown("### 👤 Account Profile (Table 1)")
     if not st.session_state.user:
         st.warning("Please login to manage your profile.")
     else:
@@ -570,6 +425,8 @@ elif tab == "👤 My Profile & Channel":
         if u_info:
             u_info = dict(u_info)
             show_verified_profile(u_info["username"], subtitle="Profile")
+            st.write(f"📱 Phone: {u_info.get('phone_number')}")
+            st.write(f"🌐 Country: {u_info.get('country')}")
 
             pic_up = st.file_uploader("Upload Profile Picture", type=["jpg", "jpeg", "png"])
             if pic_up and st.button("Save Profile Picture"):
@@ -591,12 +448,12 @@ elif tab == "📤 Upload Studio":
     if not st.session_state.user:
         st.warning("Please login from the sidebar first.")
     else:
-        cat = st.selectbox("Category", ["Facebook Post", "TikTok Short Reel", "YouTube Long Video"])
+        cat = st.selectbox("Category", ["Facebook Post (Table 2)", "Direct Long Video (Table 3)"])
         title_in = st.text_input("Title")
         desc_in = st.text_area("Description")
         tags_in = st.text_input("Tags")
 
-        if cat == "Facebook Post":
+        if cat == "Facebook Post (Table 2)":
             f_up = st.file_uploader("Select Photo", type=["jpg", "jpeg", "png"])
             if st.button("Publish Post"):
                 is_safe, msg = ai_content_shield(title_in, desc_in, tags_in, f_up.name if f_up else "")
@@ -616,13 +473,10 @@ elif tab == "📤 Upload Studio":
                               (p_id, str(st.session_state.user), desc_in, title_in, tags_in, save_p, datetime.now().strftime("%Y-%m-%d %H:%M")))
                     conn.commit()
                     conn.close()
-
-                    sync_to_16_tables(p_id, st.session_state.user, title_in, save_p, "tb_03_image_posts")
-                    st.success("✅ Post uploaded successfully!")
+                    st.success("✅ Post uploaded successfully to Table 2!")
                     st.rerun()
 
         else:
-            v_type = "short" if cat == "TikTok Short Reel" else "long"
             v_up = st.file_uploader("Select Video", type=["mp4", "mov", "avi"])
             if st.button("Publish Video"):
                 if not v_up:
@@ -641,54 +495,53 @@ elif tab == "📤 Upload Studio":
                         c = conn.cursor()
                         c.execute("""
                             INSERT INTO videos (id, user_id, uploader_name, video_type, title, description, tags, video_url, created_at) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (v_id, str(st.session_state.user), str(st.session_state.user), v_type, title_in, desc_in, tags_in, save_v, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                            VALUES (?, ?, ?, 'long', ?, ?, ?, ?, ?)
+                        """, (v_id, str(st.session_state.user), str(st.session_state.user), title_in, desc_in, tags_in, save_v, datetime.now().strftime("%Y-%m-%d %H:%M")))
                         conn.commit()
                         conn.close()
-
-                        target_tb = "tb_05_short_videos" if v_type == "short" else "tb_04_long_videos"
-                        sync_to_16_tables(v_id, st.session_state.user, title_in, save_v, target_tb)
-                        st.success("✅ Video uploaded successfully!")
+                        st.success("✅ Video uploaded successfully to Table 3!")
                         st.rerun()
 
-# --- Monetization ---
-elif tab == "💳 Monetization & Earnings":
-    st.markdown("### 💳 Creator Earnings Dashboard")
-    if st.session_state.user:
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT earnings FROM users WHERE username = ?", (st.session_state.user,))
-        row = c.fetchone()
-        conn.close()
-        earn = row["earnings"] if row else 0.0
-        st.metric("Total Income Balance", f"${earn:.2f}")
-
-# --- Owner Control Center ---
+# --- Table 4: Owner Control Center ---
 elif tab == "👑 Owner Control Center":
-    st.markdown("### 👑 Owner Exclusive Panel")
+    st.markdown("### 👑 Owner Exclusive Panel (Table 4 Update Portal)")
     
-    st.subheader("🖼️ Update App Header Logo")
-    hdr_img = st.file_uploader("Upload Header Logo Image", type=["jpg", "jpeg", "png"])
-    if hdr_img and st.button("Save Header Image"):
-        hdr_path = os.path.join(SETTINGS_DIR, "header_logo.jpg")
-        with open(hdr_path, "wb") as f:
-            f.write(hdr_img.getbuffer())
-        set_setting("header_image", hdr_path)
-        st.success("✅ Header Logo updated globally!")
-        st.rerun()
+    st.subheader("📢 Publish Owner Picture/Video Update")
+    u_title = st.text_input("Update Title")
+    u_desc = st.text_area("Update Details")
+    media_file = st.file_uploader("Upload Image or Video", type=["jpg", "png", "mp4"])
 
-    st.markdown("---")
+    if st.button("Publish Owner Update"):
+        if u_title and media_file:
+            up_id = str(uuid.uuid4())
+            m_type = "video" if media_file.name.endswith(".mp4") else "picture"
+            save_path = os.path.join(SETTINGS_DIR, f"{up_id}_{media_file.name}")
+            with open(save_path, "wb") as f:
+                f.write(media_file.getbuffer())
+
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("INSERT INTO owner_updates (id, title, description, media_type, media_url, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                      (up_id, u_title, u_desc, m_type, save_path, datetime.now().strftime("%Y-%m-%d %H:%M")))
+            conn.commit()
+            conn.close()
+            st.success("✅ Owner Update Published Successfully to Table 4!")
+            st.rerun()
+
+    st.divider()
+    st.subheader("📋 All Owner Updates Feed")
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT COUNT(*) as total_users FROM users")
-    u_cnt = c.fetchone()["total_users"]
-    c.execute("SELECT COUNT(*) as total_posts FROM posts")
-    p_cnt = c.fetchone()["total_posts"]
-    c.execute("SELECT COUNT(*) as total_vids FROM videos")
-    v_cnt = c.fetchone()["total_vids"]
+    c.execute("SELECT * FROM owner_updates ORDER BY created_at DESC")
+    updates = [dict(r) for r in c.fetchall()]
     conn.close()
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Registered Users", u_cnt)
-    m2.metric("Total Image Posts", p_cnt)
-    m3.metric("Total Videos Uploaded", v_cnt)
+    for up in updates:
+        st.markdown('<div class="feed-card">', unsafe_allow_html=True)
+        st.subheader(up["title"])
+        st.write(up["description"])
+        if up["media_type"] == "picture" and os.path.exists(up["media_url"]):
+            st.image(up["media_url"], use_container_width=True)
+        elif up["media_type"] == "video" and os.path.exists(up["media_url"]):
+            st.video(up["media_url"])
+        st.markdown('</div>', unsafe_allow_html=True)
