@@ -50,11 +50,13 @@ def auto_repair_all_tables():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Users Table Schema Repair
+    # 1. Users Table Schema Repair
     cursor.execute("PRAGMA table_info(users)")
     u_cols = [col[1] for col in cursor.fetchall()]
     user_fields = {
+        'username': 'TEXT',
         'phone_number': 'TEXT',
+        'full_name': 'TEXT',
         'country': "TEXT DEFAULT 'Bangladesh'",
         'dob_day': 'TEXT',
         'dob_month': 'TEXT',
@@ -75,7 +77,23 @@ def auto_repair_all_tables():
         if col_name not in u_cols:
             cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
 
-    # Videos Table Schema Repair
+    # 2. Posts Table Schema Repair (FIXED HERE)
+    cursor.execute("PRAGMA table_info(posts)")
+    p_cols = [col[1] for col in cursor.fetchall()]
+    post_fields = {
+        'uploader_name': 'TEXT',
+        'content': 'TEXT',
+        'title': 'TEXT',
+        'tags': 'TEXT',
+        'image_url': 'TEXT',
+        'likes': 'INTEGER DEFAULT 0',
+        'created_at': 'TEXT'
+    }
+    for col_name, col_type in post_fields.items():
+        if col_name not in p_cols:
+            cursor.execute(f"ALTER TABLE posts ADD COLUMN {col_name} {col_type}")
+
+    # 3. Videos Table Schema Repair
     cursor.execute("PRAGMA table_info(videos)")
     v_cols = [col[1] for col in cursor.fetchall()]
     video_fields = {
@@ -93,6 +111,28 @@ def auto_repair_all_tables():
     for col_name, col_type in video_fields.items():
         if col_name not in v_cols:
             cursor.execute(f"ALTER TABLE videos ADD COLUMN {col_name} {col_type}")
+
+    # 4. 16 Central Pipeline Tables Repair (FIXED HERE)
+    tables_16 = [
+        "tb_01_users", "tb_02_interactions", "tb_03_image_posts", "tb_04_long_videos", 
+        "tb_05_short_videos", "tb_06_islamic_short_videos", "tb_07_islamic_long_videos",
+        "tb_08_news_contents", "tb_09_blog_contents", "tb_10_educational_contents",
+        "tb_11_entertainment_contents", "tb_12_tech_contents", "tb_13_live_streams",
+        "tb_14_advertisements", "tb_15_bank_details", "tb_16_global_central_pipeline"
+    ]
+    tb_fields = {
+        'username': 'TEXT',
+        'content_title': 'TEXT',
+        'media_path': 'TEXT',
+        'ai_verified': 'INTEGER DEFAULT 1',
+        'created_at': 'TEXT'
+    }
+    for t_name in tables_16:
+        cursor.execute(f"PRAGMA table_info({t_name})")
+        t_cols = [col[1] for col in cursor.fetchall()]
+        for col_name, col_type in tb_fields.items():
+            if col_name not in t_cols:
+                cursor.execute(f"ALTER TABLE {t_name} ADD COLUMN {col_name} {col_type}")
 
     conn.commit()
     conn.close()
@@ -192,10 +232,10 @@ def init_all_tables():
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS {t_name} (
                 id TEXT PRIMARY KEY,
-                username TEXT NOT NULL,
+                username TEXT,
                 content_title TEXT,
                 media_path TEXT,
-                ai_verified INT DEFAULT 1,
+                ai_verified INTEGER DEFAULT 1,
                 created_at TEXT
             )
         """)
@@ -246,10 +286,11 @@ def set_setting(key, value):
 def sync_to_16_tables(content_id, username, title, path, target_table):
     conn = get_db_connection()
     c = conn.cursor()
+    user_str = str(username) if username else "Anonymous"
     c.execute(f"INSERT OR REPLACE INTO {target_table} (id, username, content_title, media_path, created_at) VALUES (?, ?, ?, ?, ?)",
-              (content_id, username, title, path, datetime.now().strftime("%Y-%m-%d %H:%M")))
+              (content_id, user_str, title, path, datetime.now().strftime("%Y-%m-%d %H:%M")))
     c.execute("INSERT OR REPLACE INTO tb_16_global_central_pipeline (id, username, content_title, media_path, created_at) VALUES (?, ?, ?, ?, ?)",
-              (content_id, username, title, path, datetime.now().strftime("%Y-%m-%d %H:%M")))
+              (content_id, user_str, title, path, datetime.now().strftime("%Y-%m-%d %H:%M")))
     conn.commit()
     conn.close()
 
@@ -265,7 +306,7 @@ def get_image_base64(image_path):
 def show_verified_profile(display_name, subtitle="Member"):
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT is_verified, country, profile_pic FROM users WHERE LOWER(username) = LOWER(?)", (display_name.strip(),))
+    c.execute("SELECT is_verified, country, profile_pic FROM users WHERE LOWER(username) = LOWER(?)", (str(display_name).strip(),))
     u_data = c.fetchone()
     conn.close()
     
@@ -572,7 +613,7 @@ elif tab == "📤 Upload Studio":
                     conn = get_db_connection()
                     c = conn.cursor()
                     c.execute("INSERT INTO posts (id, uploader_name, content, title, tags, image_url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                              (p_id, st.session_state.user, desc_in, title_in, tags_in, save_p, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                              (p_id, str(st.session_state.user), desc_in, title_in, tags_in, save_p, datetime.now().strftime("%Y-%m-%d %H:%M")))
                     conn.commit()
                     conn.close()
 
@@ -598,11 +639,10 @@ elif tab == "📤 Upload Studio":
 
                         conn = get_db_connection()
                         c = conn.cursor()
-                        # ফিক্সড: user_id এবং uploader_name কলামের সামঞ্জস্য বজায় রেখে ডাটাবেসে সেভ
                         c.execute("""
                             INSERT INTO videos (id, user_id, uploader_name, video_type, title, description, tags, video_url, created_at) 
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (v_id, st.session_state.user, st.session_state.user, v_type, title_in, desc_in, tags_in, save_v, datetime.now().strftime("%Y-%m-%d %H:%M")))
+                        """, (v_id, str(st.session_state.user), str(st.session_state.user), v_type, title_in, desc_in, tags_in, save_v, datetime.now().strftime("%Y-%m-%d %H:%M")))
                         conn.commit()
                         conn.close()
 
