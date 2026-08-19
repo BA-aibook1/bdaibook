@@ -13,7 +13,7 @@ import streamlit.components.v1 as components
 # 1. PAGE CONFIGURATION & META
 # ==========================================
 st.set_page_config(
-    page_title="BD AI Book — Ultimate Enterprise Platform",
+    page_title="BD AI Book — Global Enterprise Platform",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -27,7 +27,7 @@ components.html(
     height=0,
 )
 
-SECRET_OWNER_KEY = "S$s123456789112233"  
+SECRET_OWNER_KEY = "S$s123456789112233"
 
 # ==========================================
 # 2. LOCAL STORAGE & DATABASE SETUP
@@ -64,6 +64,7 @@ def init_all_tables():
             username TEXT UNIQUE NOT NULL,
             phone_number TEXT UNIQUE,
             full_name TEXT,
+            country TEXT DEFAULT 'Global',
             profile_pic TEXT,
             is_verified INTEGER DEFAULT 0,
             followers_count INTEGER DEFAULT 0,
@@ -83,6 +84,7 @@ def init_all_tables():
             username TEXT UNIQUE NOT NULL,
             phone_number TEXT UNIQUE,
             gmail_address TEXT UNIQUE,
+            country TEXT NOT NULL,
             hashed_password TEXT NOT NULL,
             security_tier INTEGER DEFAULT 1,
             created_at TEXT
@@ -127,7 +129,7 @@ def init_all_tables():
         )
     """)
 
-    # Dynamic 16 Tables Sync Structure
+    # 16-Table Synchronized Architecture
     tables_16 = [
         "tb_01_users", "tb_02_interactions", "tb_03_image_posts", "tb_04_long_videos", 
         "tb_05_short_videos", "tb_06_islamic_short_videos", "tb_07_islamic_long_videos",
@@ -152,13 +154,13 @@ def init_all_tables():
     if not cursor.fetchone():
         owner_pass = hashlib.sha256("OwnerMasterKey2026#".encode()).hexdigest()
         cursor.execute("""
-            INSERT INTO global_sovereign_vault (vault_id, username, phone_number, hashed_password, security_tier, created_at)
-            VALUES ('vault_owner_01', 'system_owner', '01722003172', ?, 999, ?)
+            INSERT INTO global_sovereign_vault (vault_id, username, phone_number, country, hashed_password, security_tier, created_at)
+            VALUES ('vault_owner_01', 'system_owner', '01722003172', 'Global HQ', ?, 999, ?)
         """, (owner_pass, datetime.now().strftime("%Y-%m-%d")))
         
         cursor.execute("""
-            INSERT OR IGNORE INTO users (username, phone_number, full_name, is_verified, created_at)
-            VALUES ('system_owner', '01722003172', 'System Owner', 1, ?)
+            INSERT OR IGNORE INTO users (username, phone_number, full_name, country, is_verified, created_at)
+            VALUES ('system_owner', '01722003172', 'System Owner', 'Global HQ', 1, ?)
         """, (datetime.now().strftime("%Y-%m-%d"),))
 
     conn.commit()
@@ -167,21 +169,29 @@ def init_all_tables():
 init_all_tables()
 
 # ==========================================
-# 3. AI GUARD & AUTO-MODERATION ENGINE
+# 3. AI GUARD, GEO-BLOCK & AUTONOMOUS MODERATION
 # ==========================================
 BANNED_WORDS = ["sex", "adult", "18+", "porn", "nude", "tiktok", "youtube", "facebook", "reels", "shorts", "stolen", "watermark"]
 
+# Allowed Country List (Israel Excluded & Blocked)
+ALLOWED_COUNTRIES = [
+    "United States", "United Kingdom", "Canada", "Australia", "Bangladesh", "Saudi Arabia", 
+    "United Arab Emirates", "Qatar", "Kuwait", "Oman", "Bahrain", "Malaysia", "Indonesia", 
+    "Pakistan", "Turkey", "Germany", "France", "Italy", "Japan", "South Korea", "China", 
+    "Brazil", "South Africa", "Nigeria", "Egypt", "Singapore", "Others (Global)"
+]
+
 def ai_content_shield(title, description, tags, file_name):
-    """শক্তিশালী AI গার্ডিয়ান যা কন্টেন্ট পর্যবেক্ষণ করে"""
+    """AI Guardian Engine for Auto Moderation"""
     full_text = f"{title} {description} {tags} {file_name}".lower()
     
     for word in BANNED_WORDS:
         if word in full_text:
-            return False, f"⚠️ AI নিরাপত্তা ব্যবস্থা দ্বারা ব্লক করা হয়েছে! কারণ: অশালীন বা অন্য প্ল্যাটফর্ম (YouTube/TikTok/Facebook) থেকে নেওয়া কপিরাইট ফাইল ব্যবহার নিষিদ্ধ।"
+            return False, f"⚠️ Blocked by AI Security Protocol! Reason: Inappropriate content or copyrighted media from external platforms (YouTube/TikTok/Facebook) is strictly prohibited."
     return True, "OK"
 
 def check_upload_limit(username, upload_type):
-    """দৈনিক লিমিট লজিক: শর্ট ১টি, লং ১টি, পোস্ট ১০টি"""
+    """Daily Limit Logic: 1 Short, 1 Long Video, 10 Posts"""
     today = datetime.now().strftime("%Y-%m-%d")
     conn = get_db_connection()
     c = conn.cursor()
@@ -191,11 +201,11 @@ def check_upload_limit(username, upload_type):
     conn.close()
 
     if upload_type == "post" and res >= 10:
-        return False, "⚠️ আজকের জন্য আপনার ১০টি পোস্টের লিমিট শেষ!"
+        return False, "⚠️ Daily limit reached! You can only publish 10 posts per day."
     elif upload_type == "short" and res >= 1:
-        return False, "⚠️ আজকের জন্য আপনার ১টি শর্টস ভিডিও আপলোড করার লিমিট শেষ!"
+        return False, "⚠️ Daily limit reached! You can only upload 1 Short video per day."
     elif upload_type == "long" and res >= 1:
-        return False, "⚠️ আজকের জন্য আপনার ১টি লং ভিডিও আপলোড করার লিমিট শেষ!"
+        return False, "⚠️ Daily limit reached! You can only upload 1 Long video per day."
     
     return True, "OK"
 
@@ -209,7 +219,7 @@ def record_upload(username, upload_type):
     conn.close()
 
 def sync_to_16_tables(content_id, username, title, path, target_table):
-    """১৬টি টেবিলে অটো-কানেকশন সিঙ্ক"""
+    """Automatic 16-Table Pipeline Sync"""
     conn = get_db_connection()
     c = conn.cursor()
     c.execute(f"INSERT OR REPLACE INTO {target_table} (id, username, content_title, media_path, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -220,7 +230,7 @@ def sync_to_16_tables(content_id, username, title, path, target_table):
     conn.close()
 
 def apply_user_penalty(username):
-    """১ মাসের ব্যান অথবা অ্যাকাউন্ট ডিলিট অ্যালগরিদম"""
+    """1-Month Suspension or Permanent Deletion Algorithm"""
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT violations_count FROM users WHERE username = ?", (username,))
@@ -228,22 +238,22 @@ def apply_user_penalty(username):
     v_count = (row["violations_count"] + 1) if row else 1
 
     if v_count >= 2:
-        # স্থায়ীভাবে চ্যানেল ও অ্যাকাউন্ট ডিলিট
+        # Permanent Account & Content Deletion
         c.execute("DELETE FROM users WHERE username = ?", (username,))
         c.execute("DELETE FROM global_sovereign_vault WHERE username = ?", (username,))
         c.execute("DELETE FROM posts WHERE uploader_name = ?", (username,))
         c.execute("DELETE FROM videos WHERE uploader_name = ?", (username,))
         conn.commit()
         conn.close()
-        return "❌ বার বারবার নীতি লঙ্ঘনের কারণে আপনার অ্যাকাউন্ট এবং ভিডিও স্থায়ীভাবে ডিলিট করা হয়েছে!"
+        return "❌ Your account and contents have been permanently deleted due to repeated policy violations!"
     else:
-        # ১ মাসের জন্য সাসপেন্ড
+        # 1-Month Ban
         ban_date = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
         c.execute("UPDATE users SET is_banned = 1, ban_until = ?, violations_count = ? WHERE username = ?", 
                   (ban_date, v_count, username))
         conn.commit()
         conn.close()
-        return "⚠️ প্ল্যাটফর্মের নীতি লঙ্ঘনের কারণে আপনাকে ১ মাসের জন্য ব্যান করা হয়েছে!"
+        return "⚠️ You have been banned for 1 month due to policy violations!"
 
 # ==========================================
 # 4. HELPER FUNCTIONS
@@ -256,13 +266,6 @@ def get_setting(key, default=None):
     conn.close()
     return row["value"] if row else default
 
-def set_setting(key, value):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)", (key, value))
-    conn.commit()
-    conn.close()
-
 def get_image_base64(image_path):
     if image_path and os.path.exists(image_path):
         try:
@@ -272,7 +275,7 @@ def get_image_base64(image_path):
             return None
     return None
 
-def register_or_get_user(username, phone_number=None):
+def register_or_get_user(username, phone_number=None, country="Global"):
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM users WHERE username = ?", (username,))
@@ -283,8 +286,8 @@ def register_or_get_user(username, phone_number=None):
         user_count = c.fetchone()["total"]
         auto_verify = 1 if user_count < 1000 else 0
         
-        c.execute("INSERT INTO users (username, phone_number, full_name, is_verified, created_at) VALUES (?, ?, ?, ?, ?)",
-                  (username, phone_number, username, auto_verify, datetime.now().strftime("%Y-%m-%d")))
+        c.execute("INSERT INTO users (username, phone_number, full_name, country, is_verified, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                  (username, phone_number, username, country, auto_verify, datetime.now().strftime("%Y-%m-%d")))
         conn.commit()
         c.execute("SELECT * FROM users WHERE username = ?", (username,))
         user = c.fetchone()
@@ -295,27 +298,28 @@ def register_or_get_user(username, phone_number=None):
 def show_verified_profile(display_name, profile_pic_path=None, subtitle="Member"):
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT is_verified FROM users WHERE username = ?", (display_name,))
+    c.execute("SELECT is_verified, country FROM users WHERE username = ?", (display_name,))
     u_data = c.fetchone()
     conn.close()
     
     is_verified = u_data["is_verified"] if u_data else False
+    user_country = u_data["country"] if u_data and u_data["country"] else "Global"
     b64_img = get_image_base64(profile_pic_path)
     img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid #00c853;">' if b64_img else '<div style="width:45px; height:45px; border-radius:50%; background:#2a2a2a; color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px;">👤</div>'
-    tick = '<span style="color:#1da1f2; font-weight:bold; margin-left:6px;" title="Verified">✔️</span>' if is_verified else ''
+    tick = '<span style="color:#1da1f2; font-weight:bold; margin-left:6px;" title="Verified Creator">✔️</span>' if is_verified else ''
     
     st.markdown(f"""
         <div style="display:flex; align-items:center; gap:12px; background: #18191a; padding: 10px; border-radius: 10px; border: 1px solid #2d2f31; margin-bottom: 12px;">
             {img_html}
             <div>
                 <div style="font-weight:bold; color:#e4e6eb; font-size: 16px;">{display_name} {tick}</div>
-                <div style="color:#b0b3b8; font-size:12px;">{subtitle}</div>
+                <div style="color:#b0b3b8; font-size:12px;">{subtitle} • 🌐 {user_country}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# 5. CUSTOM STYLING & HEADER RENDER
+# 5. CUSTOM UI STYLING
 # ==========================================
 st.markdown("""
     <style>
@@ -330,15 +334,15 @@ if custom_header_path and os.path.exists(custom_header_path):
     st.markdown(f"""
         <div style="text-align: center; padding: 10px 0;">
             <img src="data:image/jpeg;base64,{b64_logo}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid #00c853;">
-            <h1 style="color: #00c853; font-weight: 900; margin-top: 5px;">🛡️ BD AI Book — Enterprise Master Hub 🛡️</h1>
-            <p style="color: #b0b3b8; margin: 0;">Autonomous AI & 16-Table Master Pipeline Hub</p>
+            <h1 style="color: #00c853; font-weight: 900; margin-top: 5px;">🛡️ BD AI Book — Enterprise Global Hub 🛡️</h1>
+            <p style="color: #b0b3b8; margin: 0;">Autonomous AI & 16-Table Global Pipeline Hub</p>
         </div>
     """, unsafe_allow_html=True)
 else:
     st.markdown("""
         <div style="text-align: center; padding: 10px 0;">
-            <h1 style="color: #00c853; font-weight: 900; margin: 0;">🛡️ BD AI Book — Enterprise Master Hub 🛡️</h1>
-            <p style="color: #b0b3b8; margin: 0;">Autonomous AI & 16-Table Master Pipeline Hub</p>
+            <h1 style="color: #00c853; font-weight: 900; margin: 0;">🛡️ BD AI Book — Enterprise Global Hub 🛡️</h1>
+            <p style="color: #b0b3b8; margin: 0;">Autonomous AI & 16-Table Global Pipeline Hub</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -350,7 +354,7 @@ if "active_tab" not in st.session_state:
     st.session_state.active_tab = "🌍 World Feed"
 
 # ==========================================
-# 6. SIDEBAR AUTHENTICATION & INSTANT ACCESS
+# 6. SIDEBAR AUTHENTICATION & GLOBAL ACCESS
 # ==========================================
 st.sidebar.markdown("### 🔍 Search Feed")
 search_query = st.sidebar.text_input("Search content or Secret Code...", key="search_query")
@@ -362,7 +366,7 @@ if search_query.strip() == SECRET_OWNER_KEY:
 st.sidebar.markdown("---")
 st.sidebar.header("🔐 Portal Access & Auth")
 
-available_modes = ["Login (Phone & Password)", "Register (Phone, Gmail & Face)"]
+available_modes = ["Login (Phone & Password)", "Register (Global Account)"]
 if st.session_state.user == "system_owner":
     available_modes.append("👑 Owner Exclusive Portal")
 
@@ -380,33 +384,38 @@ if mode == "Login (Phone & Password)":
         conn.close()
         if vault_user:
             st.session_state.user = vault_user["username"]
-            register_or_get_user(vault_user["username"], login_phone)
+            register_or_get_user(vault_user["username"], login_phone, vault_user["country"])
             st.sidebar.success(f"✅ Welcome, {vault_user['username']}!")
             st.rerun()
         else:
             st.sidebar.error("❌ Invalid Phone Number or Password!")
 
-elif mode == "Register (Phone, Gmail & Face)":
+elif mode == "Register (Global Account)":
     reg_user = st.sidebar.text_input("Username")
-    reg_phone = st.sidebar.text_input("Mobile Number")
+    reg_phone = st.sidebar.text_input("Mobile Number (with Country Code)")
     reg_gmail = st.sidebar.text_input("Gmail Address")
+    reg_country = st.sidebar.selectbox("Select Country", ALLOWED_COUNTRIES)
     reg_pass = st.sidebar.text_input("Password", type="password")
 
     if st.sidebar.button("Register & Sync"):
-        if reg_user and reg_phone and reg_pass:
+        if reg_country == "Israel":
+            st.sidebar.error("❌ Service Unavailable in this region.")
+        elif reg_user and reg_phone and reg_pass and reg_gmail:
             conn = get_db_connection()
             cursor = conn.cursor()
             try:
                 hashed_pass = hashlib.sha256(reg_pass.encode()).hexdigest()
-                cursor.execute("INSERT INTO global_sovereign_vault (vault_id, username, phone_number, gmail_address, hashed_password, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                               (f"vault_{uuid.uuid4().hex[:8]}", reg_user, reg_phone, reg_gmail, hashed_pass, datetime.now().strftime("%Y-%m-%d")))
+                cursor.execute("INSERT INTO global_sovereign_vault (vault_id, username, phone_number, gmail_address, country, hashed_password, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                               (f"vault_{uuid.uuid4().hex[:8]}", reg_user, reg_phone, reg_gmail, reg_country, hashed_pass, datetime.now().strftime("%Y-%m-%d")))
                 conn.commit()
-                register_or_get_user(reg_user, reg_phone)
-                st.sidebar.success("🎉 Registered successfully!")
+                register_or_get_user(reg_user, reg_phone, reg_country)
+                st.sidebar.success("🎉 Registration successful! Please log in.")
             except Exception:
-                st.sidebar.error("User or Phone number already exists!")
+                st.sidebar.error("User, Gmail, or Phone number already exists!")
             finally:
                 conn.close()
+        else:
+            st.sidebar.warning("Please fill in all required fields.")
 
 if st.session_state.user:
     st.sidebar.markdown(f"Active User: **{st.session_state.user}**")
@@ -415,7 +424,7 @@ if st.session_state.user:
         st.session_state.active_tab = "🌍 World Feed"
         st.rerun()
 
-# Navigation List
+# Navigation Tabs
 nav_tabs = ["🌍 World Feed (FB Style)", "📱 TikTok Shorts Feed", "📺 YouTube Long Feed", "💳 Monetization & Earnings", "👤 My Profile & Channel", "📤 Upload Studio"]
 if st.session_state.user == "system_owner":
     nav_tabs.append("👑 Owner Control Center")
@@ -425,12 +434,12 @@ tab = st.sidebar.radio("Navigation", nav_tabs, index=current_index)
 st.session_state.active_tab = tab
 
 # ==========================================
-# 7. MAIN APPLICATION PANELS
+# 7. MAIN APPLICATION FEEDS
 # ==========================================
 
 # --- Facebook Style Feed ---
 if tab == "🌍 World Feed (FB Style)":
-    st.markdown("### 🌍 Facebook Style Post Feed")
+    st.markdown("### 🌍 Global Post Feed")
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM posts ORDER BY created_at DESC")
@@ -438,7 +447,7 @@ if tab == "🌍 World Feed (FB Style)":
     conn.close()
 
     if not posts:
-        st.info("No posts available.")
+        st.info("No posts available in the global feed.")
 
     for item in posts:
         st.markdown('<div class="feed-card">', unsafe_allow_html=True)
@@ -470,7 +479,7 @@ if tab == "🌍 World Feed (FB Style)":
 
 # --- TikTok Shorts Feed ---
 elif tab == "📱 TikTok Shorts Feed":
-    st.markdown("### 📱 TikTok Style Shorts Feed")
+    st.markdown("### 📱 Global Shorts Feed")
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM videos WHERE video_type = 'short' ORDER BY created_at DESC")
@@ -483,7 +492,6 @@ elif tab == "📱 TikTok Shorts Feed":
         st.markdown(f"**{vid.get('title', '')}**")
         st.caption(vid.get('description', ''))
         
-        # Auto Boosted High Views and Likes Display
         views_display = vid.get('views', 0) + 125000 
         likes_display = vid.get('likes', 0) + 48000
         
@@ -494,7 +502,7 @@ elif tab == "📱 TikTok Shorts Feed":
 
 # --- YouTube Long Feed ---
 elif tab == "📺 YouTube Long Feed":
-    st.markdown("### 📺 YouTube Style Long Video Feed")
+    st.markdown("### 📺 Long Videos Feed")
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM videos WHERE video_type = 'long' ORDER BY created_at DESC")
@@ -518,9 +526,8 @@ elif tab == "📺 YouTube Long Feed":
 elif tab == "📤 Upload Studio":
     st.markdown("### 📤 Creator Upload Studio")
     if not st.session_state.user:
-        st.warning("আপলোড করতে আগে লগইন করুন।")
+        st.warning("Please log in to upload content.")
     else:
-        # Check User Ban
         conn = get_db_connection()
         c = conn.cursor()
         c.execute("SELECT is_banned, ban_until FROM users WHERE username = ?", (st.session_state.user,))
@@ -528,16 +535,16 @@ elif tab == "📤 Upload Studio":
         conn.close()
 
         if u_info and u_info["is_banned"]:
-            st.error(f"❌ আপনি {u_info['ban_until']} তারিখ পর্যন্ত ব্যান হয়ে আছেন! কোনো ফাইল আপলোড করতে পারবেন না।")
+            st.error(f"❌ Your account is suspended until {u_info['ban_until']}. You cannot upload media.")
         else:
-            upload_type = st.selectbox("কন্টেন্ট ক্যাটাগরি বেছে নিন", ["Facebook Post (Image/Text)", "TikTok Short Reel", "YouTube Long Video (20-25 Mins)"])
-            title_in = st.text_input("টাইটেল (Title)")
-            desc_in = st.text_area("ডিসক্রিপশন (Description)")
-            tags_in = st.text_input("ট্যাগস (Tags)")
+            upload_type = st.selectbox("Select Content Category", ["Facebook Post (Image/Text)", "TikTok Short Reel", "YouTube Long Video (20-25 Mins)"])
+            title_in = st.text_input("Title")
+            desc_in = st.text_area("Description")
+            tags_in = st.text_input("Tags")
 
             if upload_type == "Facebook Post (Image/Text)":
-                file_up = st.file_uploader("ছবি সিলেক্ট করুন", type=["jpg", "jpeg", "png"])
-                if st.button("Publish Facebook Post"):
+                file_up = st.file_uploader("Select Image", type=["jpg", "jpeg", "png"])
+                if st.button("Publish Post"):
                     allowed, msg = check_upload_limit(st.session_state.user, "post")
                     if not allowed:
                         st.error(msg)
@@ -563,12 +570,12 @@ elif tab == "📤 Upload Studio":
 
                             record_upload(st.session_state.user, "post")
                             sync_to_16_tables(f_id, st.session_state.user, title_in, save_path, "tb_03_image_posts")
-                            st.success("✅ পোস্ট সফলভাবে প্রকাশিত হয়েছে!")
+                            st.success("✅ Post published successfully!")
                             st.rerun()
 
             elif upload_type in ["TikTok Short Reel", "YouTube Long Video (20-25 Mins)"]:
                 v_type = "short" if upload_type == "TikTok Short Reel" else "long"
-                vid_up = st.file_uploader("ভিডিও সিলেক্ট করুন (ক্যামেরা দিয়ে তোলা ভিডিও)", type=["mp4", "mov", "avi"])
+                vid_up = st.file_uploader("Select Video File (Original Recorded Video)", type=["mp4", "mov", "avi"])
                 
                 if st.button("Publish Video"):
                     allowed, msg = check_upload_limit(st.session_state.user, v_type)
@@ -595,26 +602,26 @@ elif tab == "📤 Upload Studio":
                             record_upload(st.session_state.user, v_type)
                             target_tb = "tb_05_short_videos" if v_type == "short" else "tb_04_long_videos"
                             sync_to_16_tables(v_id, st.session_state.user, title_in, save_path, target_tb)
-                            st.success("✅ ভিডিও সফলভাবে আপলোড এবং ১৬টি টেবিলে সিঙ্ক হয়েছে!")
+                            st.success("✅ Video uploaded and synced across 16 master tables successfully!")
                             st.rerun()
 
 # --- Monetization ---
 elif tab == "💳 Monetization & Earnings":
-    st.markdown("### 💳 মনিটাইজেশন ও আয় ট্র্যাকার")
+    st.markdown("### 💳 Monetization & Earnings Hub")
     st.markdown("""
-        **মনিটাইজেশন পাওয়ার নিয়মসমূহ:**
-        * 🕒 ৩০০ ঘন্টা ওয়াচ টাইম
-        * 👥 ৩০০ ফলোয়ার
-        * 👁️ ১ লক্ষ ভিউ (শর্টস ভিডিওর জন্য)
+        **Creator Monetization Requirements:**
+        * 🕒 300 Hours Watch Time
+        * 👥 300 Global Followers
+        * 👁️ 100,000 Views (For Shorts Media)
     """)
     if st.session_state.user:
         u_data = register_or_get_user(st.session_state.user)
-        st.write(f"বর্তমান স্টেটাস: **{u_data.get('monetization_status', 'Pending')}**")
-        st.metric("মোট আয়", f"${u_data.get('earnings', 0.0):.2f}")
+        st.write(f"Monetization Status: **{u_data.get('monetization_status', 'Pending')}**")
+        st.metric("Total Revenue", f"${u_data.get('earnings', 0.0):.2f}")
 
 # --- Owner Control Center ---
 elif tab == "👑 Owner Control Center":
-    st.markdown("### 👑 Owner Master Control Center")
+    st.markdown("### 👑 Master Control Center")
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT COUNT(*) as total_users FROM users")
@@ -626,6 +633,6 @@ elif tab == "👑 Owner Control Center":
     conn.close()
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Total Users", total_users)
-    col2.metric("Total Posts", total_posts)
-    col3.metric("Total Videos", total_vids)
+    col1.metric("Total Registered Users", total_users)
+    col2.metric("Total Global Posts", total_posts)
+    col3.metric("Total Videos Published", total_vids)
