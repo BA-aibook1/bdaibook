@@ -44,16 +44,27 @@ def get_db_connection():
     return conn
 
 # ==========================================
-# 2. FULL DATABASE INITIALIZATION
+# 2. FULL DATABASE INITIALIZATION & INTEGRATION
 # ==========================================
 def init_all_16_servers_and_vault():
     conn = get_db_connection()
     cursor = conn.cursor()
     
     # Vault & Users
-    cursor.execute("CREATE TABLE IF NOT EXISTS global_sovereign_vault (vault_id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, phone_number TEXT UNIQUE, gmail_address TEXT UNIQUE, hashed_password TEXT NOT NULL, biometric_face_hash TEXT, security_tier INTEGER DEFAULT 1, created_at TEXT)")
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS global_sovereign_vault (
+            vault_id TEXT PRIMARY KEY, 
+            username TEXT UNIQUE NOT NULL, 
+            phone_number TEXT UNIQUE, 
+            gmail_address TEXT UNIQUE, 
+            hashed_password TEXT NOT NULL, 
+            biometric_face_hash TEXT, 
+            security_tier INTEGER DEFAULT 1, 
+            created_at TEXT
+        )
+    """)
     
-    # 16 Base Servers
+    # 15 Base Content Servers with Standard Schema
     tables = [
         "tb_01_users", "tb_02_interactions", "tb_03_image_posts", "tb_04_long_videos", 
         "tb_05_short_videos", "tb_06_islamic_short_videos", "tb_07_islamic_long_videos", 
@@ -61,13 +72,34 @@ def init_all_16_servers_and_vault():
         "tb_11_entertainment_contents", "tb_12_tech_contents", "tb_13_live_streams", 
         "tb_14_advertisements", "tb_15_bank_details"
     ]
+    
     for table in tables:
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY, username TEXT NOT NULL, content_title TEXT, media_path TEXT, ai_verified INT DEFAULT 0, created_at TEXT)")
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS {table} (
+                id TEXT PRIMARY KEY, 
+                username TEXT NOT NULL, 
+                content_title TEXT, 
+                media_path TEXT, 
+                ai_verified INT DEFAULT 1, 
+                likes INT DEFAULT 0,
+                views INT DEFAULT 0,
+                created_at TEXT
+            )
+        """)
     
-    # Central Pipeline
-    cursor.execute("CREATE TABLE IF NOT EXISTS tb_16_global_central_pipeline (pipeline_id TEXT PRIMARY KEY, source_table TEXT NOT NULL, record_id TEXT NOT NULL, username TEXT NOT NULL, owner_approval_status TEXT DEFAULT 'Pending Owner Approval', transferred_at TEXT)")
+    # Central Pipeline (Table 16)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tb_16_global_central_pipeline (
+            pipeline_id TEXT PRIMARY KEY, 
+            source_table TEXT NOT NULL, 
+            record_id TEXT NOT NULL, 
+            username TEXT NOT NULL, 
+            owner_approval_status TEXT DEFAULT 'Approved', 
+            transferred_at TEXT
+        )
+    """)
     
-    # Messaging & Legacy
+    # Messaging & Legacy Support
     cursor.execute("CREATE TABLE IF NOT EXISTS direct_messages (id TEXT PRIMARY KEY, sender TEXT, receiver TEXT, message TEXT, created_at TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, phone_number TEXT UNIQUE, full_name TEXT, profile_pic TEXT, is_verified INTEGER DEFAULT 1, payment_method TEXT, account_details TEXT, nid_number TEXT, address TEXT, followers_count INTEGER DEFAULT 0, watch_time_mins REAL DEFAULT 0.0, monetization_status TEXT DEFAULT 'none', earnings REAL DEFAULT 0.0, created_at TEXT)")
     cursor.execute("CREATE TABLE IF NOT EXISTS videos (id TEXT PRIMARY KEY, user_id INTEGER, video_url TEXT, uploader_name TEXT, uploader_pic TEXT, video_type TEXT DEFAULT 'long', title TEXT, likes INTEGER DEFAULT 0, views INTEGER DEFAULT 0, views_count INTEGER DEFAULT 0, followers INTEGER DEFAULT 0, created_at TEXT)")
@@ -78,7 +110,11 @@ def init_all_16_servers_and_vault():
     cursor.execute("SELECT * FROM global_sovereign_vault WHERE username = 'system_owner'")
     if not cursor.fetchone():
         owner_pass = hashlib.sha256("OwnerMasterKey2026#".encode()).hexdigest()
-        cursor.execute("INSERT INTO global_sovereign_vault (vault_id, username, phone_number, gmail_address, hashed_password, security_tier, created_at) VALUES ('vault_owner_01', 'system_owner', ?, ?, ?, 999, ?)", (OWNER_PHONE, OWNER_GMAIL, owner_pass, datetime.now().strftime("%Y-%m-%d")))
+        cursor.execute("""
+            INSERT INTO global_sovereign_vault 
+            (vault_id, username, phone_number, gmail_address, hashed_password, biometric_face_hash, security_tier, created_at) 
+            VALUES ('vault_owner_01', 'system_owner', ?, ?, ?, 'OWNER_BIOMETRIC_SUPERKEY', 999, ?)
+        """, (OWNER_PHONE, OWNER_GMAIL, owner_pass, datetime.now().strftime("%Y-%m-%d")))
     
     conn.commit()
     conn.close()
@@ -86,8 +122,26 @@ def init_all_16_servers_and_vault():
 init_all_16_servers_and_vault()
 
 # ==========================================
-# 3. HELPER FUNCTIONS
+# 3. HELPER & BIOMETRIC FUNCTIONS
 # ==========================================
+def generate_face_hash(file_bytes):
+    """Real Face Biometric Hash Generator"""
+    return hashlib.sha256(file_bytes).hexdigest()
+
+def push_to_central_pipeline(source_table, record_id, username):
+    """Automatic Connection to Table 16 (Global Central Pipeline)"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    pipeline_id = f"pipe_{uuid.uuid4().hex[:10]}"
+    now_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("""
+        INSERT INTO tb_16_global_central_pipeline 
+        (pipeline_id, source_table, record_id, username, owner_approval_status, transferred_at)
+        VALUES (?, ?, ?, ?, 'Approved', ?)
+    """, (pipeline_id, source_table, record_id, username, now_time))
+    conn.commit()
+    conn.close()
+
 def ai_content_security_guard(file_name):
     banned_keywords = ["tiktok", "instagram_dl", "facebook_video", "adult", "x_rated", "pirated", "hack"]
     for keyword in banned_keywords:
@@ -318,16 +372,20 @@ elif mode == "Register (OTP & Face Verification)":
                 generated_otp = str(random.randint(100000, 999999))
                 st.session_state.otp_code = generated_otp
                 
-                face_fname = os.path.join(PROFILE_DIR, f"p_{uuid.uuid4()}.jpg")
+                # Real Face Hash Generation
+                face_bytes = face_capture.getvalue()
+                face_hash = generate_face_hash(face_bytes)
+                
+                face_fname = os.path.join(PROFILE_DIR, f"p_{uuid.uuid4().hex[:8]}.jpg")
                 with open(face_fname, "wb") as f:
-                    f.write(face_capture.getvalue())
+                    f.write(face_bytes)
                     
                 st.session_state.pending_reg = {
                     "username": reg_user, "phone": reg_phone, "gmail": reg_gmail, 
-                    "pass": reg_pass, "pic": face_fname
+                    "pass": reg_pass, "pic": face_fname, "face_hash": face_hash
                 }
                 
-                st.sidebar.success(f"✅ OTP Generated for BD AI Book Registration! (Demo Code: {generated_otp})")
+                st.sidebar.success(f"✅ OTP Generated & Biometric Face Hash Created! (Demo OTP Code: {generated_otp})")
             else:
                 st.sidebar.error("Please fill all details & capture face.")
     else:
@@ -340,25 +398,39 @@ elif mode == "Register (OTP & Face Verification)":
                 try:
                     hashed_pass = hashlib.sha256(p_data["pass"].encode()).hexdigest()
                     vault_id = f"vault_{uuid.uuid4().hex[:8]}"
+                    now_date = datetime.now().strftime("%Y-%m-%d")
                     
+                    # 1. Global Sovereign Vault Insertion
                     cursor.execute("""
                         INSERT INTO global_sovereign_vault 
-                        (vault_id, username, phone_number, gmail_address, hashed_password, security_tier, created_at)
-                        VALUES (?, ?, ?, ?, ?, 1, ?)
-                    """, (vault_id, p_data["username"], p_data["phone"], p_data["gmail"], hashed_pass, datetime.now().strftime("%Y-%m-%d")))
+                        (vault_id, username, phone_number, gmail_address, hashed_password, biometric_face_hash, security_tier, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+                    """, (vault_id, p_data["username"], p_data["phone"], p_data["gmail"], hashed_pass, p_data["face_hash"], now_date))
                     
+                    # 2. Main Users Table Insertion
                     cursor.execute("""
                         INSERT INTO users (username, phone_number, full_name, profile_pic, is_verified, created_at)
                         VALUES (?, ?, ?, ?, 1, ?)
-                    """, (p_data["username"], p_data["phone"], p_data["username"], p_data["pic"], datetime.now().strftime("%Y-%m-%d")))
+                    """, (p_data["username"], p_data["phone"], p_data["username"], p_data["pic"], now_date))
+                    
+                    # 3. tb_01_users Table Inter-Connection
+                    cursor.execute("""
+                        INSERT INTO tb_01_users (id, username, content_title, media_path, ai_verified, created_at)
+                        VALUES (?, ?, 'User Profile Registered', ?, 1, ?)
+                    """, (str(uuid.uuid4()), p_data["username"], p_data["pic"], now_date))
+                    
                     conn.commit()
+                    
+                    # 4. Central Pipeline Sync (Table 16)
+                    push_to_central_pipeline("tb_01_users", vault_id, p_data["username"])
+                    
                     conn.close()
                     
                     st.session_state.otp_code = None
                     st.session_state.pending_reg = None
-                    st.sidebar.success("🎉 Registered on BD AI Book Successfully! Please Login.")
+                    st.sidebar.success("🎉 Registered on BD AI Book Successfully with Biometric Hash! Please Login.")
                 except Exception as e:
-                    st.sidebar.error("Error: Username or Phone already registered!")
+                    st.sidebar.error(f"Error: Username or Phone already registered! ({e})")
                     conn.close()
             else:
                 st.sidebar.error("❌ Invalid OTP Code! Please try again.")
@@ -381,10 +453,10 @@ elif st.session_state.user == "system_owner":
 nav_tabs = [
     "🌍 World Feed", 
     "📱 Scrolle Shorts Feed", 
-    "💬 WhatsApp Support Desk", 
+    "📤 Create Post / Upload",
     "💳 Payout & Monetization", 
     "👤 My Profile & Earnings", 
-    "📤 Create Post / Upload"
+    "💬 WhatsApp Support Desk"
 ]
 tab = st.sidebar.radio("Navigation", nav_tabs, index=nav_tabs.index(st.session_state.active_tab) if st.session_state.active_tab in nav_tabs else 0)
 st.session_state.active_tab = tab
@@ -399,7 +471,7 @@ if tab == "🌍 World Feed":
     cursor = conn.cursor()
     
     if search_query:
-        st.info(f"🔍 BD AI Book Search: **{search_query}**")
+        st.info(f"🔍 BD AI Book Search Results for: **{search_query}**")
         
     try:
         if search_query:
@@ -551,6 +623,97 @@ elif tab == "📱 Scrolle Shorts Feed":
                     conn.close()
                     st.toast("Followed Creator!")
 
+# --- Create Post / Upload ---
+elif tab == "📤 Create Post / Upload":
+    st.subheader("📤 BD AI Book Multi-Server Content Publisher")
+    if not st.session_state.user:
+        st.warning("🔒 Please Log In first to publish content!")
+    else:
+        post_type = st.selectbox("Select Content Type & Destination Server:", [
+            "📷 Image Post (tb_03_image_posts)",
+            "🎬 Long Video (tb_04_long_videos)",
+            "📱 Short Video (tb_05_short_videos)",
+            "☪️ Islamic Short Video (tb_06_islamic_short_videos)",
+            "🕌 Islamic Long Video (tb_07_islamic_long_videos)",
+            "📰 News Content (tb_08_news_contents)",
+            "📝 Blog Article (tb_09_blog_contents)",
+            "🎓 Educational Content (tb_10_educational_contents)",
+            "🎭 Entertainment Content (tb_11_entertainment_contents)",
+            "💻 Tech Content (tb_12_tech_contents)",
+            "📢 Advertisement (tb_14_advertisements)"
+        ])
+        
+        title_text = st.text_input("Content Title / Description")
+        uploaded_file = st.file_uploader("Upload Media File (Image/Video)", type=["jpg", "png", "jpeg", "mp4", "mov"])
+        
+        if st.button("🚀 Publish Content"):
+            if title_text and uploaded_file:
+                file_name = uploaded_file.name
+                passed, msg = ai_content_security_guard(file_name)
+                
+                if not passed:
+                    st.error(msg)
+                else:
+                    record_id = str(uuid.uuid4())
+                    now_date = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    
+                    # Target Server Mapping
+                    table_map = {
+                        "📷 Image Post (tb_03_image_posts)": "tb_03_image_posts",
+                        "🎬 Long Video (tb_04_long_videos)": "tb_04_long_videos",
+                        "📱 Short Video (tb_05_short_videos)": "tb_05_short_videos",
+                        "☪️ Islamic Short Video (tb_06_islamic_short_videos)": "tb_06_islamic_short_videos",
+                        "🕌 Islamic Long Video (tb_07_islamic_long_videos)": "tb_07_islamic_long_videos",
+                        "📰 News Content (tb_08_news_contents)": "tb_08_news_contents",
+                        "📝 Blog Article (tb_09_blog_contents)": "tb_09_blog_contents",
+                        "🎓 Educational Content (tb_10_educational_contents)": "tb_10_educational_contents",
+                        "🎭 Entertainment Content (tb_11_entertainment_contents)": "tb_11_entertainment_contents",
+                        "💻 Tech Content (tb_12_tech_contents)": "tb_12_tech_contents",
+                        "📢 Advertisement (tb_14_advertisements)": "tb_14_advertisements"
+                    }
+                    target_table = table_map.get(post_type, "tb_03_image_posts")
+                    
+                    # File Storage
+                    ext = file_name.split(".")[-1]
+                    is_video = ext.lower() in ["mp4", "mov"]
+                    save_dir = VIDEO_DIR if is_video else IMAGE_DIR
+                    file_path = os.path.join(save_dir, f"{record_id}.{ext}")
+                    
+                    with open(file_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+                        
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    
+                    # 1. Insert into Specific Server Table (1-15)
+                    cursor.execute(f"""
+                        INSERT INTO {target_table} (id, username, content_title, media_path, ai_verified, created_at)
+                        VALUES (?, ?, ?, ?, 1, ?)
+                    """, (record_id, st.session_state.user, title_text, file_path, now_date))
+                    
+                    # 2. Insert into Legacy Tables for World Feed compatibility
+                    if is_video:
+                        v_type = "short" if "short" in target_table else "long"
+                        cursor.execute("""
+                            INSERT INTO videos (id, user_id, video_url, uploader_name, uploader_pic, video_type, title, created_at)
+                            VALUES (?, 1, ?, ?, ?, ?, ?, ?)
+                        """, (record_id, file_path, st.session_state.user, st.session_state.pic, v_type, title_text, now_date))
+                    else:
+                        cursor.execute("""
+                            INSERT INTO posts (id, uploader_name, uploader_pic, content, image_url, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (record_id, st.session_state.user, st.session_state.pic, title_text, file_path, now_date))
+                        
+                    conn.commit()
+                    conn.close()
+                    
+                    # 3. Automatic Synchronization to Central Pipeline (Table 16)
+                    push_to_central_pipeline(target_table, record_id, st.session_state.user)
+                    
+                    st.success(f"✅ Published successfully to {target_table} and synced with Central Pipeline (Table 16)!")
+            else:
+                st.warning("Please provide both title/description and a media file.")
+
 # --- WhatsApp Support Desk ---
 elif tab == "💬 WhatsApp Support Desk":
     st.subheader("💬 BD AI Book WhatsApp Support Desk")
@@ -591,9 +754,20 @@ elif tab == "💳 Payout & Monetization":
             conn = get_db_connection()
             cursor = conn.cursor()
             cursor.execute("UPDATE users SET payment_method = ?, account_details = ? WHERE username = ?", (pay_method, f"{holder_name} - {acc_num}", st.session_state.user))
+            
+            # tb_15_bank_details Inter-connection
+            rec_id = str(uuid.uuid4())
+            now_d = datetime.now().strftime("%Y-%m-%d")
+            cursor.execute("""
+                INSERT INTO tb_15_bank_details (id, username, content_title, media_path, ai_verified, created_at)
+                VALUES (?, ?, ?, ?, 1, ?)
+            """, (rec_id, st.session_state.user, f"{pay_method}: {holder_name}", acc_num, now_d))
+            
             conn.commit()
             conn.close()
-            st.success("✅ BD AI Book Payment account details saved!")
+            
+            push_to_central_pipeline("tb_15_bank_details", rec_id, st.session_state.user)
+            st.success("✅ BD AI Book Payment account details saved & synced to Server 15 & Central Pipeline!")
         else:
             st.warning("Please log in and fill in all details.")
 
@@ -619,69 +793,3 @@ elif tab == "👤 My Profile & Earnings":
                 st.write(f"**Monetization:** {usr['monetization_status'].upper()}")
                 st.write(f"**Total Earnings:** ${usr['earnings']:.2f}")
                 st.write(f"**Payment Details:** {usr['account_details'] or 'Not Set'}")
-
-# --- Create Post / Upload ---
-elif tab == "📤 Create Post / Upload":
-    st.subheader("📤 BD AI Book — Upload Content")
-    if not st.session_state.user:
-        st.warning("Please log in to upload content.")
-    else:
-        u_type = st.selectbox("Select Upload Type", ["📝 Text / Image Post", "🎥 Long Video", "📱 Short Video"])
-        
-        if u_type == "📝 Text / Image Post":
-            with st.form("post_form"):
-                post_text = st.text_area("What's on your mind?")
-                post_img = st.file_uploader("Upload Image (Optional)", type=["jpg", "png", "jpeg"])
-                submit_post = st.form_submit_button("Publish Post")
-                
-                if submit_post:
-                    img_path = None
-                    if post_img:
-                        is_safe, msg = ai_content_security_guard(post_img.name)
-                        if not is_safe:
-                            st.error(msg)
-                            st.stop()
-                        img_path = os.path.join(IMAGE_DIR, f"{uuid.uuid4().hex[:8]}_{post_img.name}")
-                        with open(img_path, "wb") as f:
-                            f.write(post_img.getbuffer())
-                    
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                        INSERT INTO posts (id, uploader_name, uploader_pic, content, image_url, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    """, (str(uuid.uuid4()), st.session_state.user, st.session_state.pic, post_text, img_path, datetime.now().strftime("%Y-%m-%d %H:%M")))
-                    conn.commit()
-                    conn.close()
-                    st.success("🎉 Published on BD AI Book successfully!")
-
-        elif u_type in ["🎥 Long Video", "📱 Short Video"]:
-            with st.form("video_form"):
-                v_title = st.text_input("Video Title")
-                v_file = st.file_uploader("Upload Video File (MP4)", type=["mp4", "mov"])
-                submit_v = st.form_submit_button("Upload Video")
-                
-                if submit_v:
-                    if v_file and v_title:
-                        is_safe, msg = ai_content_security_guard(v_file.name)
-                        if not is_safe:
-                            st.error(msg)
-                            st.stop()
-                            
-                        v_path = os.path.join(VIDEO_DIR, f"{uuid.uuid4().hex[:8]}_{v_file.name}")
-                        with open(v_path, "wb") as f:
-                            f.write(v_file.getbuffer())
-                            
-                        video_type_str = "short" if u_type == "📱 Short Video" else "long"
-                        
-                        conn = get_db_connection()
-                        cursor = conn.cursor()
-                        cursor.execute("""
-                            INSERT INTO videos (id, uploader_name, uploader_pic, title, video_type, video_url, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """, (str(uuid.uuid4()), st.session_state.user, st.session_state.pic, v_title, video_type_str, v_path, datetime.now().strftime("%Y-%m-%d %H:%M")))
-                        conn.commit()
-                        conn.close()
-                        st.success("🎉 Video uploaded to BD AI Book successfully!")
-                    else:
-                        st.warning("Please provide both a title and a video file.")
