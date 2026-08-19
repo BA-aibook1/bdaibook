@@ -397,12 +397,13 @@ if search_query.strip() == SECRET_OWNER_KEY:
 st.sidebar.markdown("---")
 st.sidebar.header("🔐 Mobile Authentication")
 
-available_modes = ["Login (Phone & Password)", "Register (No Gmail Required)"]
+available_modes = ["Login (Phone & Password)", "Register (No Gmail Required)", "🔑 Forgot Password / Pin"]
 if st.session_state.user == "system_owner":
     available_modes.append("👑 Owner Exclusive Portal")
 
 mode = st.sidebar.radio("Select Access Mode", available_modes)
 
+# --- LOGIN MODE ---
 if mode == "Login (Phone & Password)":
     login_phone = st.sidebar.text_input("Mobile Number")
     login_pass = st.sidebar.text_input("Password", type="password")
@@ -426,6 +427,33 @@ if mode == "Login (Phone & Password)":
         else:
             st.sidebar.error("❌ Invalid Phone Number or Password!")
 
+# --- FORGOT PASSWORD / PIN MODE ---
+elif mode == "🔑 Forgot Password / Pin":
+    st.sidebar.subheader("🔄 Reset Forgotten PIN / Password")
+    fp_phone = st.sidebar.text_input("Registered Mobile Number")
+    fp_username = st.sidebar.text_input("Username / Full Name")
+    new_password = st.sidebar.text_input("Enter New Password", type="password")
+    
+    if st.sidebar.button("Reset Password"):
+        if fp_phone and fp_username and new_password:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM global_sovereign_vault WHERE phone_number = ? AND username = ?", (fp_phone.strip(), fp_username.strip()))
+            matched_user = cursor.fetchone()
+            
+            if matched_user:
+                new_hashed_pass = hashlib.sha256(new_password.encode()).hexdigest()
+                cursor.execute("UPDATE global_sovereign_vault SET hashed_password = ? WHERE phone_number = ?", (new_hashed_pass, fp_phone.strip()))
+                conn.commit()
+                conn.close()
+                st.sidebar.success("🎉 Password updated successfully! Now select 'Login' mode to access your account.")
+            else:
+                conn.close()
+                st.sidebar.error("❌ Invalid combination! Mobile number and Username do not match.")
+        else:
+            st.sidebar.warning("⚠️ Please fill in all fields.")
+
+# --- REGISTER MODE ---
 elif mode == "Register (No Gmail Required)":
     reg_user = st.sidebar.text_input("Full Name / Username")
     reg_phone = st.sidebar.text_input("Mobile Number (With Country Code)")
