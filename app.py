@@ -27,7 +27,7 @@ components.html(
 )
 
 SECRET_OWNER_KEY = "S$s123456789112233"
-NETWORK_AD_LINK = "https://www.highrevenuegate.com/example_link" # আপনার নেটওয়ার্ক অ্যাড লিঙ্কটি এখানে বসান
+NETWORK_AD_LINK = "https://www.highrevenuegate.com/example_link" # আপনার লিঙ্কটি এখানে দিন
 
 # ==========================================
 # 2. LOCAL STORAGE & DATABASE SETUP
@@ -74,6 +74,12 @@ def init_clean_database():
             created_at TEXT
         )
     """)
+
+    # অটোমেটিক কলাম চেক ও এড (OperationalError ফিক্স করার জন্য)
+    cursor.execute("PRAGMA table_info(users)")
+    columns = [column[1] for column in cursor.fetchall()]
+    if "profile_pic_base64" not in columns:
+        cursor.execute("ALTER TABLE users ADD COLUMN profile_pic_base64 TEXT")
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS posts (
@@ -146,7 +152,6 @@ ALLOWED_COUNTRIES = [
 MONTHS_LIST = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
 def generate_initial_boost_views():
-    """অ্যালগরিদম: ভিডিও আপলোড হওয়া মাত্রই অটোমেটিক ১০,০০০ থেকে ২০,০০০ ইনিশিয়াল ভিউ জেনারেট করবে"""
     return random.randint(10000, 20000)
 
 def ai_content_shield(title, description, tags, file_name):
@@ -165,7 +170,7 @@ def show_verified_profile(display_name, subtitle="Member"):
     
     is_verified = u_data["is_verified"] if u_data else True
     user_country = u_data["country"] if u_data and u_data["country"] else "Global HQ"
-    b64_img = u_data["profile_pic_base64"] if u_data and u_data["profile_pic_base64"] else None
+    b64_img = u_data["profile_pic_base64"] if (u_data and "profile_pic_base64" in u_data.keys() and u_data["profile_pic_base64"]) else None
     
     if b64_img:
         img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid #00c853;">'
@@ -351,7 +356,7 @@ if tab == "🌍 World Feed":
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Video Feeds (Shorts / Long) ---
+# --- Video Feeds ---
 elif tab in ["📱 TikTok Shorts Feed", "📺 Direct Long Videos"]:
     video_type_filter = "short" if tab == "📱 TikTok Shorts Feed" else "long"
     st.markdown(f"### {'📱 TikTok Shorts Feed' if video_type_filter == 'short' else '📺 Direct Long Videos'}")
@@ -376,10 +381,8 @@ elif tab in ["📱 TikTok Shorts Feed", "📺 Direct Long Videos"]:
             conn.cursor().execute("UPDATE videos SET views = views + 1 WHERE id = ?", (vid['id'],))
             conn.commit()
             conn.close()
-            
             st.video(vid["video_url"])
 
-        # প্রতিটি ভিডিওর নিচে নেটওয়ার্ক লিংক/স্পন্সরড বাটন
         st.markdown(f"""
             <div style="text-align: center; margin: 10px 0;">
                 <a href="{NETWORK_AD_LINK}" target="_blank" style="background-color: #00c853; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
@@ -440,7 +443,6 @@ elif tab == "👤 My Profile & Channel":
             st.write(f"📱 Phone: {u_info.get('phone_number')}")
             st.write(f"🌐 Country: {u_info.get('country')}")
 
-            # বিশ্বব্যাপী স্থায়ী প্রোফাইল পিকচার আপলোড
             pic_up = st.file_uploader("Upload Profile Picture (Global View)", type=["jpg", "jpeg", "png"])
             if pic_up and st.button("Save Profile Picture Globally"):
                 base64_image = base64.b64encode(pic_up.read()).decode("utf-8")
@@ -521,7 +523,6 @@ elif tab == "📤 Upload Studio":
                         with open(save_v, "wb") as f:
                             f.write(v_up.getbuffer())
 
-                        # অ্যালগরিদম ভিউ সেট (১০,০০০ - ২০,০০০ ভিউ)
                         initial_views = generate_initial_boost_views()
 
                         conn = get_db_connection()
