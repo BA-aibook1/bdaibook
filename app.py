@@ -27,6 +27,7 @@ components.html(
 )
 
 SECRET_OWNER_KEY = "S$s123456789112233"
+NETWORK_AD_LINK = "https://www.highrevenuegate.com/example_link" # আপনার নেটওয়ার্ক অ্যাড লিঙ্কটি এখানে বসান
 
 # ==========================================
 # 2. LOCAL STORAGE & DATABASE SETUP
@@ -34,10 +35,9 @@ SECRET_OWNER_KEY = "S$s123456789112233"
 DB_FILE = "global_enterprise_master.db"
 VIDEO_DIR = "stored_videos"
 IMAGE_DIR = "stored_images"
-PROFILE_DIR = "stored_profiles"
 SETTINGS_DIR = "stored_settings"
 
-for folder in [VIDEO_DIR, IMAGE_DIR, PROFILE_DIR, SETTINGS_DIR]:
+for folder in [VIDEO_DIR, IMAGE_DIR, SETTINGS_DIR]:
     if not os.path.exists(folder):
         os.makedirs(folder)
 
@@ -61,7 +61,7 @@ def init_clean_database():
             dob_month TEXT,
             dob_year TEXT,
             gender TEXT,
-            profile_pic TEXT,
+            profile_pic_base64 TEXT,
             is_verified INTEGER DEFAULT 1,
             followers_count INTEGER DEFAULT 0,
             likes_count INTEGER DEFAULT 0,
@@ -156,28 +156,21 @@ def ai_content_shield(title, description, tags, file_name):
             return False, "⚠️ Blocked by AI Security Shield!"
     return True, "OK"
 
-def get_image_base64(image_path):
-    if image_path and os.path.exists(image_path):
-        try:
-            with open(image_path, "rb") as img_file:
-                return base64.b64encode(img_file.read()).decode("utf-8")
-        except Exception:
-            return None
-    return None
-
 def show_verified_profile(display_name, subtitle="Member"):
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT is_verified, country, profile_pic FROM users WHERE LOWER(username) = LOWER(?)", (str(display_name).strip(),))
+    c.execute("SELECT is_verified, country, profile_pic_base64 FROM users WHERE LOWER(username) = LOWER(?)", (str(display_name).strip(),))
     u_data = c.fetchone()
     conn.close()
     
     is_verified = u_data["is_verified"] if u_data else True
-    user_country = u_data["country"] if u_data and u_data["country"] else "Global"
-    profile_pic = u_data["profile_pic"] if u_data and u_data["profile_pic"] else None
+    user_country = u_data["country"] if u_data and u_data["country"] else "Global HQ"
+    b64_img = u_data["profile_pic_base64"] if u_data and u_data["profile_pic_base64"] else None
     
-    b64_img = get_image_base64(profile_pic)
-    img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid #00c853;">' if b64_img else '<div style="width:45px; height:45px; border-radius:50%; background:#2a2a2a; color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px;">👤</div>'
+    if b64_img:
+        img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid #00c853;">'
+    else:
+        img_html = '<div style="width:45px; height:45px; border-radius:50%; background:#2a2a2a; color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px;">👤</div>'
     
     verified_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block;"><path fill="#1877F2" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.2 14.2l-3.5-3.5 1.41-1.41 2.09 2.08 5.68-5.67 1.41 1.41-7.09 7.09z"/></svg>'
     tick = verified_svg if is_verified else ''
@@ -192,7 +185,6 @@ st.markdown("""
     <style>
     .stApp { background-color: #121212; color: #e4e6eb; }
     .feed-card { background: #18191a; border: 1px solid #2d2f31; border-radius: 14px; padding: 16px; margin-bottom: 20px; }
-    .short-container { max-width: 380px; margin: 0 auto; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -318,7 +310,6 @@ if tab == "🌍 World Feed":
 
     for item in posts:
         st.markdown('<div class="feed-card">', unsafe_allow_html=True)
-        # প্রোফাইল পিকচার এবং ভেরিফাইড হেডার পোস্টের উপরে রাখা হয়েছে
         show_verified_profile(item.get("uploader_name", "User"), subtitle=f"Posted {item.get('created_at')}")
         
         if item.get("title"):
@@ -376,13 +367,11 @@ elif tab in ["📱 TikTok Shorts Feed", "📺 Direct Long Videos"]:
 
     for vid in vids:
         st.markdown('<div class="feed-card">', unsafe_allow_html=True)
-        # পোস্ট/ভিডিওর ঠিক উপরে প্রোফাইল পিকচার
         show_verified_profile(vid.get("uploader_name", "User"), subtitle=f"Uploaded {vid.get('created_at')}")
         st.subheader(vid.get('title', ''))
         st.write(vid.get('description', ''))
         
         if vid.get("video_url") and os.path.exists(vid["video_url"]):
-            # রিয়েল ভিউ + ইনিশিয়াল ১০k-২০k বুস্ট ভিউ
             conn = get_db_connection()
             conn.cursor().execute("UPDATE videos SET views = views + 1 WHERE id = ?", (vid['id'],))
             conn.commit()
@@ -390,7 +379,15 @@ elif tab in ["📱 TikTok Shorts Feed", "📺 Direct Long Videos"]:
             
             st.video(vid["video_url"])
 
-        # ভিউ, লাইক, কমেন্ট ও শেয়ার কাউন্টার
+        # প্রতিটি ভিডিওর নিচে নেটওয়ার্ক লিংক/স্পন্সরড বাটন
+        st.markdown(f"""
+            <div style="text-align: center; margin: 10px 0;">
+                <a href="{NETWORK_AD_LINK}" target="_blank" style="background-color: #00c853; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+                    🌐 Click Here / Watch Sponsored Content
+                </a>
+            </div>
+        """, unsafe_allow_html=True)
+
         c_views, c_like, c_comm, c_share, c_del = st.columns(5)
         c_views.markdown(f"👁️ **{vid.get('views', 0):,}** Views")
 
@@ -443,18 +440,17 @@ elif tab == "👤 My Profile & Channel":
             st.write(f"📱 Phone: {u_info.get('phone_number')}")
             st.write(f"🌐 Country: {u_info.get('country')}")
 
-            pic_up = st.file_uploader("Upload Profile Picture", type=["jpg", "jpeg", "png"])
-            if pic_up and st.button("Save Profile Picture"):
-                save_path = os.path.join(PROFILE_DIR, f"{st.session_state.user}_profile.jpg")
-                with open(save_path, "wb") as f:
-                    f.write(pic_up.getbuffer())
+            # বিশ্বব্যাপী স্থায়ী প্রোফাইল পিকচার আপলোড
+            pic_up = st.file_uploader("Upload Profile Picture (Global View)", type=["jpg", "jpeg", "png"])
+            if pic_up and st.button("Save Profile Picture Globally"):
+                base64_image = base64.b64encode(pic_up.read()).decode("utf-8")
                 
                 conn = get_db_connection()
                 c = conn.cursor()
-                c.execute("UPDATE users SET profile_pic = ? WHERE username = ?", (save_path, st.session_state.user))
+                c.execute("UPDATE users SET profile_pic_base64 = ? WHERE username = ?", (base64_image, st.session_state.user))
                 conn.commit()
                 conn.close()
-                st.success("Profile picture updated!")
+                st.success("🎉 Profile picture updated globally!")
                 st.rerun()
 
 # --- Monetization ---
@@ -525,7 +521,7 @@ elif tab == "📤 Upload Studio":
                         with open(save_v, "wb") as f:
                             f.write(v_up.getbuffer())
 
-                        # অ্যালগরিদম ভিউ সেট করা (১০,০০০ থেকে ২০,০০০ অটো ভিউ)
+                        # অ্যালগরিদম ভিউ সেট (১০,০০০ - ২০,০০০ ভিউ)
                         initial_views = generate_initial_boost_views()
 
                         conn = get_db_connection()
