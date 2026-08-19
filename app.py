@@ -181,10 +181,8 @@ def init_all_tables():
     conn.commit()
     conn.close()
 
-    # অটোমেটিক অনুপস্থিত কলাম চেক ও ফিক্স
     auto_repair_table_columns()
 
-    # সিস্টেম ওনার সেটআপ
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM global_sovereign_vault WHERE username = 'system_owner'")
@@ -206,7 +204,7 @@ def init_all_tables():
 init_all_tables()
 
 # ==========================================
-# 3. AI GUARD, GEO-BLOCK & AUTONOMOUS MODERATION
+# 3. AI GUARD & MODERATION
 # ==========================================
 BANNED_WORDS = ["sex", "adult", "18+", "porn", "nude", "tiktok", "youtube", "facebook", "reels", "shorts", "stolen", "watermark"]
 
@@ -307,7 +305,7 @@ def get_image_base64(image_path):
 def register_or_get_user(username, phone_number=None, country="Global"):
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT * FROM users WHERE username = ?", (username,))
+    c.execute("SELECT * FROM users WHERE LOWER(username) = LOWER(?)", (username.strip(),))
     user = c.fetchone()
     
     if not user:
@@ -316,9 +314,9 @@ def register_or_get_user(username, phone_number=None, country="Global"):
         auto_verify = 1 if user_count < 1000 else 0
         
         c.execute("INSERT INTO users (username, phone_number, full_name, country, is_verified, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                  (username, phone_number, username, country, auto_verify, datetime.now().strftime("%Y-%m-%d")))
+                  (username.strip(), phone_number.strip() if phone_number else None, username.strip(), country, auto_verify, datetime.now().strftime("%Y-%m-%d")))
         conn.commit()
-        c.execute("SELECT * FROM users WHERE username = ?", (username,))
+        c.execute("SELECT * FROM users WHERE LOWER(username) = LOWER(?)", (username.strip(),))
         user = c.fetchone()
         
     conn.close()
@@ -327,7 +325,7 @@ def register_or_get_user(username, phone_number=None, country="Global"):
 def show_verified_profile(display_name, profile_pic_path=None, subtitle="Member"):
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT is_verified, country FROM users WHERE username = ?", (display_name,))
+    c.execute("SELECT is_verified, country FROM users WHERE LOWER(username) = LOWER(?)", (display_name.strip(),))
     u_data = c.fetchone()
     conn.close()
     
@@ -411,7 +409,7 @@ if mode == "Login (Phone & Password)":
         conn = get_db_connection()
         cursor = conn.cursor()
         hashed_pass = hashlib.sha256(login_pass.encode()).hexdigest()
-        cursor.execute("SELECT * FROM global_sovereign_vault WHERE phone_number = ? AND hashed_password = ?", (login_phone, hashed_pass))
+        cursor.execute("SELECT * FROM global_sovereign_vault WHERE phone_number = ? AND hashed_password = ?", (login_phone.strip(), hashed_pass))
         vault_user = cursor.fetchone()
         conn.close()
         
@@ -427,7 +425,7 @@ if mode == "Login (Phone & Password)":
         else:
             st.sidebar.error("❌ Invalid Phone Number or Password!")
 
-# --- FORGOT PASSWORD / PIN MODE ---
+# --- FORGOT PASSWORD / PIN MODE (IMPROVED FLEXIBLE MATCHING) ---
 elif mode == "🔑 Forgot Password / Pin":
     st.sidebar.subheader("🔄 Reset Forgotten PIN / Password")
     fp_phone = st.sidebar.text_input("Registered Mobile Number")
@@ -435,23 +433,41 @@ elif mode == "🔑 Forgot Password / Pin":
     new_password = st.sidebar.text_input("Enter New Password", type="password")
     
     if st.sidebar.button("Reset Password"):
-        if fp_phone and fp_username and new_password:
+        phone_clean = fp_phone.strip()
+        user_clean = fp_username.strip()
+        
+        if (phone_clean or user_clean) and new_password:
             conn = get_db_connection()
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM global_sovereign_vault WHERE phone_number = ? AND username = ?", (fp_phone.strip(), fp_username.strip()))
+            
+            # Flexible checking: match either phone, username or both flexibly
+            if phone_clean and user_clean:
+                cursor.execute("""
+                    SELECT * FROM global_sovereign_vault 
+                    WHERE phone_number = ? OR LOWER(username) = LOWER(?)
+                """, (phone_clean, user_clean))
+            elif phone_clean:
+                cursor.execute("SELECT * FROM global_sovereign_vault WHERE phone_number = ?", (phone_clean,))
+            else:
+                cursor.execute("SELECT * FROM global_sovereign_vault WHERE LOWER(username) = LOWER(?)", (user_clean,))
+                
             matched_user = cursor.fetchone()
             
             if matched_user:
                 new_hashed_pass = hashlib.sha256(new_password.encode()).hexdigest()
-                cursor.execute("UPDATE global_sovereign_vault SET hashed_password = ? WHERE phone_number = ?", (new_hashed_pass, fp_phone.strip()))
+                cursor.execute("""
+                    UPDATE global_sovereign_vault 
+                    SET hashed_password = ? 
+                    WHERE vault_id = ?
+                """, (new_hashed_pass, matched_user["vault_id"]))
                 conn.commit()
                 conn.close()
                 st.sidebar.success("🎉 Password updated successfully! Now select 'Login' mode to access your account.")
             else:
                 conn.close()
-                st.sidebar.error("❌ Invalid combination! Mobile number and Username do not match.")
+                st.sidebar.error("❌ No matching user found with the provided details!")
         else:
-            st.sidebar.warning("⚠️ Please fill in all fields.")
+            st.sidebar.warning("⚠️ Please provide Mobile Number/Username and Enter New Password.")
 
 # --- REGISTER MODE ---
 elif mode == "Register (No Gmail Required)":
@@ -465,17 +481,16 @@ elif mode == "Register (No Gmail Required)":
             conn = get_db_connection()
             cursor = conn.cursor()
             
-            cursor.execute("SELECT username FROM global_sovereign_vault WHERE username = ?", (reg_user,))
+            cursor.execute("SELECT username FROM global_sovereign_vault WHERE LOWER(username) = LOWER(?)", (reg_user.strip(),))
             if cursor.fetchone():
                 st.sidebar.error("❌ Username already taken!")
                 conn.close()
             else:
-                cursor.execute("SELECT phone_number FROM global_sovereign_vault WHERE phone_number = ?", (reg_phone,))
+                cursor.execute("SELECT phone_number FROM global_sovereign_vault WHERE phone_number = ?", (reg_phone.strip(),))
                 if cursor.fetchone():
                     st.sidebar.error("❌ Phone number already registered! Please Login.")
                     conn.close()
                 else:
-                    # Dynamic 6-digit WhatsApp Code Generation Logic inside Backend
                     generated_otp = str(random.randint(100000, 999999))
                     hashed_pass = hashlib.sha256(reg_pass.encode()).hexdigest()
                     
@@ -484,17 +499,16 @@ elif mode == "Register (No Gmail Required)":
                             INSERT INTO global_sovereign_vault 
                             (vault_id, username, phone_number, country, hashed_password, otp_code, is_phone_verified, created_at) 
                             VALUES (?, ?, ?, ?, ?, ?, 0, ?)
-                        """, (f"vault_{uuid.uuid4().hex[:8]}", reg_user, reg_phone, reg_country, hashed_pass, generated_otp, datetime.now().strftime("%Y-%m-%d")))
+                        """, (f"vault_{uuid.uuid4().hex[:8]}", reg_user.strip(), reg_phone.strip(), reg_country, hashed_pass, generated_otp, datetime.now().strftime("%Y-%m-%d")))
                         
                         cursor.execute("""
                             INSERT OR REPLACE INTO users (username, phone_number, full_name, country, is_verified, created_at)
                             VALUES (?, ?, ?, ?, 0, ?)
-                        """, (reg_user, reg_phone, reg_user, reg_country, datetime.now().strftime("%Y-%m-%d")))
+                        """, (reg_user.strip(), reg_phone.strip(), reg_user.strip(), reg_country, datetime.now().strftime("%Y-%m-%d")))
                         
                         conn.commit()
-                        st.session_state.pending_user = reg_user
+                        st.session_state.pending_user = reg_user.strip()
                         
-                        # WhatsApp Secure Direct Dispatch Simulator (Code hidden inside system)
                         wa_link = f"https://api.whatsapp.com/send?phone={INTERNAL_WHATSAPP_GATEWAY}&text=Verification%20Code:%20{generated_otp}"
                         
                         st.sidebar.success(f"📱 6-Digit Code Generated!")
@@ -516,15 +530,15 @@ if st.session_state.pending_user and not st.session_state.user:
     if st.sidebar.button("Verify & Open Account"):
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM global_sovereign_vault WHERE username = ?", (st.session_state.pending_user,))
+        cursor.execute("SELECT * FROM global_sovereign_vault WHERE LOWER(username) = LOWER(?)", (st.session_state.pending_user.strip(),))
         pending = cursor.fetchone()
         
         if pending and pending["otp_code"] == input_otp.strip():
-            cursor.execute("UPDATE global_sovereign_vault SET is_phone_verified = 1 WHERE username = ?", (st.session_state.pending_user,))
+            cursor.execute("UPDATE global_sovereign_vault SET is_phone_verified = 1 WHERE vault_id = ?", (pending["vault_id"],))
             conn.commit()
             conn.close()
             
-            st.session_state.user = st.session_state.pending_user
+            st.session_state.user = pending["username"]
             st.session_state.pending_user = None
             st.sidebar.success("🎉 Phone Verified Successfully! Account Unlocked.")
             st.rerun()
@@ -646,7 +660,7 @@ elif tab == "📤 Upload Studio":
     else:
         conn = get_db_connection()
         c = conn.cursor()
-        c.execute("SELECT is_banned, ban_until FROM users WHERE username = ?", (st.session_state.user,))
+        c.execute("SELECT is_banned, ban_until FROM users WHERE LOWER(username) = LOWER(?)", (st.session_state.user.strip(),))
         u_info = c.fetchone()
         conn.close()
 
