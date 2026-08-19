@@ -75,7 +75,6 @@ def init_clean_database():
         )
     """)
 
-    # অটোমেটিক কলাম চেক ও এড (OperationalError ফিক্স করার জন্য)
     cursor.execute("PRAGMA table_info(users)")
     columns = [column[1] for column in cursor.fetchall()]
     if "profile_pic_base64" not in columns:
@@ -184,7 +183,7 @@ def show_verified_profile(display_name, subtitle="Member"):
     st.markdown(card_html, unsafe_allow_html=True)
 
 # ==========================================
-# 4. CUSTOM UI STYLING & HEADER
+# 4. CUSTOM UI STYLING & HEADER WITH OWNER MEDIA
 # ==========================================
 st.markdown("""
     <style>
@@ -193,11 +192,35 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown("""
+# হেডারে ওনারের ছবি ডাটাবেজ থেকে ফেচ করা
+conn = get_db_connection()
+c = conn.cursor()
+c.execute("SELECT profile_pic_base64 FROM users WHERE LOWER(username) = 'system_owner'")
+owner_data = c.fetchone()
+
+# হেডারে মিউজিক ডাটাবেজ থেকে ফেচ করা
+c.execute("SELECT value FROM app_settings WHERE key = 'header_bg_music'")
+music_data = c.fetchone()
+conn.close()
+
+owner_pic_b64 = owner_data["profile_pic_base64"] if (owner_data and owner_data["profile_pic_base64"]) else None
+
+header_img_html = ""
+if owner_pic_b64:
+    header_img_html = f'<img src="data:image/jpeg;base64,{owner_pic_b64}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid #00c853; margin-bottom:10px;">'
+else:
+    header_img_html = '<div style="width:80px; height:80px; border-radius:50%; background:#2a2a2a; color:#fff; display:flex; align-items:center; justify-content:center; font-size:35px; margin: 0 auto 10px auto;">🛡️</div>'
+
+st.markdown(f"""
     <div style="text-align: center; padding: 10px 0;">
+        {header_img_html}
         <h1 style="color: #00c853; font-weight: 900; margin: 0;">🛡️ BD AI Book — Global Hub 🛡️</h1>
     </div>
 """, unsafe_allow_html=True)
+
+# হেডারে গান প্লেয়ার দেখানো
+if music_data and os.path.exists(music_data["value"]):
+    st.audio(music_data["value"], format="audio/mp3", loop=True)
 
 st.divider()
 
@@ -540,6 +563,24 @@ elif tab == "📤 Upload Studio":
 elif tab == "👑 Owner Control Center":
     st.markdown("### 👑 Owner Exclusive Panel")
     
+    st.subheader("🎵 Header Background Music Setting")
+    audio_file = st.file_uploader("Upload Header Audio/Music (MP3/WAV)", type=["mp3", "wav"])
+    if st.button("Save Header Music"):
+        if audio_file:
+            save_path = os.path.join(SETTINGS_DIR, "header_music.mp3")
+            with open(save_path, "wb") as f:
+                f.write(audio_file.getbuffer())
+            
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('header_bg_music', ?)", (save_path,))
+            conn.commit()
+            conn.close()
+            st.success("🎶 Header background music updated!")
+            st.rerun()
+
+    st.divider()
+
     st.subheader("📢 Publish Owner Picture/Video Update")
     u_title = st.text_input("Update Title")
     u_desc = st.text_area("Update Details")
