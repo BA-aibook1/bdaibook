@@ -30,7 +30,9 @@ components.html(
 )
 
 SMART_LINK = "https://omg10.com/4/10954816"
-SECRET_OWNER_KEY = "admin1234"  # 👈 মালিক হিসেবে ঢোকার গোপন কোড (আপনি চাইলে বদলে নিতে পারেন)
+
+# 👈 আপনার নতুন গোপন পাসওয়ার্ড সেট করা হলো
+SECRET_OWNER_KEY = "S$s123456789112233"  
 
 # ==========================================
 # 2. LOCAL STORAGE & DATABASE SETUP
@@ -343,13 +345,12 @@ search_query = st.sidebar.text_input("Search content, creators...", placeholder=
 st.sidebar.markdown("---")
 st.sidebar.header("🔐 Portal Access & Auth")
 
-# সাধারণ ইউজারদের মোড (এখানে ওনার প্যানেল থাকবে না)
+# সাধারণ ইউজারদের জন্য মোড
 available_modes = ["Login (Phone & Password)", "Register (Phone, Gmail & Face)"]
 
-# আপনি সার্চ বক্সে গোপন কোড লিখলে মালিকের অপশন চালু হবে
+# 👈 নতুন গোপন কোড ম্যাচ করলে নিঃশব্দে ওনার প্যানেল যুক্ত হবে (কোনো ব্যানার/নোটিফিকেশন থাকবে না)
 if search_query.strip() == SECRET_OWNER_KEY:
     available_modes.append("👑 Owner Exclusive Portal")
-    st.sidebar.success("🔑 Secret Owner Mode Unlocked!")
 
 mode = st.sidebar.radio("Select Mode", available_modes)
 
