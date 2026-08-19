@@ -84,12 +84,21 @@ def init_all_tables():
             username TEXT UNIQUE NOT NULL,
             phone_number TEXT UNIQUE,
             gmail_address TEXT UNIQUE,
-            country TEXT NOT NULL,
+            country TEXT NOT NULL DEFAULT 'Global',
             hashed_password TEXT NOT NULL,
             security_tier INTEGER DEFAULT 1,
             created_at TEXT
         )
     """)
+
+    # 🛠️ AUTO MIGRATION: পুরানো টেবিলে country কলাম না থাকলে তা অটো যোগ করা
+    cursor.execute("PRAGMA table_info(global_sovereign_vault)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'country' not in columns:
+        try:
+            cursor.execute("ALTER TABLE global_sovereign_vault ADD COLUMN country TEXT DEFAULT 'Global'")
+        except Exception:
+            pass
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS posts (
