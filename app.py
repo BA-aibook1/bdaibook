@@ -5,6 +5,7 @@ import random
 import sqlite3
 import uuid
 
+import pycountry
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -28,20 +29,27 @@ components.html(
 
 SECRET_OWNER_KEY = "S$s123456789112233"
 
-# আপনার দেওয়া ৩টি ডাইরেক্ট এড লিঙ্ক
+# ==========================================
+# ডাইরেক্ট লিঙ্ক বক্স (ফাঁকা রাখা হয়েছে)
+# ==========================================
 DIRECT_AD_LINKS = [
-    "https://elseconcerning.com/tgt6azn6?key=e753cbd6d9bae06d67051ed846419521",
-    "https://elseconcerning.com/krgreepsz8?key=08a0fdc6d7ed4f33a60d1f4910ec27c5",
-    "https://elseconcerning.com/ftg3px38?key=2e5150e13d61a9b316e142c9b2870a59"
+    "",  # এখানে আপনার ডাইরেক্ট লিঙ্ক-১ বসাবেন
+    "",  # এখানে আপনার ডাইরেক্ট লিঙ্ক-২ বসাবেন
+    ""   # এখানে আপনার ডাইরেক্ট লিঙ্ক-৩ বসাবেন
 ]
 
 def get_random_ad_link():
-    """র্যান্ডমলি যেকোনো একটি এড লিঙ্ক রিটার্ন করবে"""
-    return random.choice(DIRECT_AD_LINKS)
+    """উপলব্ধ লিঙ্ক থেকে র্যান্ডমলি একটি এড লিঙ্ক বেছে নেবে"""
+    valid_links = [link for link in DIRECT_AD_LINKS if link.strip()]
+    if valid_links:
+        return random.choice(valid_links)
+    return "#"
 
 def render_ad_button():
-    """প্রতিটি পোস্ট/ভিডিওর নিচে দেখানোর জন্য ডাইরেক্ট লিঙ্ক বাটন HTML"""
+    """প্রতিটি পোস্ট/ভিডিওর নিচে স্পন্সরড বাটন রেন্ডার করার ফাংশন"""
     ad_url = get_random_ad_link()
+    if ad_url == "#":
+        return ""
     return f"""
         <div style="text-align: center; margin: 12px 0;">
             <a href="{ad_url}" target="_blank" style="background: linear-gradient(45deg, #00c853, #00e676); color: #000; padding: 10px 22px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0px 4px 10px rgba(0, 200, 83, 0.3);">
@@ -162,12 +170,8 @@ init_clean_database()
 # ==========================================
 BANNED_WORDS = ["sex", "adult", "18+", "porn", "nude", "stolen"]
 
-ALLOWED_COUNTRIES = [
-    "Bangladesh", "United States", "United Kingdom", "Canada", "Australia", "Saudi Arabia", 
-    "United Arab Emirates", "Qatar", "Kuwait", "Oman", "Bahrain", "Malaysia", "Indonesia", 
-    "Pakistan", "Turkey", "Germany", "France", "Italy", "Japan", "South Korea", "China", 
-    "Brazil", "South Africa", "Nigeria", "Egypt", "Singapore", "Others (Global)"
-]
+# সারা বিশ্বের সব দেশের নাম অটোমেটিক জেনারেট করার লজিক
+ALLOWED_COUNTRIES = sorted([country.name for country in pycountry.countries])
 
 MONTHS_LIST = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
@@ -213,13 +217,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# হেডারে ওনারের ছবি ডাটাবেজ থেকে ফেচ করা
 conn = get_db_connection()
 c = conn.cursor()
 c.execute("SELECT profile_pic_base64 FROM users WHERE LOWER(username) = 'system_owner'")
 owner_data = c.fetchone()
 
-# হেডারে মিউজিক ডাটাবেজ থেকে ফেচ করা
 c.execute("SELECT value FROM app_settings WHERE key = 'header_bg_music'")
 music_data = c.fetchone()
 conn.close()
@@ -239,7 +241,6 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# হেডারে গান প্লেয়ার দেখানো
 if music_data and os.path.exists(music_data["value"]):
     st.audio(music_data["value"], format="audio/mp3", loop=True)
 
@@ -270,7 +271,7 @@ if st.session_state.user == "system_owner":
 mode = st.sidebar.radio("Select Access Mode", available_modes)
 
 if mode == "📱 Quick Login":
-    login_phone = st.sidebar.text_input("Mobile Number")
+    login_phone = st.sidebar.text_input("Mobile Number (with Country Code e.g. +1..., +880...)")
     if st.sidebar.button("Login"):
         clean_phone = login_phone.strip()
         if clean_phone:
@@ -289,7 +290,7 @@ if mode == "📱 Quick Login":
 
 elif mode == "📝 New Registration":
     reg_name = st.sidebar.text_input("Full Name / Display Name")
-    reg_phone = st.sidebar.text_input("Mobile Number")
+    reg_phone = st.sidebar.text_input("Mobile Number (Include Country Code e.g. +1..., +44...)")
     reg_country = st.sidebar.selectbox("Country", ALLOWED_COUNTRIES)
     
     col_d, col_m, col_y = st.sidebar.columns(3)
@@ -368,8 +369,9 @@ if tab == "🌍 World Feed":
         if item.get("image_url") and os.path.exists(item["image_url"]):
             st.image(item["image_url"], use_container_width=True)
             
-        # প্রতি ফিডের নিচে ডাইরেক্ট এড লিঙ্ক বাটন
-        st.markdown(render_ad_button(), unsafe_allow_html=True)
+        ad_html = render_ad_button()
+        if ad_html:
+            st.markdown(ad_html, unsafe_allow_html=True)
             
         c1, c2, c3, c4 = st.columns(4)
         if c1.button(f"👍 ({item.get('likes', 0)})", key=f"like_p_{item['id']}"):
@@ -430,8 +432,9 @@ elif tab in ["📱 TikTok Shorts Feed", "📺 Direct Long Videos"]:
             conn.close()
             st.video(vid["video_url"])
 
-        # ভিডিওর নিচে ডাইরেক্ট এড লিঙ্ক বাটন
-        st.markdown(render_ad_button(), unsafe_allow_html=True)
+        ad_html = render_ad_button()
+        if ad_html:
+            st.markdown(ad_html, unsafe_allow_html=True)
 
         c_views, c_like, c_comm, c_share, c_del = st.columns(5)
         c_views.markdown(f"👁️ **{vid.get('views', 0):,}** Views")
@@ -639,6 +642,7 @@ elif tab == "👑 Owner Control Center":
         elif up["media_type"] == "video" and os.path.exists(up["media_url"]):
             st.video(up["media_url"])
             
-        # ওনার আপডেটের নিচে ডাইরেক্ট এড বাটন
-        st.markdown(render_ad_button(), unsafe_allow_html=True)
+        ad_html = render_ad_button()
+        if ad_html:
+            st.markdown(ad_html, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
