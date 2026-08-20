@@ -5,7 +5,6 @@ import random
 import sqlite3
 import uuid
 
-import pycountry
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -30,7 +29,7 @@ components.html(
 SECRET_OWNER_KEY = "S$s123456789112233"
 
 # ==========================================
-# ডাইরেক্ট লিঙ্ক বক্স (ফাঁকা রাখা হয়েছে)
+# ডাইরেক্ট লিঙ্ক বক্স (ফাঁকা রাখা হয়েছে)
 # ==========================================
 DIRECT_AD_LINKS = [
     "",  # এখানে আপনার ডাইরেক্ট লিঙ্ক-১ বসাবেন
@@ -170,8 +169,13 @@ init_clean_database()
 # ==========================================
 BANNED_WORDS = ["sex", "adult", "18+", "porn", "nude", "stolen"]
 
-# সারা বিশ্বের সব দেশের নাম অটোমেটিক জেনারেট করার লজিক
-ALLOWED_COUNTRIES = sorted([country.name for country in pycountry.countries])
+# বিল্ট-ইন গ্লোবাল কান্ট্রি লিস্ট (কোনো বাইরের প্যাকেজ লাগবে না)
+ALLOWED_COUNTRIES = [
+    "Bangladesh", "India", "Pakistan", "United States", "United Kingdom", 
+    "Saudi Arabia", "United Arab Emirates", "Malaysia", "Canada", "Australia", 
+    "Qatar", "Kuwait", "Oman", "Bahrain", "Singapore", "Italy", "France", 
+    "Germany", "Japan", "South Korea", "Other / Global"
+]
 
 MONTHS_LIST = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
