@@ -27,7 +27,28 @@ components.html(
 )
 
 SECRET_OWNER_KEY = "S$s123456789112233"
-NETWORK_AD_LINK = "https://www.highrevenuegate.com/example_link" # আপনার লিঙ্কটি এখানে দিন
+
+# আপনার দেওয়া ৩টি ডাইরেক্ট এড লিঙ্ক
+DIRECT_AD_LINKS = [
+    "https://elseconcerning.com/tgt6azn6?key=e753cbd6d9bae06d67051ed846419521",
+    "https://elseconcerning.com/krgreepsz8?key=08a0fdc6d7ed4f33a60d1f4910ec27c5",
+    "https://elseconcerning.com/ftg3px38?key=2e5150e13d61a9b316e142c9b2870a59"
+]
+
+def get_random_ad_link():
+    """র্যান্ডমলি যেকোনো একটি এড লিঙ্ক রিটার্ন করবে"""
+    return random.choice(DIRECT_AD_LINKS)
+
+def render_ad_button():
+    """প্রতিটি পোস্ট/ভিডিওর নিচে দেখানোর জন্য ডাইরেক্ট লিঙ্ক বাটন HTML"""
+    ad_url = get_random_ad_link()
+    return f"""
+        <div style="text-align: center; margin: 12px 0;">
+            <a href="{ad_url}" target="_blank" style="background: linear-gradient(45deg, #00c853, #00e676); color: #000; padding: 10px 22px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0px 4px 10px rgba(0, 200, 83, 0.3);">
+                👉 Click Here / Watch Sponsored Content 🌐
+            </a>
+        </div>
+    """
 
 # ==========================================
 # 2. LOCAL STORAGE & DATABASE SETUP
@@ -347,6 +368,9 @@ if tab == "🌍 World Feed":
         if item.get("image_url") and os.path.exists(item["image_url"]):
             st.image(item["image_url"], use_container_width=True)
             
+        # প্রতি ফিডের নিচে ডাইরেক্ট এড লিঙ্ক বাটন
+        st.markdown(render_ad_button(), unsafe_allow_html=True)
+            
         c1, c2, c3, c4 = st.columns(4)
         if c1.button(f"👍 ({item.get('likes', 0)})", key=f"like_p_{item['id']}"):
             conn = get_db_connection()
@@ -406,13 +430,8 @@ elif tab in ["📱 TikTok Shorts Feed", "📺 Direct Long Videos"]:
             conn.close()
             st.video(vid["video_url"])
 
-        st.markdown(f"""
-            <div style="text-align: center; margin: 10px 0;">
-                <a href="{NETWORK_AD_LINK}" target="_blank" style="background-color: #00c853; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
-                    🌐 Click Here / Watch Sponsored Content
-                </a>
-            </div>
-        """, unsafe_allow_html=True)
+        # ভিডিওর নিচে ডাইরেক্ট এড লিঙ্ক বাটন
+        st.markdown(render_ad_button(), unsafe_allow_html=True)
 
         c_views, c_like, c_comm, c_share, c_del = st.columns(5)
         c_views.markdown(f"👁️ **{vid.get('views', 0):,}** Views")
@@ -619,4 +638,7 @@ elif tab == "👑 Owner Control Center":
             st.image(up["media_url"], use_container_width=True)
         elif up["media_type"] == "video" and os.path.exists(up["media_url"]):
             st.video(up["media_url"])
+            
+        # ওনার আপডেটের নিচে ডাইরেক্ট এড বাটন
+        st.markdown(render_ad_button(), unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
