@@ -193,7 +193,7 @@ def get_user_today_upload_count(user_id, category):
         res = c.fetchone()
         return res["cnt"] if res else 0
 
-# CSS Styling
+# CSS Styling (Facebook Theme UI Included)
 st.markdown("""
 <style>
     img { border-radius: 12px; }
@@ -202,12 +202,19 @@ st.markdown("""
         object-fit: cover !important;
         border: 2px solid #0064e0 !important;
     }
+    .fb-post-card {
+        background: #18191a;
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #2f3031;
+    }
     .video-watermark-wrapper { position: relative; }
     .video-watermark-badge {
         position: absolute;
         top: 12px;
         right: 15px;
-        background: rgba(0, 100, 224, 0.75);
+        background: rgba(0, 100, 224, 0.85);
         color: white;
         padding: 4px 10px;
         border-radius: 20px;
@@ -217,10 +224,11 @@ st.markdown("""
         pointer-events: none;
     }
     .tiktok-container {
-        max-width: 360px;
+        max-width: 320px;
         margin: 0 auto;
         border-radius: 14px;
         overflow: hidden;
+        border: 1px solid #333;
     }
     .announcement-box {
         background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
@@ -294,7 +302,6 @@ if not st.session_state.user_id:
                         usr = c.fetchone()
                         
                         if usr:
-                            # 🔒 Password Match Verification Added
                             if usr["password_hash"] == hash_pass(auth_pass):
                                 st.session_state.user_id = usr["user_id"]
                                 st.sidebar.success("Logged In Successfully!")
@@ -302,7 +309,6 @@ if not st.session_state.user_id:
                             else:
                                 st.sidebar.error("❌ Invalid Password!")
                         else:
-                            # Registration
                             new_uid = str(uuid.uuid4())
                             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             c.execute("""
@@ -343,6 +349,113 @@ else:
 # 5. MAIN NAVIGATION TABS
 # ==========================================
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
+
+# ------------------------------------------
+# HELPER: FACEBOOK POST RENDERER
+# ------------------------------------------
+def render_post_card(post, ads_enabled, ads_html):
+    increment_views(post["record_id"])
+    st.markdown("<div class='fb-post-card'>", unsafe_allow_html=True)
+    
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT profile_pic_path FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (post.get("user_id"),))
+        author = c.fetchone()
+        
+        c.execute("SELECT COUNT(*) as cnt FROM follows WHERE following_id = ?", (post.get("user_id"),))
+        f_row = c.fetchone()
+        author_followers = f_row["cnt"] if f_row else 0
+        
+        is_following = False
+        if st.session_state.user_id:
+            c.execute("SELECT * FROM follows WHERE follower_id = ? AND following_id = ?", (st.session_state.user_id, post.get("user_id")))
+            if c.fetchone(): is_following = True
+
+    author_pic = author["profile_pic_path"] if author and author["profile_pic_path"] and os.path.exists(author["profile_pic_path"]) else None
+    
+    col_h1, col_h2 = st.columns([3, 2])
+    with col_h1:
+        col_pic, col_info = st.columns([1, 4])
+        with col_pic:
+            if author_pic: 
+                st.image(author_pic, width=50)
+            else:
+                st.markdown("👤")
+        with col_info:
+            tick = get_meta_blue_badge() if post.get("is_verified") else ""
+            boost_badge = "🔥 [BOOSTED]" if post.get("is_boosted") else ""
+            st.markdown(f"**{post.get('full_name')}** {tick} <span style='color:orange;'>{boost_badge}</span>", unsafe_allow_html=True)
+            st.caption(f"👥 Followers: {author_followers:,} | Category: {post.get('post_category')}")
+        
+    with col_h2:
+        if st.session_state.user_id and st.session_state.user_id != post.get("user_id"):
+            fol_lbl = "✔ Following" if is_following else "➕ Follow"
+            if st.button(fol_lbl, key=f"fol_{post['record_id']}"):
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    if is_following:
+                        c.execute("DELETE FROM follows WHERE follower_id = ? AND following_id = ?", (st.session_state.user_id, post.get("user_id")))
+                    else:
+                        c.execute("INSERT OR REPLACE INTO follows VALUES (?, ?)", (st.session_state.user_id, post.get("user_id")))
+                    conn.commit()
+                st.rerun()
+
+    if post.get("title"): st.subheader(post["title"])
+    if post.get("content"): st.write(post["content"])
+    if post.get("tags"): st.markdown(f"<span style='color:#0064e0;'>{post['tags']}</span>", unsafe_allow_html=True)
+    
+    media_path = post.get("media_path")
+    cat = post.get("post_category", "general")
+    
+    if media_path and os.path.exists(media_path):
+        st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
+        if cat == "picture":
+            st.image(media_path, use_container_width=True)
+        elif cat == "short":
+            st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
+            st.video(media_path)
+            st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            st.video(media_path)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    if ads_enabled and ads_html:
+        st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
+        components.html(ads_html, height=100)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) as cnt FROM likes WHERE post_id = ?", (post["record_id"],))
+        real_likes = c.fetchone()["cnt"]
+        
+        has_liked = False
+        if st.session_state.user_id:
+            c.execute("SELECT * FROM likes WHERE user_id = ? AND post_id = ?", (st.session_state.user_id, post["record_id"]))
+            if c.fetchone(): has_liked = True
+
+    st.markdown("---")
+    col_b1, col_b2, col_b3 = st.columns(3)
+    col_b1.write(f"👁️ **{(post.get('views_count', 0) + 1):,}** Views")
+    
+    like_lbl = f"❤️ Liked ({real_likes})" if has_liked else f"👍 Like ({real_likes})"
+    if col_b2.button(like_lbl, key=f"lk_{post['record_id']}"):
+        if st.session_state.user_id:
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                if has_liked:
+                    c.execute("DELETE FROM likes WHERE user_id = ? AND post_id = ?", (st.session_state.user_id, post["record_id"]))
+                else:
+                    c.execute("INSERT OR REPLACE INTO likes (user_id, post_id, category) VALUES (?, ?, ?)", (st.session_state.user_id, post["record_id"], cat))
+                conn.commit()
+            st.rerun()
+        else:
+            st.warning("Please login to like!")
+
+    if col_b3.button("🚀 Share", key=f"sh_{post['record_id']}"):
+        st.toast("Sharing Link Copied!")
+        
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ------------------------------------------
 # TAB 1: PUBLIC FEED & OWNER MASTER PANEL
@@ -535,6 +648,7 @@ with tab_feed:
                         st.rerun()
 
     else:
+        # Fetching Posts Data from Database
         with get_db_connection() as conn:
             c = conn.cursor()
             if search_input:
@@ -548,109 +662,38 @@ with tab_feed:
         ads_enabled = get_setting("show_ads") == "ON"
         ads_html = get_setting("adsense_script")
 
-        for post in posts:
-            increment_views(post["record_id"])
-            st.markdown("<div style='background:#18191a; padding:15px; border-radius:12px; margin-bottom:15px;'>", unsafe_allow_html=True)
-            
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT profile_pic_path FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (post.get("user_id"),))
-                author = c.fetchone()
-                
-                c.execute("SELECT COUNT(*) as cnt FROM follows WHERE following_id = ?", (post.get("user_id"),))
-                f_row = c.fetchone()
-                author_followers = f_row["cnt"] if f_row else 0
-                
-                is_following = False
-                if st.session_state.user_id:
-                    c.execute("SELECT * FROM follows WHERE follower_id = ? AND following_id = ?", (st.session_state.user_id, post.get("user_id")))
-                    if c.fetchone(): is_following = True
-            
-            author_pic = author["profile_pic_path"] if author and author["profile_pic_path"] and os.path.exists(author["profile_pic_path"]) else None
-            
-            col_h1, col_h2 = st.columns([3, 2])
-            with col_h1:
-                col_pic, col_info = st.columns([1, 4])
-                with col_pic:
-                    if author_pic: 
-                        st.image(author_pic, width=50)
-                    else:
-                        st.markdown("👤")
-                with col_info:
-                    tick = get_meta_blue_badge() if post.get("is_verified") else ""
-                    boost_badge = "🔥 [BOOSTED]" if post.get("is_boosted") else ""
-                    st.markdown(f"**{post.get('full_name')}** {tick} <span style='color:orange;'>{boost_badge}</span>", unsafe_allow_html=True)
-                    st.caption(f"👥 Followers: {author_followers:,} | Category: {post.get('post_category')}")
-                
-            with col_h2:
-                if st.session_state.user_id and st.session_state.user_id != post.get("user_id"):
-                    fol_lbl = "✔ Following" if is_following else "➕ Follow"
-                    if st.button(fol_lbl, key=f"fol_{post['record_id']}"):
-                        with get_db_connection() as conn:
-                            c = conn.cursor()
-                            if is_following:
-                                c.execute("DELETE FROM follows WHERE follower_id = ? AND following_id = ?", (st.session_state.user_id, post.get("user_id")))
-                            else:
-                                c.execute("INSERT OR REPLACE INTO follows VALUES (?, ?)", (st.session_state.user_id, post.get("user_id")))
-                            conn.commit()
-                        st.rerun()
+        # ----------------------------------------------------
+        # FACEBOOK STYLE FEED FILTERING (Tabs added seamlessly)
+        # ----------------------------------------------------
+        sub_feed1, sub_feed2, sub_feed3, sub_feed4 = st.tabs(["🌐 All Feed", "🎬 Reels / Shorts", "🖼️ Photos", "📹 Long Videos"])
 
-            if post.get("title"): st.subheader(post["title"])
-            if post.get("content"): st.write(post["content"])
-            if post.get("tags"): st.markdown(f"<span style='color:#0064e0;'>{post['tags']}</span>", unsafe_allow_html=True)
-            
-            media_path = post.get("media_path")
-            cat = post.get("post_category", "general")
-            
-            if media_path and os.path.exists(media_path):
-                st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
-                if cat == "picture":
-                    st.image(media_path, use_container_width=True)
-                elif cat == "short":
-                    st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
-                    st.video(media_path)
-                    st.markdown("</div>", unsafe_allow_html=True)
-                else:
-                    st.video(media_path)
-                st.markdown("</div>", unsafe_allow_html=True)
+        with sub_feed1:
+            for post in posts:
+                render_post_card(post, ads_enabled, ads_html)
 
-            if ads_enabled and ads_html:
-                st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
-                components.html(ads_html, height=100)
-                st.markdown("</div>", unsafe_allow_html=True)
+        with sub_feed2:
+            short_posts = [p for p in posts if p.get("post_category") == "short"]
+            if not short_posts:
+                st.info("No Reels / Short Videos uploaded yet.")
+            else:
+                for post in short_posts:
+                    render_post_card(post, ads_enabled, ads_html)
 
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT COUNT(*) as cnt FROM likes WHERE post_id = ?", (post["record_id"],))
-                real_likes = c.fetchone()["cnt"]
-                
-                has_liked = False
-                if st.session_state.user_id:
-                    c.execute("SELECT * FROM likes WHERE user_id = ? AND post_id = ?", (st.session_state.user_id, post["record_id"]))
-                    if c.fetchone(): has_liked = True
+        with sub_feed3:
+            picture_posts = [p for p in posts if p.get("post_category") == "picture"]
+            if not picture_posts:
+                st.info("No Photo posts available.")
+            else:
+                for post in picture_posts:
+                    render_post_card(post, ads_enabled, ads_html)
 
-            st.markdown("---")
-            col_b1, col_b2, col_b3 = st.columns(3)
-            col_b1.write(f"👁️ **{(post.get('views_count', 0) + 1):,}** Views")
-            
-            like_lbl = f"❤️ Liked ({real_likes})" if has_liked else f"👍 Like ({real_likes})"
-            if col_b2.button(like_lbl, key=f"lk_{post['record_id']}"):
-                if st.session_state.user_id:
-                    with get_db_connection() as conn:
-                        c = conn.cursor()
-                        if has_liked:
-                            c.execute("DELETE FROM likes WHERE user_id = ? AND post_id = ?", (st.session_state.user_id, post["record_id"]))
-                        else:
-                            c.execute("INSERT OR REPLACE INTO likes (user_id, post_id, category) VALUES (?, ?, ?)", (st.session_state.user_id, post["record_id"], cat))
-                        conn.commit()
-                    st.rerun()
-                else:
-                    st.warning("Please login to like!")
-
-            if col_b3.button("🚀 Share", key=f"sh_{post['record_id']}"):
-                st.toast("Sharing Link Copied!")
-                
-            st.markdown("</div>", unsafe_allow_html=True)
+        with sub_feed4:
+            long_posts = [p for p in posts if p.get("post_category") == "long"]
+            if not long_posts:
+                st.info("No Long Videos available.")
+            else:
+                for post in long_posts:
+                    render_post_card(post, ads_enabled, ads_html)
 
 # ------------------------------------------
 # TAB 2: PROFILE & STUDIO
