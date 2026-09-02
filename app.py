@@ -3,7 +3,7 @@ import sqlite3
 import uuid
 import hashlib
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 import streamlit as st
 
 # ==========================================
@@ -22,6 +22,7 @@ if not os.path.exists(UPLOAD_DIR):
 
 LOCAL_DB_FILE = "bd_ai_book_master.db"
 SECRET_CODES = ["S$s123456789112233", "S$s123456789112233BDAIBOOK"]
+BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
 # ==========================================
 # 2. MASTER DATABASE ENGINE & MIGRATION
@@ -46,10 +47,13 @@ def init_master_database():
             bio TEXT,
             profile_pic_path TEXT,
             cover_pic_path TEXT,
+            fb_link TEXT,
+            tiktok_link TEXT,
+            yt_link TEXT,
+            website_link TEXT,
             is_verified INTEGER DEFAULT 1,
             violation_count INTEGER DEFAULT 0,
             is_suspended INTEGER DEFAULT 0,
-            is_banned INTEGER DEFAULT 0,
             suspended_until TEXT,
             title TEXT,
             content TEXT,
@@ -69,14 +73,17 @@ def init_master_database():
         );
     """)
     
-    # Safe Auto-Migration for Old Databases
+    # Dynamic Column Migration for Safety
     existing_cols = [row[1] for row in c.execute("PRAGMA table_info(master_app_table)").fetchall()]
-    if "profile_pic_path" not in existing_cols:
-        c.execute("ALTER TABLE master_app_table ADD COLUMN profile_pic_path TEXT")
-    if "cover_pic_path" not in existing_cols:
-        c.execute("ALTER TABLE master_app_table ADD COLUMN cover_pic_path TEXT")
-    if "is_owner_post" not in existing_cols:
-        c.execute("ALTER TABLE master_app_table ADD COLUMN is_owner_post INTEGER DEFAULT 0")
+    cols_to_add = [
+        ("profile_pic_path", "TEXT"), ("cover_pic_path", "TEXT"),
+        ("fb_link", "TEXT"), ("tiktok_link", "TEXT"), ("yt_link", "TEXT"), ("website_link", "TEXT"),
+        ("violation_count", "INTEGER DEFAULT 0"), ("is_suspended", "INTEGER DEFAULT 0"),
+        ("suspended_until", "TEXT"), ("is_owner_post", "INTEGER DEFAULT 0")
+    ]
+    for col_name, col_type in cols_to_add:
+        if col_name not in existing_cols:
+            c.execute(f"ALTER TABLE master_app_table ADD COLUMN {col_name} {col_type}")
 
     conn.commit()
     conn.close()
@@ -84,19 +91,39 @@ def init_master_database():
 init_master_database()
 
 # ==========================================
-# 3. HELPER FUNCTIONS
+# 3. HELPER FUNCTIONS & STYLES
 # ==========================================
 def hash_pass(pwd): return hashlib.sha256(pwd.encode()).hexdigest()
 
 def get_meta_blue_badge():
     return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px;"><path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.66.425-1.55-.008-3.25-1.196-4.438-1.187-1.188-2.887-1.62-4.437-1.196C13.95 1.875 12.58 1 11.5 1s-2.45.875-3.16 2.148c-1.55-.425-3.25.008-4.438 1.196-1.188 1.187-1.62 2.887-1.196 4.437C1.875 9.55 1 10.92 1 12s.875 2.45 2.148 3.16c-.425 1.55.008 3.25 1.196 4.438 1.187 1.188 2.887 1.62 4.437 1.196C9.55 22.125 10.92 23 12 23s2.45-.875 3.16-2.148c1.55.425-.008 4.438-1.196 1.188-1.187 1.62-2.887 1.196-4.437 1.273-.71 2.148-2.08 2.148-3.66z"/><path fill="#ffffff" d="M9.8 17.3l-4.2-4.2 1.4-1.4 2.8 2.8 7.4-7.4 1.4 1.4z"/></svg>"""
 
-# Session Handling
+# Custom CSS for TikTok Aspect Ratio Videos
+st.markdown("""
+<style>
+    .tiktok-container {
+        max-width: 350px;
+        margin: 0 auto;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .profile-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        object-fit: cover;
+        vertical-align: middle;
+        margin-right: 10px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Session Setup
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
 
-# Fetch Custom Logo
+# Render Site Header Logo
 conn = get_db_connection()
 c = conn.cursor()
 c.execute("SELECT value FROM site_settings WHERE key = 'logo_path'")
@@ -104,26 +131,24 @@ logo_row = c.fetchone()
 site_logo_path = logo_row["value"] if logo_row else None
 conn.close()
 
-# Dynamic Header Rendering
 if site_logo_path and os.path.exists(site_logo_path):
     col_l1, col_l2, col_l3 = st.columns([2, 1, 2])
-    with col_l2:
-        st.image(site_logo_path, width=120)
+    with col_l2: st.image(site_logo_path, width=120)
 
 st.markdown("<h1 style='text-align: center; color:#0064e0;'>BD AI Book</h1>", unsafe_allow_html=True)
 st.caption("<p style='text-align: center;'>Next-Gen Global Social & Media Platform</p>", unsafe_allow_html=True)
 
 # ==========================================
-# 4. SIDEBAR AUTHENTICATION
+# 4. AUTHENTICATION & BAN CHECK
 # ==========================================
 st.sidebar.markdown("### 🔐 User Login")
 if not st.session_state.user_id:
     auth_input = st.sidebar.text_input("Gmail or Mobile")
     auth_pass = st.sidebar.text_input("Password", type="password")
-    if st.sidebar.button("Send 6-Digit OTP"):
+    if st.sidebar.button("Send OTP"):
         if auth_input and auth_pass:
             st.session_state.otp_code = str(random.randint(100000, 999999))
-            st.sidebar.info(f"📩 Code: **{st.session_state.otp_code}**")
+            st.sidebar.info(f"📩 OTP Code: **{st.session_state.otp_code}**")
             
     if st.session_state.otp_code:
         user_otp = st.sidebar.text_input("Enter OTP Code")
@@ -146,7 +171,7 @@ if not st.session_state.user_id:
                     """, (new_uid, new_uid, f"User_{new_uid[:4]}", auth_input, hash_pass(auth_pass), now))
                     conn.commit()
                     st.session_state.user_id = new_uid
-                    st.sidebar.success("Registered!")
+                    st.sidebar.success("Registered & Logged In!")
                     st.rerun()
                 conn.close()
 else:
@@ -157,6 +182,21 @@ else:
     conn.close()
     
     current_user = dict(raw_user) if raw_user else {}
+    
+    # Check Suspension Status
+    if current_user.get("is_suspended"):
+        sus_until = current_user.get("suspended_until", "")
+        if datetime.now().strftime("%Y-%m-%d %H:%M:%S") < sus_until:
+            st.error(f"🚫 Account Suspended due to community violation until: {sus_until}")
+            st.stop()
+        else:
+            # Lift Suspension
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("UPDATE master_app_table SET is_suspended = 0 WHERE user_id = ?", (st.session_state.user_id,))
+            conn.commit()
+            conn.close()
+
     st.sidebar.markdown(f"User: **{current_user.get('full_name', 'User')}**")
     if st.sidebar.button("Logout"):
         st.session_state.user_id = None
@@ -169,22 +209,22 @@ else:
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization"])
 
 # ------------------------------------------
-# TAB 1: PUBLIC FEED & OWNER SEARCH
+# TAB 1: PUBLIC FEED & OWNER PANELS
 # ------------------------------------------
 with tab_feed:
     search_input = st.text_input("🔍 Search Videos, Hashtags or Secret Code...")
     
-    # OWNER SECRET CODE SEARCH TRIGGER
+    # OWNER CODE UNLOCK LOGIC
     if search_input.strip() in SECRET_CODES:
         st.session_state.is_owner_session = True
         st.success("👑 MASTER OWNER ACCESS UNLOCKED!")
         st.markdown("---")
-        st.markdown("## 👑 Master Owner Profile & System Control")
+        st.markdown("## 👑 Master Owner Command Center")
         
-        # OWNER WEBSITE LOGO UPLOAD
-        st.markdown("### 🖼️ Change Main Header Logo Image")
-        new_logo_file = st.file_uploader("Upload Main Logo (PNG/JPG)", type=["png", "jpg", "jpeg"], key="owner_logo")
-        if st.button("Save New Platform Logo"):
+        # Change Platform Logo
+        st.markdown("### 🖼️ Change Platform Main Header Logo")
+        new_logo_file = st.file_uploader("Upload Main Logo Image", type=["png", "jpg", "jpeg"], key="owner_logo")
+        if st.button("Save Platform Logo"):
             if new_logo_file:
                 logo_path = os.path.join(UPLOAD_DIR, f"site_logo_{uuid.uuid4()}.png")
                 with open(logo_path, "wb") as f: f.write(new_logo_file.getbuffer())
@@ -193,17 +233,17 @@ with tab_feed:
                 c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('logo_path', ?)", (logo_path,))
                 conn.commit()
                 conn.close()
-                st.success("Platform Logo Successfully Updated!")
+                st.success("Platform Logo Updated!")
                 st.rerun()
 
-        # OWNER DIRECT VIDEO PUBLISHING STUDIO
+        # Owner Direct Publishing Studio
         st.markdown("---")
-        st.markdown("### 📢 Owner Announcement & Video Studio")
+        st.markdown("### 📢 Owner Direct Publishing Studio")
         o_title = st.text_input("Owner Post Title")
-        o_desc = st.text_area("Owner Description")
-        o_file = st.file_uploader("Upload Owner Video / Photo", type=["mp4", "jpg", "png"], key="owner_media")
+        o_desc = st.text_area("Owner Post Description")
+        o_file = st.file_uploader("Upload Media (Video/Photo)", type=["mp4", "jpg", "png"], key="owner_media")
         
-        if st.button("Publish Official Post"):
+        if st.button("Publish as Owner"):
             if o_file:
                 ext = os.path.splitext(o_file.name)[1]
                 o_media_path = os.path.join(UPLOAD_DIR, f"owner_{uuid.uuid4()}{ext}")
@@ -219,19 +259,19 @@ with tab_feed:
                 """, (rec_id, o_title, o_desc, o_media_path, now))
                 conn.commit()
                 conn.close()
-                st.success("Published as Owner!")
+                st.success("Owner Content Published!")
                 st.rerun()
 
         st.markdown("---")
         conn = get_db_connection()
         c = conn.cursor()
         c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'user'")
-        st.metric("Total Users", c.fetchone()["cnt"])
+        st.metric("Total Platform Users", c.fetchone()["cnt"])
         c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post'")
-        st.metric("Total Videos", c.fetchone()["cnt"])
+        st.metric("Total Videos & Posts", c.fetchone()["cnt"])
         conn.close()
 
-    # REGULAR FEED
+    # REGULAR FEED RENDERING
     else:
         conn = get_db_connection()
         c = conn.cursor()
@@ -245,38 +285,74 @@ with tab_feed:
         conn.close()
 
         for post in posts:
-            st.markdown("<div style='background:#18191a; padding:15px; border-radius:10px; margin-bottom:20px;'>", unsafe_allow_html=True)
-            tick = get_meta_blue_badge() if post.get("is_verified") else ""
-            badge = "👑 [OWNER]" if post.get("is_owner_post") else ""
+            st.markdown("<div style='background:#18191a; padding:15px; border-radius:12px; margin-bottom:20px;'>", unsafe_allow_html=True)
             
-            st.markdown(f"### {post.get('full_name')} {tick} <span style='color:gold;'>{badge}</span>", unsafe_allow_html=True)
-            st.caption(f"Category: {post.get('post_category')} | Time: {post.get('created_at')}")
+            # Fetch Post Author Profile Info
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT profile_pic_path, fb_link, tiktok_link, yt_link, website_link FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (post.get("user_id"),))
+            author_data = c.fetchone()
+            conn.close()
+            
+            author_pic = author_data["profile_pic_path"] if author_data and author_data["profile_pic_path"] and os.path.exists(author_data["profile_pic_path"]) else None
+            
+            # Header Layout: Avatar, Name, Connect/Follow
+            col_h1, col_h2 = st.columns([4, 1])
+            with col_h1:
+                tick = get_meta_blue_badge() if post.get("is_verified") else ""
+                badge = "👑 [OWNER]" if post.get("is_owner_post") else ""
+                
+                if author_pic:
+                    st.image(author_pic, width=45)
+                st.markdown(f"### {post.get('full_name')} {tick} <span style='color:gold;'>{badge}</span>", unsafe_allow_html=True)
+                
+            with col_h2:
+                st.button("➕ Connect", key=f"fol_{post['record_id']}")
+
+            st.caption(f"Category: {post.get('post_category')} | Uploaded: {post.get('created_at')}")
             
             if post.get("title"): st.subheader(post["title"])
             if post.get("content"): st.write(post["content"])
             
+            # Render Media with Responsive Formats
             media_path = post.get("media_path")
+            cat = post.get("post_category")
+            
             if media_path and os.path.exists(media_path):
-                if post.get("post_category") == "picture":
+                if cat == "picture":
                     st.image(media_path, use_container_width=True)
+                elif cat == "short":
+                    st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
+                    st.video(media_path)
+                    st.markdown("</div>", unsafe_allow_html=True)
                 else:
                     st.video(media_path)
                     
+            # Social Media External Links Section
+            if author_data:
+                links_html = ""
+                if author_data["fb_link"]: links_html += f"<a href='{author_data['fb_link']}' target='_blank'>📘 Facebook</a> | "
+                if author_data["tiktok_link"]: links_html += f"<a href='{author_data['tiktok_link']}' target='_blank'>🎵 TikTok</a> | "
+                if author_data["yt_link"]: links_html += f"<a href='{author_data['yt_link']}' target='_blank'>▶️ YouTube</a> | "
+                if author_data["website_link"]: links_html += f"<a href='{author_data['website_link']}' target='_blank'>🌐 Website</a>"
+                if links_html:
+                    st.markdown(f"<p style='margin-top:10px;'>{links_html}</p>", unsafe_allow_html=True)
+
             st.markdown("---")
             st.button(f"👍 Like ({post.get('likes_count', 0)})", key=f"lk_{post['record_id']}")
             st.markdown("</div>", unsafe_allow_html=True)
 
 # ------------------------------------------
-# TAB 2: PROFILE & STUDIO (CRASH SAFE)
+# TAB 2: USER PROFILE, SOCIAL LINKS & LIMITS
 # ------------------------------------------
 with tab_profile:
     if not st.session_state.user_id:
-        st.warning("Please login from sidebar!")
+        st.warning("Login required to customize profile & upload media!")
     else:
         tick = get_meta_blue_badge() if current_user.get("is_verified") else ""
         st.markdown(f"## Profile Studio: {current_user.get('full_name', 'User')} {tick}", unsafe_allow_html=True)
         
-        # SAFE RENDER COVER & AVATAR
+        # Cover & Avatar Display
         cover_path = current_user.get("cover_pic_path")
         profile_path = current_user.get("profile_pic_path")
         
@@ -288,21 +364,27 @@ with tab_profile:
             if profile_path and os.path.exists(profile_path):
                 st.image(profile_path, width=100)
             else:
-                st.info("No Profile Pic")
+                st.info("No Avatar")
         with col_p2:
-            st.write(f"**Bio:** {current_user.get('bio', 'No bio set')}")
+            st.write(f"**Bio:** {current_user.get('bio', 'No bio added')}")
             st.write(f"**Address:** {current_user.get('address', 'Not set')}")
             
-        # EDIT PROFILE FORM
-        with st.expander("⚙️ Edit Name, Address, Bio & Photos"):
+        # PROFILE & SOCIAL MEDIA EDIT FORM
+        with st.expander("⚙️ Edit Profile, Social Links (FB, TikTok, YT) & Photos"):
             u_name = st.text_input("Name", value=current_user.get("full_name", ""))
             u_addr = st.text_input("Address", value=current_user.get("address") or "")
             u_bio = st.text_area("Bio", value=current_user.get("bio") or "")
             
-            up_prof = st.file_uploader("Upload Profile Pic", type=["jpg", "png", "jpeg"], key="dp_file")
+            st.markdown("#### 🔗 Connect Social Media Links")
+            u_fb = st.text_input("Facebook Profile URL", value=current_user.get("fb_link") or "")
+            u_tiktok = st.text_input("TikTok Profile URL", value=current_user.get("tiktok_link") or "")
+            u_yt = st.text_input("YouTube Channel URL", value=current_user.get("yt_link") or "")
+            u_web = st.text_input("Website Link", value=current_user.get("website_link") or "")
+            
+            up_prof = st.file_uploader("Upload Profile Picture (DP)", type=["jpg", "png", "jpeg"], key="dp_file")
             up_cov = st.file_uploader("Upload Header / Cover Image", type=["jpg", "png", "jpeg"], key="cover_file")
             
-            if st.button("Save Profile"):
+            if st.button("Save Profile Settings"):
                 p_path = profile_path
                 c_path = cover_path
                 
@@ -318,44 +400,73 @@ with tab_profile:
                 c = conn.cursor()
                 c.execute("""
                     UPDATE master_app_table 
-                    SET full_name = ?, address = ?, bio = ?, profile_pic_path = ?, cover_pic_path = ? 
+                    SET full_name = ?, address = ?, bio = ?, profile_pic_path = ?, cover_pic_path = ?,
+                        fb_link = ?, tiktok_link = ?, yt_link = ?, website_link = ? 
                     WHERE user_id = ?
-                """, (u_name, u_addr, u_bio, p_path, c_path, st.session_state.user_id))
+                """, (u_name, u_addr, u_bio, p_path, c_path, u_fb, u_tiktok, u_yt, u_web, st.session_state.user_id))
                 conn.commit()
                 conn.close()
-                st.success("Profile Updated!")
+                st.success("Profile Details & Social Links Saved!")
                 st.rerun()
 
-        # UPLOAD MEDIA FORM
+        # DAILY UPLOAD LIMITS & PUBLISHING STUDIO
         st.markdown("---")
-        st.markdown("### 📤 Upload New Post")
-        post_type = st.selectbox("Format", ["short", "long", "picture"])
+        st.markdown("### 📤 Upload New Post (Daily Limit System)")
+        st.caption("Daily Limit: 1 Short Video (TikTok Style), 1 Long Video (YouTube Style), 10 Photos")
+        
+        post_type = st.selectbox("Select Format", ["short", "long", "picture"])
         title = st.text_input("Title")
-        desc = st.text_area("Description")
-        uploaded_media = st.file_uploader("Media File", type=["mp4", "jpg", "png"])
+        desc = st.text_area("Description / Keywords")
+        uploaded_media = st.file_uploader("Upload File", type=["mp4", "jpg", "png"])
         
         if st.button("Publish Post"):
-            if uploaded_media:
-                ext = os.path.splitext(uploaded_media.name)[1]
-                m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{ext}")
-                with open(m_path, "wb") as f: f.write(uploaded_media.getbuffer())
-                
+            if uploaded_media and title:
+                # 1. Adult/Violation Keyword Check
+                text_to_check = (title + " " + desc).lower()
+                if any(bad_word in text_to_check for bad_word in BANNED_KEYWORDS):
+                    conn = get_db_connection()
+                    c = conn.cursor()
+                    sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+                    c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, st.session_state.user_id))
+                    conn.commit()
+                    conn.close()
+                    st.error("🚫 Inappropriate/Sexual content detected! Your account has been suspended for 30 days.")
+                    st.rerun()
+                    st.stop()
+
+                # 2. Daily Upload Count Limit Verification
                 conn = get_db_connection()
                 c = conn.cursor()
-                rec_id = str(uuid.uuid4())
-                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                today_start = datetime.now().strftime("%Y-%m-%d 00:00:00")
                 c.execute("""
-                    INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, media_path, post_category, created_at)
-                    VALUES (?, 'post', ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (rec_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), title, desc, m_path, post_type, now))
-                conn.commit()
-                conn.close()
-                st.success("Uploaded!")
-                st.rerun()
+                    SELECT COUNT(*) as cnt FROM master_app_table 
+                    WHERE data_type = 'post' AND user_id = ? AND post_category = ? AND created_at >= ?
+                """, (st.session_state.user_id, post_type, today_start))
+                count_today = c.fetchone()["cnt"]
+
+                limit = 1 if post_type in ["short", "long"] else 10
+                if count_today >= limit:
+                    st.warning(f"⚠️ Daily upload limit reached for {post_type}! Limit is {limit} per day.")
+                    conn.close()
+                else:
+                    ext = os.path.splitext(uploaded_media.name)[1]
+                    m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{ext}")
+                    with open(m_path, "wb") as f: f.write(uploaded_media.getbuffer())
+                    
+                    rec_id = str(uuid.uuid4())
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    c.execute("""
+                        INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, media_path, post_category, created_at)
+                        VALUES (?, 'post', ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (rec_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), title, desc, m_path, post_type, now))
+                    conn.commit()
+                    conn.close()
+                    st.success("Post Published Successfully!")
+                    st.rerun()
 
 # ------------------------------------------
-# TAB 3: MONETIZATION
+# TAB 3: GLOBAL MONETIZATION
 # ------------------------------------------
 with tab_monetization:
     st.markdown("### 💸 Worldwide Monetization & Payout System")
-    st.info("Monetization System Active!")
+    st.info("Monetization System Active for Qualified Content Creators!")
