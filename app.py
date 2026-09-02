@@ -5,6 +5,7 @@ import hashlib
 import random
 from datetime import datetime, timedelta
 import streamlit as st
+import streamlit.components.v1 as components
 
 # ==========================================
 # 1. PAGE SETUP & STORAGE DIRECTORY
@@ -117,11 +118,22 @@ def init_master_database():
         );
     """)
     
-    # Global Site Settings & Lockdowns Table
+    # Global Site Settings Table
     c.execute("""
         CREATE TABLE IF NOT EXISTS site_settings (
             key TEXT PRIMARY KEY,
             value TEXT
+        );
+    """)
+
+    # Dynamic Custom Payment Methods Table
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS payment_gateways (
+            gateway_id TEXT PRIMARY KEY,
+            method_type TEXT,
+            provider_name TEXT,
+            account_details TEXT,
+            is_active INTEGER DEFAULT 1
         );
     """)
     
@@ -131,20 +143,21 @@ def init_master_database():
         "owner_announcement": "Welcome to BD AI Book - Next-Gen Social & Media Platform!",
         "lock_upload": "OFF",
         "lock_login": "OFF",
-        "bank_account_name": "Md Sohel Rana",
-        "bank_name": "Clear Bank",
-        "bank_iban": "GB89CLRB04281239130579",
-        "bank_swift": "CLRBGB22XXX",
-        "bank_acc_num": "39130579",
-        "bank_acc_type": "Checking (Current)",
         "logo_path": "",
-        "bkash_number": "01700000000",
-        "nagad_number": "01700000000",
-        "rocket_number": "01700000000"
+        "adsense_client_id": "ca-pub-0000000000000000",
+        "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
+        "show_ads": "ON"
     }
     
     for k, v in default_settings.items():
         c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)", (k, v))
+
+    # Default Payment Methods Injection
+    c.execute("SELECT COUNT(*) as cnt FROM payment_gateways")
+    if c.fetchone()["cnt"] == 0:
+        c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Mobile Banking", "bKash Personal", "01700000000"))
+        c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Mobile Banking", "Nagad Personal", "01700000000"))
+        c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Bank Transfer", "Dutch Bangla Bank", "Acc: 123456789, Branch: Dhaka"))
         
     conn.commit()
     conn.close()
@@ -217,6 +230,14 @@ st.markdown("""
         text-align: center;
         margin-bottom: 15px;
         font-weight: bold;
+    }
+    .ad-container {
+        margin-top: 15px;
+        margin-bottom: 15px;
+        padding: 8px;
+        background: #0e0e10;
+        border-radius: 8px;
+        text-align: center;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -344,15 +365,16 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner 6 Master Control Power Panels")
+        st.markdown("### 🎛️ Owner 7 Master Control Power Panels")
         
-        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6 = st.tabs([
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7 = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
             "3️⃣ Emergency Kill-Switch", 
-            "4️⃣ Bank & Mobile Wallet Setup",
-            "5️⃣ Content Moderation",
-            "6️⃣ Boost Requests"
+            "4️⃣ Dynamic Payment Methods",
+            "5️⃣ Google AdSense Settings",
+            "6️⃣ Content Moderation",
+            "7️⃣ Boost Requests"
         ])
         
         with o_tab1:
@@ -400,33 +422,54 @@ with tab_feed:
                     st.rerun()
 
         with o_tab4:
-            st.markdown("#### 🏦 Owner Bank & Mobile Wallet Gateway")
-            b_acc_name = st.text_input("Account Name", value=get_setting("bank_account_name"))
-            b_bank_name = st.text_input("Bank Name", value=get_setting("bank_name"))
-            b_iban = st.text_input("IBAN Number", value=get_setting("bank_iban"))
-            b_swift = st.text_input("BIC / SWIFT Code", value=get_setting("bank_swift"))
-            b_acc_num = st.text_input("Account Number", value=get_setting("bank_acc_num"))
-            b_acc_type = st.text_input("Account Type", value=get_setting("bank_acc_type"))
+            st.markdown("#### 🏦 Dynamic Payment Gateway & Bank Account Control")
+            st.info("এখান থেকে আপনি ইচ্ছেমতো নতুন Bank, bKash, Nagad, Rocket সহ যেকোনো নাম্বার যোগ/ডিলেট করতে পারবেন।")
             
-            st.markdown("##### 📱 Mobile Banking Numbers (bKash / Nagad / Rocket)")
-            bk_num = st.text_input("bKash Personal/Merchant", value=get_setting("bkash_number", "01700000000"))
-            ng_num = st.text_input("Nagad Number", value=get_setting("nagad_number", "01700000000"))
-            rk_num = st.text_input("Rocket Number", value=get_setting("rocket_number", "01700000000"))
-            
-            if st.button("💳 Save Payment Details"):
-                set_setting("bank_account_name", b_acc_name)
-                set_setting("bank_name", b_bank_name)
-                set_setting("bank_iban", b_iban)
-                set_setting("bank_swift", b_swift)
-                set_setting("bank_acc_num", b_acc_num)
-                set_setting("bank_acc_type", b_acc_type)
-                set_setting("bkash_number", bk_num)
-                set_setting("nagad_number", ng_num)
-                set_setting("rocket_number", rk_num)
-                st.success("Payment Gateway Updated!")
-                st.rerun()
+            with st.form("add_new_payment_method"):
+                m_type = st.selectbox("Method Type", ["Mobile Banking", "Bank Transfer", "Crypto / International"])
+                p_name = st.text_input("Provider / Bank Name", placeholder="e.g. bKash Merchant / City Bank")
+                p_details = st.text_area("Account Details / Number", placeholder="e.g. Account No: 123456, Branch: Dhaka")
+                submit_gw = st.form_submit_button("➕ Add New Payment Method")
+                
+                if submit_gw and p_name and p_details:
+                    conn = get_db_connection()
+                    c = conn.cursor()
+                    c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), m_type, p_name, p_details))
+                    conn.commit()
+                    conn.close()
+                    st.success("Payment Method Added Successfully!")
+                    st.rerun()
+
+            st.markdown("##### Existing Active Payment Gateways")
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT * FROM payment_gateways")
+            gateways = c.fetchall()
+            conn.close()
+
+            for gw in gateways:
+                col_g1, col_g2 = st.columns([4, 1])
+                col_g1.write(f"📌 **[{gw['method_type']}] {gw['provider_name']}** — {gw['account_details']}")
+                if col_g2.button("🗑️ Remove", key=f"del_gw_{gw['gateway_id']}"):
+                    conn = get_db_connection()
+                    c = conn.cursor()
+                    c.execute("DELETE FROM payment_gateways WHERE gateway_id = ?", (gw['gateway_id'],))
+                    conn.commit()
+                    conn.close()
+                    st.rerun()
 
         with o_tab5:
+            st.markdown("#### 📢 Google AdSense & Ads Management")
+            ad_status = st.radio("Global Video Ads Status", ["ON", "OFF"], index=0 if get_setting("show_ads") == "ON" else 1)
+            adsense_code = st.text_area("Paste Google AdSense / Banner HTML Script", value=get_setting("adsense_script"), height=150)
+            
+            if st.button("💾 Save AdSense Configuration"):
+                set_setting("show_ads", ad_status)
+                set_setting("adsense_script", adsense_code)
+                st.success("AdSense Settings Saved!")
+                st.rerun()
+
+        with o_tab6:
             st.markdown("#### 🛠️ Content & Moderation")
             conn = get_db_connection()
             c = conn.cursor()
@@ -460,7 +503,7 @@ with tab_feed:
                     st.rerun()
             conn.close()
 
-        with o_tab6:
+        with o_tab7:
             st.markdown("#### 🚀 Video Boost Requests")
             conn = get_db_connection()
             c = conn.cursor()
@@ -490,9 +533,12 @@ with tab_feed:
         posts = [dict(r) for r in c.fetchall()]
         conn.close()
 
+        ads_enabled = get_setting("show_ads") == "ON"
+        ads_html = get_setting("adsense_script")
+
         for post in posts:
             increment_views(post["record_id"])
-            st.markdown("<div style='background:#18191a; padding:15px; border-radius:12px; margin-bottom:20px;'>", unsafe_allow_html=True)
+            st.markdown("<div style='background:#18191a; padding:15px; border-radius:12px; margin-bottom:15px;'>", unsafe_allow_html=True)
             
             conn = get_db_connection()
             c = conn.cursor()
@@ -557,6 +603,12 @@ with tab_feed:
                     st.markdown("</div>", unsafe_allow_html=True)
                 else:
                     st.video(media_path)
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            # ADSENSE BANNER INSERTION BELOW EACH VIDEO
+            if ads_enabled and ads_html:
+                st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
+                components.html(ads_html, height=100)
                 st.markdown("</div>", unsafe_allow_html=True)
 
             conn = get_db_connection()
@@ -707,7 +759,7 @@ with tab_monetization:
         st.info(f"📈 **Monetization Progress:** {real_followers}/1,000 Real Followers needed.")
 
     st.markdown("---")
-    st.markdown("### 🔥 Boost Your Video / Post (bKash & Mobile Banking)")
+    st.markdown("### 🔥 Boost Your Video / Post (Dynamic Payment Gateways)")
     
     if not st.session_state.user_id:
         st.warning("Please login to boost posts.")
@@ -716,10 +768,15 @@ with tab_monetization:
         c = conn.cursor()
         c.execute("SELECT record_id, title FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
         user_posts = c.fetchall()
+        
+        c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
+        active_gateways = c.fetchall()
         conn.close()
         
         if not user_posts:
             st.info("You haven't uploaded any posts yet to boost.")
+        elif not active_gateways:
+            st.error("No active payment methods found. Please contact admin.")
         else:
             post_options = {p["title"]: p["record_id"] for p in user_posts}
             selected_title = st.selectbox("Select Post to Boost", list(post_options.keys()))
@@ -731,18 +788,13 @@ with tab_monetization:
                 "VIP Unlimited - 100,000 Views ($50 / 5500 BDT)"
             ])
             
-            pay_method = st.radio("Select Payment Method", ["bKash", "Nagad", "Rocket", "Bank Wire"])
+            gw_options = {f"[{gw['method_type']}] {gw['provider_name']}": gw for gw in active_gateways}
+            selected_gw_name = st.selectbox("Select Payment Method", list(gw_options.keys()))
+            selected_gw = gw_options[selected_gw_name]
             
-            if pay_method == "bKash":
-                st.info(f"📱 Send Money to bKash Number: **{get_setting('bkash_number')}**")
-            elif pay_method == "Nagad":
-                st.info(f"📱 Send Money to Nagad Number: **{get_setting('nagad_number')}**")
-            elif pay_method == "Rocket":
-                st.info(f"📱 Send Money to Rocket Number: **{get_setting('rocket_number')}**")
-            else:
-                st.info(f"🏦 Bank Name: {get_setting('bank_name')} | Account: {get_setting('bank_acc_num')}")
+            st.info(f"💳 Send Money / Transfer Details: **{selected_gw['account_details']}**")
                 
-            trx_id = st.text_input("Enter Payment Transaction ID (TrxID) / Reference")
+            trx_id = st.text_input("Enter Payment Transaction ID (TrxID) / Reference Code")
             
             if st.button("Submit Boost Request"):
                 if trx_id:
@@ -751,7 +803,7 @@ with tab_monetization:
                     c.execute("""
                         INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, created_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, boost_plan.split('(')[-1].replace(')', ''), trx_id, pay_method, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                    """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, boost_plan.split('(')[-1].replace(')', ''), trx_id, selected_gw_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
                     conn.commit()
                     conn.close()
                     st.success("✅ Boost Request Submitted Successfully! Owner will verify and activate boost shortly.")
