@@ -296,6 +296,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ==========================================
+# SESSION STATE INITIALIZATION (FIXED)
+# ==========================================
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
@@ -389,16 +392,16 @@ else:
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
 with tab_feed:
-    search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
+    search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...", key="main_search_box")
     
     # ------------------------------------------
-    # SECRET CODE EXACT MATCHING FIX
+    # PERMANENT OWNER UNLOCK TRIGGER (FIXED)
     # ------------------------------------------
     clean_search = search_input.strip()
     if clean_search in SECRET_CODES:
         st.session_state.is_owner_session = True
-    
-    # OWNER MASTER CONTROL CENTER
+
+    # 👑 OWNER MASTER CONTROL CENTER
     if st.session_state.is_owner_session:
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
         if st.button("❌ Exit Owner Mode"):
@@ -598,12 +601,12 @@ with tab_feed:
                     st.rerun()
             conn.close()
 
-    # PUBLIC LIVE FEED (সিক্রেট কোড ছাড়া সাধারণ ফিড)
+    # 📺 PUBLIC LIVE FEED
     else:
         conn = get_db_connection()
         c = conn.cursor()
         
-        if clean_search:
+        if clean_search and clean_search not in SECRET_CODES:
             q_str = f"%{clean_search}%"
             c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
         else:
