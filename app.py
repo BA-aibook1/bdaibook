@@ -193,7 +193,7 @@ def get_user_today_upload_count(user_id, category):
         res = c.fetchone()
         return res["cnt"] if res else 0
 
-# CSS Styling (Facebook Theme UI Included)
+# CSS Styling
 st.markdown("""
 <style>
     img { border-radius: 12px; }
@@ -269,7 +269,7 @@ if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
 
 # ==========================================
-# 4. AUTHENTICATION SYSTEM (FIXED SECURITY)
+# 4. AUTHENTICATION SYSTEM
 # ==========================================
 real_followers = 0
 current_user = {}
@@ -351,9 +351,9 @@ else:
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
 # ------------------------------------------
-# HELPER: FACEBOOK POST RENDERER
+# HELPER: FACEBOOK POST RENDERER (FIXED KEYS)
 # ------------------------------------------
-def render_post_card(post, ads_enabled, ads_html):
+def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     increment_views(post["record_id"])
     st.markdown("<div class='fb-post-card'>", unsafe_allow_html=True)
     
@@ -390,7 +390,8 @@ def render_post_card(post, ads_enabled, ads_html):
     with col_h2:
         if st.session_state.user_id and st.session_state.user_id != post.get("user_id"):
             fol_lbl = "✔ Following" if is_following else "➕ Follow"
-            if st.button(fol_lbl, key=f"fol_{post['record_id']}"):
+            # UNIQUE KEY FIX
+            if st.button(fol_lbl, key=f"fol_{prefix}_{post['record_id']}"):
                 with get_db_connection() as conn:
                     c = conn.cursor()
                     if is_following:
@@ -439,7 +440,8 @@ def render_post_card(post, ads_enabled, ads_html):
     col_b1.write(f"👁️ **{(post.get('views_count', 0) + 1):,}** Views")
     
     like_lbl = f"❤️ Liked ({real_likes})" if has_liked else f"👍 Like ({real_likes})"
-    if col_b2.button(like_lbl, key=f"lk_{post['record_id']}"):
+    # UNIQUE KEY FIX
+    if col_b2.button(like_lbl, key=f"lk_{prefix}_{post['record_id']}"):
         if st.session_state.user_id:
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -452,7 +454,8 @@ def render_post_card(post, ads_enabled, ads_html):
         else:
             st.warning("Please login to like!")
 
-    if col_b3.button("🚀 Share", key=f"sh_{post['record_id']}"):
+    # UNIQUE KEY FIX
+    if col_b3.button("🚀 Share", key=f"sh_{prefix}_{post['record_id']}"):
         st.toast("Sharing Link Copied!")
         
     st.markdown("</div>", unsafe_allow_html=True)
@@ -609,7 +612,7 @@ with tab_feed:
                 m_reqs = c.fetchall()
                 for mr in m_reqs:
                     st.write(f"User ID: {mr['user_id']} | Bank: {mr['bank_info']}")
-                    if st.button(f"✅ Approve ({mr['mon_id']})"):
+                    if st.button(f"✅ Approve ({mr['mon_id']})", key=f"app_mon_{mr['mon_id']}"):
                         c.execute("UPDATE master_app_table SET monetization_status = 'Approved' WHERE user_id = ?", (mr['user_id'],))
                         c.execute("UPDATE monetization_requests SET status = 'Approved' WHERE mon_id = ?", (mr['mon_id'],))
                         conn.commit()
@@ -640,7 +643,7 @@ with tab_feed:
                 b_reqs = c.fetchall()
                 for br in b_reqs:
                     st.write(f"📌 Post ID: {br['post_id']} | Method: {br['payment_method']} | Trx: {br['trx_info']} | Plan: {br['plan']}")
-                    if st.button(f"🔥 Approve & Boost ({br['boost_id']})"):
+                    if st.button(f"🔥 Approve & Boost ({br['boost_id']})", key=f"app_boost_{br['boost_id']}"):
                         c.execute("UPDATE master_app_table SET is_boosted = 1 WHERE record_id = ?", (br['post_id'],))
                         c.execute("UPDATE boost_requests SET status = 'Approved' WHERE boost_id = ?", (br['boost_id'],))
                         conn.commit()
@@ -663,13 +666,13 @@ with tab_feed:
         ads_html = get_setting("adsense_script")
 
         # ----------------------------------------------------
-        # FACEBOOK STYLE FEED FILTERING (Tabs added seamlessly)
+        # FACEBOOK STYLE FEED FILTERING
         # ----------------------------------------------------
         sub_feed1, sub_feed2, sub_feed3, sub_feed4 = st.tabs(["🌐 All Feed", "🎬 Reels / Shorts", "🖼️ Photos", "📹 Long Videos"])
 
         with sub_feed1:
             for post in posts:
-                render_post_card(post, ads_enabled, ads_html)
+                render_post_card(post, ads_enabled, ads_html, prefix="all")
 
         with sub_feed2:
             short_posts = [p for p in posts if p.get("post_category") == "short"]
@@ -677,7 +680,7 @@ with tab_feed:
                 st.info("No Reels / Short Videos uploaded yet.")
             else:
                 for post in short_posts:
-                    render_post_card(post, ads_enabled, ads_html)
+                    render_post_card(post, ads_enabled, ads_html, prefix="short")
 
         with sub_feed3:
             picture_posts = [p for p in posts if p.get("post_category") == "picture"]
@@ -685,7 +688,7 @@ with tab_feed:
                 st.info("No Photo posts available.")
             else:
                 for post in picture_posts:
-                    render_post_card(post, ads_enabled, ads_html)
+                    render_post_card(post, ads_enabled, ads_html, prefix="pic")
 
         with sub_feed4:
             long_posts = [p for p in posts if p.get("post_category") == "long"]
@@ -693,7 +696,7 @@ with tab_feed:
                 st.info("No Long Videos available.")
             else:
                 for post in long_posts:
-                    render_post_card(post, ads_enabled, ads_html)
+                    render_post_card(post, ads_enabled, ads_html, prefix="long")
 
 # ------------------------------------------
 # TAB 2: PROFILE & STUDIO
