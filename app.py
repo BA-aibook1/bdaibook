@@ -12,7 +12,7 @@ import streamlit.components.v1 as components
 # 1. PAGE CONFIGURATION & META
 # ==========================================
 st.set_page_config(
-    page_title="BD AI Book — Enterprise Master Platform",
+    page_title="BD AIYouTube  — Enterprise Master Platform",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded",
