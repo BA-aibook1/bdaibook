@@ -142,6 +142,7 @@ def init_master_database():
         "app_name": "BD AI Book",
         "owner_announcement": "Welcome to BD AI Book - Next-Gen Social & Media Platform!",
         "lock_upload": "OFF",
+        "daily_limit_mode": "OFF", # ON হলে ১টি শর্ট, ১টি লং, ১০টি পিকচার লিমিট প্রযোজ্য হবে
         "lock_login": "OFF",
         "logo_path": "",
         "adsense_client_id": "ca-pub-0000000000000000",
@@ -192,6 +193,19 @@ def increment_views(post_id):
     c.execute("UPDATE master_app_table SET views_count = views_count + 1 WHERE record_id = ?", (post_id,))
     conn.commit()
     conn.close()
+
+# Helper: ইউজার আজকের দিনে কতগুলো নির্দিষ্ট ধরনের পোস্ট আপলোড করেছে চেক করা
+def get_user_today_upload_count(user_id, category):
+    conn = get_db_connection()
+    c = conn.cursor()
+    twenty_four_hours_ago = (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+    c.execute("""
+        SELECT COUNT(*) as cnt FROM master_app_table 
+        WHERE data_type = 'post' AND user_id = ? AND post_category = ? AND created_at >= ?
+    """, (user_id, category, twenty_four_hours_ago))
+    res = c.fetchone()
+    conn.close()
+    return res["cnt"] if res else 0
 
 # CSS Styling
 st.markdown("""
@@ -394,18 +408,35 @@ with tab_feed:
                 st.rerun()
 
         with o_tab2:
-            st.markdown("#### 🚫 Video Upload Access Lockdown")
+            st.markdown("#### 🚫 Video Upload Access Lockdown & Limits")
             curr_upload = get_setting("lock_upload", "OFF")
-            st.write(f"Current Status: **{'LOCKED' if curr_upload == 'ON' else 'UNLOCKED'}**")
+            st.write(f"Upload Lockdown Status: **{'LOCKED' if curr_upload == 'ON' else 'UNLOCKED'}**")
             
-            if curr_upload == "OFF":
-                if st.button("🔒 ACTIVATE UPLOAD LOCKDOWN"):
-                    set_setting("lock_upload", "ON")
-                    st.rerun()
-            else:
-                if st.button("🔓 DISABLE UPLOAD LOCKDOWN"):
-                    set_setting("lock_upload", "OFF")
-                    st.rerun()
+            col_u1, col_u2 = st.columns(2)
+            with col_u1:
+                if curr_upload == "OFF":
+                    if st.button("🔒 ACTIVATE UPLOAD LOCKDOWN"):
+                        set_setting("lock_upload", "ON")
+                        st.rerun()
+                else:
+                    if st.button("🔓 DISABLE UPLOAD LOCKDOWN"):
+                        set_setting("lock_upload", "OFF")
+                        st.rerun()
+
+            st.markdown("---")
+            st.markdown("#### ⚙️ Global Daily Limit Switch (১ Short, ১ Long, ১০ Post per day)")
+            curr_daily_limit = get_setting("daily_limit_mode", "OFF")
+            st.write(f"Global Daily Limit Status: **{'ACTIVE (১টি Short, ১টি Long, ১০টি Post)' if curr_daily_limit == 'ON' else 'UNLIMITED (যত খুশি পোস্ট)'}**")
+
+            with col_u2:
+                if curr_daily_limit == "OFF":
+                    if st.button("🟢 TURN ON DAILY LIMIT MODE"):
+                        set_setting("daily_limit_mode", "ON")
+                        st.rerun()
+                else:
+                    if st.button("🔴 TURN OFF DAILY LIMIT MODE"):
+                        set_setting("daily_limit_mode", "OFF")
+                        st.rerun()
 
         with o_tab3:
             st.markdown("#### ⚡ Emergency System Login Kill-Switch")
@@ -694,6 +725,13 @@ with tab_profile:
             st.error("🚫 Video Upload System is temporarily disabled by Owner.")
         else:
             post_type = st.selectbox("Format", ["short", "long", "picture"])
+            
+            # Daily Limit Info Banner (If Active)
+            if get_setting("daily_limit_mode") == "ON":
+                current_cnt = get_user_today_upload_count(st.session_state.user_id, post_type)
+                limit_max = 1 if post_type in ["short", "long"] else 10
+                st.info(f"⚠️ **Daily Guidelines Active:** You have uploaded **{current_cnt}/{limit_max}** {post_type} post(s) today.")
+
             title = st.text_input("Title")
             desc = st.text_area("Description")
             p_tags = st.text_input("Hashtags")
@@ -701,6 +739,20 @@ with tab_profile:
             
             if st.button("Publish Post"):
                 if uploaded_media and title:
+                    # 1. Check Global Daily Limits
+                    if get_setting("daily_limit_mode") == "ON":
+                        today_count = get_user_today_upload_count(st.session_state.user_id, post_type)
+                        if post_type == "short" and today_count >= 1:
+                            st.error("🚫 Limit Exceeded! You can only upload 1 Short video per 24 hours.")
+                            st.stop()
+                        elif post_type == "long" and today_count >= 1:
+                            st.error("🚫 Limit Exceeded! You can only upload 1 Long video per 24 hours.")
+                            st.stop()
+                        elif post_type == "picture" and today_count >= 10:
+                            st.error("🚫 Limit Exceeded! You can only upload 10 Pictures/Posts per 24 hours.")
+                            st.stop()
+
+                    # 2. Moderation Banned Keywords Check
                     if any(w in (title + " " + desc).lower() for w in BANNED_KEYWORDS):
                         conn = get_db_connection()
                         c = conn.cursor()
