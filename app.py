@@ -12,7 +12,7 @@ import streamlit.components.v1 as components
 # 1. PAGE CONFIGURATION & META
 # ==========================================
 st.set_page_config(
-    page_title="BD AIYouTube  — Enterprise Master Platform",
+    page_title="BD AI YouTube  — Enterprise Master Platform",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -20,9 +20,7 @@ st.set_page_config(
 
 components.html(
     """
-    <meta name="msvalidate.01" content="e776b8ce73ea3dcc07551e8a021a0907">
-    <meta name="monetag" content="5cc1b7ba5cb29eff802ce49009f87e2b">
-    """,
+    
     height=0,
 )
 
