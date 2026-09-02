@@ -142,18 +142,19 @@ def init_master_database():
         "app_name": "BD AI Book",
         "owner_announcement": "Welcome to BD AI Book - Next-Gen Social & Media Platform!",
         "lock_upload": "OFF",
-        "daily_limit_mode": "OFF", # ON হলে ১টি শর্ট, ১টি লং, ১০টি পিকচার লিমিট প্রযোজ্য হবে
+        "daily_limit_mode": "OFF",
         "lock_login": "OFF",
         "logo_path": "",
         "adsense_client_id": "ca-pub-0000000000000000",
         "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
-        "show_ads": "ON"
+        "show_ads": "ON",
+        "video_ad_1": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4", # Default Sample Ad 1
+        "video_ad_2": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"  # Default Sample Ad 2
     }
     
     for k, v in default_settings.items():
         c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)", (k, v))
 
-    # Default Payment Methods Injection
     c.execute("SELECT COUNT(*) as cnt FROM payment_gateways")
     if c.fetchone()["cnt"] == 0:
         c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Mobile Banking", "bKash Personal", "01700000000"))
@@ -194,7 +195,6 @@ def increment_views(post_id):
     conn.commit()
     conn.close()
 
-# Helper: ইউজার আজকের দিনে কতগুলো নির্দিষ্ট ধরনের পোস্ট আপলোড করেছে চেক করা
 def get_user_today_upload_count(user_id, category):
     conn = get_db_connection()
     c = conn.cursor()
@@ -206,6 +206,62 @@ def get_user_today_upload_count(user_id, category):
     res = c.fetchone()
     conn.close()
     return res["cnt"] if res else 0
+
+# ==========================================
+# 3. VIDEO ADS ENGINE (PRE-ROLL 2 ADS LOGIC)
+# ==========================================
+def render_video_with_preroll_ads(main_video_path, post_id, category="long"):
+    """
+    লং বা শর্ট ভিডিও প্লে হওয়ার আগে ২টা বিজ্ঞাপন প্লে করার কাস্টম ভিডিও প্লেয়ার সার্ভিস।
+    """
+    ad1_url = get_setting("video_ad_1")
+    ad2_url = get_setting("video_ad_2")
+    ads_enabled = get_setting("show_ads") == "ON"
+    
+    # ভিডিও ফাইল রিড লিঙ্ক তৈরি
+    if os.path.exists(main_video_path):
+        import base64
+        with open(main_video_path, "rb") as video_file:
+            video_bytes = video_file.read()
+            encoded_video = base64.b64encode(video_bytes).decode('utf-8')
+            main_video_data_url = f"data:video/mp4;base64,{encoded_video}"
+    else:
+        main_video_data_url = main_video_path
+
+    if ads_enabled:
+        html_code = f"""
+        <div style="position:relative; width:100%; border-radius:12px; overflow:hidden; background:#000;">
+            <div id="ad-status-{post_id}" style="position:absolute; top:10px; left:10px; background:rgba(255,0,0,0.8); color:#fff; padding:4px 10px; border-radius:5px; font-size:12px; font-weight:bold; z-index:10;">
+                📢 Ad 1 of 2 (Sponsored)
+            </div>
+            <video id="player-{post_id}" controls autoplay style="width:100%; height:auto; max-height:480px; border-radius:12px;">
+                <source src="{ad1_url}" type="video/mp4">
+            </video>
+        </div>
+
+        <script>
+            var player = document.getElementById("player-{post_id}");
+            var statusTag = document.getElementById("ad-status-{post_id}");
+            var step = 1;
+
+            player.onended = function() {{
+                if (step === 1) {{
+                    step = 2;
+                    statusTag.innerHTML = "📢 Ad 2 of 2 (Sponsored)";
+                    player.src = "{ad2_url}";
+                    player.play();
+                }} else if (step === 2) {{
+                    step = 3;
+                    statusTag.style.display = "none";
+                    player.src = "{main_video_data_url}";
+                    player.play();
+                }}
+            }};
+        </script>
+        """
+        components.html(html_code, height=450 if category=="long" else 600)
+    else:
+        st.video(main_video_path)
 
 # CSS Styling
 st.markdown("""
@@ -490,14 +546,20 @@ with tab_feed:
                     st.rerun()
 
         with o_tab5:
-            st.markdown("#### 📢 Google AdSense & Ads Management")
+            st.markdown("#### 📢 Google AdSense & Video Ads Management")
             ad_status = st.radio("Global Video Ads Status", ["ON", "OFF"], index=0 if get_setting("show_ads") == "ON" else 1)
-            adsense_code = st.text_area("Paste Google AdSense / Banner HTML Script", value=get_setting("adsense_script"), height=150)
+            adsense_code = st.text_area("Paste Google AdSense / Banner HTML Script", value=get_setting("adsense_script"), height=100)
             
-            if st.button("💾 Save AdSense Configuration"):
+            st.markdown("##### 🎬 Pre-Roll Video Ads URL (ভিডিও শুরু হওয়ার আগে প্লে হবে)")
+            v_ad1 = st.text_input("Pre-Roll Video Ad 1 Direct MP4 Link", value=get_setting("video_ad_1"))
+            v_ad2 = st.text_input("Pre-Roll Video Ad 2 Direct MP4 Link", value=get_setting("video_ad_2"))
+
+            if st.button("💾 Save AdSense & Video Ad Configuration"):
                 set_setting("show_ads", ad_status)
                 set_setting("adsense_script", adsense_code)
-                st.success("AdSense Settings Saved!")
+                set_setting("video_ad_1", v_ad1)
+                set_setting("video_ad_2", v_ad2)
+                st.success("AdSense & Video Ads Settings Saved!")
                 st.rerun()
 
         with o_tab6:
@@ -567,7 +629,7 @@ with tab_feed:
         ads_enabled = get_setting("show_ads") == "ON"
         ads_html = get_setting("adsense_script")
 
-        for post in posts:
+        for idx, post in enumerate(posts):
             increment_views(post["record_id"])
             st.markdown("<div style='background:#18191a; padding:15px; border-radius:12px; margin-bottom:15px;'>", unsafe_allow_html=True)
             
@@ -603,7 +665,6 @@ with tab_feed:
                     st.caption(f"👥 Followers: {author_followers:,} | Category: {post.get('post_category')}")
                 
             with col_h2:
-                # Follow Button Logic
                 if st.session_state.user_id and st.session_state.user_id != post.get("user_id"):
                     fol_lbl = "✔ Following" if is_following else "➕ Follow"
                     if st.button(fol_lbl, key=f"fol_{post['record_id']}"):
@@ -630,10 +691,12 @@ with tab_feed:
                     st.image(media_path, use_container_width=True)
                 elif cat == "short":
                     st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
-                    st.video(media_path)
+                    # শর্টসের জন্য প্রি-রোল ভিডিও অ্যাড লজিক
+                    render_video_with_preroll_ads(media_path, post["record_id"], category="short")
                     st.markdown("</div>", unsafe_allow_html=True)
                 else:
-                    st.video(media_path)
+                    # ইউটিউব টাইপ লং ভিডিওর জন্য ২টা প্রি-রোল ভিডিও অ্যাড লজিক
+                    render_video_with_preroll_ads(media_path, post["record_id"], category="long")
                 st.markdown("</div>", unsafe_allow_html=True)
 
             # ADSENSE BANNER INSERTION BELOW EACH VIDEO
@@ -726,7 +789,6 @@ with tab_profile:
         else:
             post_type = st.selectbox("Format", ["short", "long", "picture"])
             
-            # Daily Limit Info Banner (If Active)
             if get_setting("daily_limit_mode") == "ON":
                 current_cnt = get_user_today_upload_count(st.session_state.user_id, post_type)
                 limit_max = 1 if post_type in ["short", "long"] else 10
@@ -739,7 +801,6 @@ with tab_profile:
             
             if st.button("Publish Post"):
                 if uploaded_media and title:
-                    # 1. Check Global Daily Limits
                     if get_setting("daily_limit_mode") == "ON":
                         today_count = get_user_today_upload_count(st.session_state.user_id, post_type)
                         if post_type == "short" and today_count >= 1:
@@ -752,7 +813,6 @@ with tab_profile:
                             st.error("🚫 Limit Exceeded! You can only upload 10 Pictures/Posts per 24 hours.")
                             st.stop()
 
-                    # 2. Moderation Banned Keywords Check
                     if any(w in (title + " " + desc).lower() for w in BANNED_KEYWORDS):
                         conn = get_db_connection()
                         c = conn.cursor()
