@@ -36,7 +36,7 @@ BANK_DETAILS = """
 """
 
 # ==========================================
-# 2. MASTER DATABASE ENGINE & MIGRATION
+# 2. MASTER DATABASE ENGINE & SAFE MIGRATION
 # ==========================================
 def get_db_connection():
     conn = sqlite3.connect(LOCAL_DB_FILE, check_same_thread=False)
@@ -46,6 +46,7 @@ def get_db_connection():
 def init_master_database():
     conn = get_db_connection()
     c = conn.cursor()
+    
     c.execute("""
         CREATE TABLE IF NOT EXISTS master_app_table (
             record_id TEXT PRIMARY KEY,
@@ -103,7 +104,7 @@ def init_master_database():
         CREATE TABLE IF NOT EXISTS likes (
             user_id TEXT,
             post_id TEXT,
-            category TEXT,
+            category TEXT DEFAULT 'general',
             PRIMARY KEY (user_id, post_id)
         );
     """)
@@ -114,6 +115,12 @@ def init_master_database():
         );
     """)
     
+    # Auto-migration for existing databases
+    c.execute("PRAGMA table_info(likes);")
+    columns = [column[1] for column in c.fetchall()]
+    if "category" not in columns:
+        c.execute("ALTER TABLE likes ADD COLUMN category TEXT DEFAULT 'general';")
+
     conn.commit()
     conn.close()
 
@@ -190,7 +197,7 @@ st.markdown("<h1 style='text-align: center; color:#0064e0;'>BD AI Book</h1>", un
 st.caption("<p style='text-align: center;'>Next-Gen Global Social & Media Platform</p>", unsafe_allow_html=True)
 
 # ==========================================
-# 4. AUTHENTICATION & LOGIN
+# 4. AUTHENTICATION & LOGIN SYSTEM
 # ==========================================
 real_followers = 0
 current_user = {}
@@ -255,17 +262,17 @@ else:
         st.rerun()
 
 # ==========================================
-# 5. TABS INTERFACE
+# 5. MAIN NAVIGATION TABS
 # ==========================================
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
 # ------------------------------------------
-# TAB 1: PUBLIC LIVE FEED & OWNER MONITORING
+# TAB 1: PUBLIC FEED & OWNER MONITORING
 # ------------------------------------------
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
     
-    # OWNER COMMAND ACCESS & FULL MONITORING PANEL
+    # OWNER MONITORING DASHBOARD (Secret Code Trigger)
     if search_input.strip() in SECRET_CODES:
         st.session_state.is_owner_session = True
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
@@ -281,15 +288,15 @@ with tab_feed:
         total_boosted = c.fetchone()["cnt"]
         conn.close()
 
-        # Admin Statistics Dashboard
+        # Real-time System Metrics
         col_m1, col_m2, col_m3 = st.columns(3)
         col_m1.metric("👥 Total App Users", total_users)
         col_m2.metric("🎬 Total App Posts", total_posts)
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🖼️ Change App Logo")
-        new_logo = st.file_uploader("Upload New Site Logo", type=["png", "jpg", "jpeg"])
+        st.markdown("### 🖼️ Change Site Logo")
+        new_logo = st.file_uploader("Upload App Logo", type=["png", "jpg", "jpeg"])
         if st.button("Update Logo"):
             if new_logo:
                 l_path = os.path.join(UPLOAD_DIR, "site_logo.png")
@@ -331,7 +338,7 @@ with tab_feed:
             st.text(f"ID: {u['user_id']} | Name: {u['full_name']} | Auth: {u['auth_identifier']} | Joined: {u['created_at']}")
         conn.close()
 
-    # FEED DISPLAY WITH AI RECOMMENDATION ALGORITHM
+    # PUBLIC LIVE FEED WITH SMART RECOMMENDATION ALGORITHM
     else:
         conn = get_db_connection()
         c = conn.cursor()
@@ -340,7 +347,8 @@ with tab_feed:
         if st.session_state.user_id:
             c.execute("SELECT category, COUNT(*) as cnt FROM likes WHERE user_id = ? GROUP BY category ORDER BY cnt DESC LIMIT 1", (st.session_state.user_id,))
             fav_row = c.fetchone()
-            if fav_row: fav_category = fav_row["category"]
+            if fav_row and fav_row["category"]: 
+                fav_category = fav_row["category"]
 
         if search_input:
             q_str = f"%{search_input}%"
@@ -401,7 +409,7 @@ with tab_feed:
             if post.get("tags"): st.markdown(f"<span style='color:#0064e0;'>{post['tags']}</span>", unsafe_allow_html=True)
             
             media_path = post.get("media_path")
-            cat = post.get("post_category")
+            cat = post.get("post_category", "general")
             
             if media_path and os.path.exists(media_path):
                 st.markdown("<div class='video-watermark-wrapper'><div class='video-watermark-badge'>BD AI BOOK</div>", unsafe_allow_html=True)
