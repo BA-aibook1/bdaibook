@@ -24,18 +24,8 @@ LOCAL_DB_FILE = "bd_ai_book_master.db"
 SECRET_CODES = ["S$s123456789112233", "S$s123456789112233BDAIBOOK"]
 BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
-BANK_DETAILS = """
-🏦 **International Payment Wire Gateway (Boost & Payout)**
-- **Account Name:** Md Sohel Rana
-- **Bank Name:** Clear Bank
-- **IBAN:** GB89CLRB04281239130579
-- **BIC/SWIFT Code:** CLRBGB22XXX
-- **Account Number:** 39130579
-- **Account Type:** Checking (Current)
-"""
-
 # ==========================================
-# 2. MASTER DATABASE ENGINE & MIGRATION
+# 2. MASTER DATABASE ENGINE & CONFIG SYSTEM
 # ==========================================
 def get_db_connection():
     conn = sqlite3.connect(LOCAL_DB_FILE, check_same_thread=False)
@@ -46,6 +36,7 @@ def init_master_database():
     conn = get_db_connection()
     c = conn.cursor()
     
+    # Master Table
     c.execute("""
         CREATE TABLE IF NOT EXISTS master_app_table (
             record_id TEXT PRIMARY KEY,
@@ -81,6 +72,8 @@ def init_master_database():
             created_at TEXT
         );
     """)
+    
+    # Boost Requests Table
     c.execute("""
         CREATE TABLE IF NOT EXISTS boost_requests (
             boost_id TEXT PRIMARY KEY,
@@ -93,6 +86,8 @@ def init_master_database():
             created_at TEXT
         );
     """)
+    
+    # Monetization Requests Table
     c.execute("""
         CREATE TABLE IF NOT EXISTS monetization_requests (
             mon_id TEXT PRIMARY KEY,
@@ -103,6 +98,8 @@ def init_master_database():
             created_at TEXT
         );
     """)
+    
+    # Follows & Likes
     c.execute("""
         CREATE TABLE IF NOT EXISTS follows (
             follower_id TEXT,
@@ -118,6 +115,8 @@ def init_master_database():
             PRIMARY KEY (user_id, post_id)
         );
     """)
+    
+    # Global Site Settings & Lockdowns Table
     c.execute("""
         CREATE TABLE IF NOT EXISTS site_settings (
             key TEXT PRIMARY KEY,
@@ -125,10 +124,43 @@ def init_master_database():
         );
     """)
     
+    # Default Config Initializer
+    default_settings = {
+        "app_name": "BD AI Book",
+        "owner_announcement": "Welcome to BD AI Book - Next-Gen Social & Media Platform!",
+        "lock_upload": "OFF",
+        "lock_login": "OFF",
+        "bank_account_name": "Md Sohel Rana",
+        "bank_name": "Clear Bank",
+        "bank_iban": "GB89CLRB04281239130579",
+        "bank_swift": "CLRBGB22XXX",
+        "bank_acc_num": "39130579",
+        "bank_acc_type": "Checking (Current)"
+    }
+    
+    for k, v in default_settings.items():
+        c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)", (k, v))
+        
     conn.commit()
     conn.close()
 
 init_master_database()
+
+# Config Getter / Setter Helpers
+def get_setting(key, default=""):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT value FROM site_settings WHERE key = ?", (key,))
+    row = c.fetchone()
+    conn.close()
+    return row["value"] if row else default
+
+def set_setting(key, value):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", (key, str(value)))
+    conn.commit()
+    conn.close()
 
 # ==========================================
 # 3. HELPER & CUSTOM CSS
@@ -173,6 +205,15 @@ st.markdown("""
         border-radius: 14px;
         overflow: hidden;
     }
+    .announcement-box {
+        background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        padding: 12px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 15px;
+        font-weight: bold;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -181,60 +222,64 @@ if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
 
-# Render Logo Header
-conn = get_db_connection()
-c = conn.cursor()
-c.execute("SELECT value FROM site_settings WHERE key = 'logo_path'")
-logo_row = c.fetchone()
-site_logo_path = logo_row["value"] if logo_row else None
-conn.close()
+# Render Logo & Dynamic App Header Name
+site_logo_path = get_setting("logo_path")
+app_name = get_setting("app_name", "BD AI Book")
+announcement = get_setting("owner_announcement", "")
 
 if site_logo_path and os.path.exists(site_logo_path):
     col_l1, col_l2, col_l3 = st.columns([2, 1, 2])
     with col_l2: st.image(site_logo_path, width=120)
 
-st.markdown("<h1 style='text-align: center; color:#0064e0;'>BD AI Book</h1>", unsafe_allow_html=True)
-st.caption("<p style='text-align: center;'>Next-Gen Global Social & Media Platform</p>", unsafe_allow_html=True)
+st.markdown(f"<h1 style='text-align: center; color:#0064e0;'>{app_name}</h1>", unsafe_allow_html=True)
+if announcement:
+    st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
 
 # ==========================================
-# 4. AUTHENTICATION SYSTEM
+# 4. AUTHENTICATION SYSTEM (WITH LOCKDOWN CONTROL)
 # ==========================================
 real_followers = 0
 current_user = {}
 
 st.sidebar.markdown("### 🔐 User Login")
+
+login_locked = get_setting("lock_login") == "ON"
+
 if not st.session_state.user_id:
-    auth_input = st.sidebar.text_input("Gmail or Mobile")
-    auth_pass = st.sidebar.text_input("Password", type="password")
-    if st.sidebar.button("Send OTP"):
-        if auth_input and auth_pass:
-            st.session_state.otp_code = str(random.randint(100000, 999999))
-            st.sidebar.info(f"📩 OTP Code: **{st.session_state.otp_code}**")
-            
-    if st.session_state.otp_code:
-        user_otp = st.sidebar.text_input("Enter OTP Code")
-        if st.sidebar.button("Verify & Login"):
-            if user_otp == st.session_state.otp_code:
-                conn = get_db_connection()
-                c = conn.cursor()
-                c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND auth_identifier = ?", (auth_input,))
-                usr = c.fetchone()
-                if usr:
-                    st.session_state.user_id = usr["user_id"]
-                    st.sidebar.success("Logged In!")
-                    st.rerun()
-                else:
-                    new_uid = str(uuid.uuid4())
-                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    c.execute("""
-                        INSERT INTO master_app_table (record_id, data_type, user_id, full_name, auth_identifier, password_hash, is_verified, created_at)
-                        VALUES (?, 'user', ?, ?, ?, ?, 1, ?)
-                    """, (new_uid, new_uid, f"User_{new_uid[:4]}", auth_input, hash_pass(auth_pass), now))
-                    conn.commit()
-                    st.session_state.user_id = new_uid
-                    st.sidebar.success("Registered & Logged In!")
-                    st.rerun()
-                conn.close()
+    if login_locked:
+        st.sidebar.error("🚫 Login System is temporarily locked by Owner for maintenance!")
+    else:
+        auth_input = st.sidebar.text_input("Gmail or Mobile")
+        auth_pass = st.sidebar.text_input("Password", type="password")
+        if st.sidebar.button("Send OTP"):
+            if auth_input and auth_pass:
+                st.session_state.otp_code = str(random.randint(100000, 999999))
+                st.sidebar.info(f"📩 OTP Code: **{st.session_state.otp_code}**")
+                
+        if st.session_state.otp_code:
+            user_otp = st.sidebar.text_input("Enter OTP Code")
+            if st.sidebar.button("Verify & Login"):
+                if user_otp == st.session_state.otp_code:
+                    conn = get_db_connection()
+                    c = conn.cursor()
+                    c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND auth_identifier = ?", (auth_input,))
+                    usr = c.fetchone()
+                    if usr:
+                        st.session_state.user_id = usr["user_id"]
+                        st.sidebar.success("Logged In!")
+                        st.rerun()
+                    else:
+                        new_uid = str(uuid.uuid4())
+                        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        c.execute("""
+                            INSERT INTO master_app_table (record_id, data_type, user_id, full_name, auth_identifier, password_hash, is_verified, created_at)
+                            VALUES (?, 'user', ?, ?, ?, ?, 1, ?)
+                        """, (new_uid, new_uid, f"User_{new_uid[:4]}", auth_input, hash_pass(auth_pass), now))
+                        conn.commit()
+                        st.session_state.user_id = new_uid
+                        st.sidebar.success("Registered & Logged In!")
+                        st.rerun()
+                    conn.close()
 else:
     conn = get_db_connection()
     c = conn.cursor()
@@ -267,12 +312,12 @@ else:
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
 # ------------------------------------------
-# TAB 1: PUBLIC FEED & OWNER MONITORING
+# TAB 1: PUBLIC FEED & OWNER MASTER PANEL
 # ------------------------------------------
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
     
-    # 👑 OWNER MASTER CONTROL CENTER
+    # 👑 OWNER MASTER CONTROL CENTER (5 REAL POWER BUTTON PANELS)
     if search_input.strip() in SECRET_CODES:
         st.session_state.is_owner_session = True
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
@@ -294,82 +339,142 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
+        st.markdown("### 🎛️ Owner 5 Master Control Power Panels")
         
-        # OWNER CONTROLS (3 MAIN BUTTON LOGICS)
-        st.markdown("### 🛠️ Owner Master Actions (3 Power Buttons)")
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5 = st.tabs([
+            "1️⃣ Global Branding & Owner Video Post", 
+            "2️⃣ Upload Lockdown Control", 
+            "3️⃣ Emergency Login Kill-Switch", 
+            "4️⃣ Dynamic Bank Gateway Setup",
+            "5️⃣ Content & Payout Moderation"
+        ])
         
-        owner_tab1, owner_tab2, owner_tab3 = st.tabs(["1️⃣ Monetization Approvals", "2️⃣ Bad Content Block & Suspend", "3️⃣ Auto Bank Payout Approve"])
-        
-        # 1. Monetization Approval
-        with owner_tab1:
-            st.markdown("#### 💰 Pending Monetization Requests")
+        # 1. OWNER BRANDING & GLOBAL POST MANAGER
+        with o_tab1:
+            st.markdown("#### 🖼️ Global Branding, Logo & Owner Video Broadcaster")
+            new_app_name = st.text_input("Header App Name", value=get_setting("app_name", "BD AI Book"))
+            new_announcement = st.text_area("Global Owner Announcement/Video Title", value=get_setting("owner_announcement", ""))
+            
+            up_logo = st.file_uploader("Change App Master Logo", type=["png", "jpg", "jpeg"])
+            
+            if st.button("💾 Save Branding & Broadcast Updates"):
+                set_setting("app_name", new_app_name)
+                set_setting("owner_announcement", new_announcement)
+                if up_logo:
+                    l_path = os.path.join(UPLOAD_DIR, "site_logo.png")
+                    with open(l_path, "wb") as f: f.write(up_logo.getbuffer())
+                    set_setting("logo_path", l_path)
+                st.success("Global App Branding & Announcement Updated Worldwide!")
+                st.rerun()
+
+        # 2. EMERGENCY UPLOAD LOCKDOWN
+        with o_tab2:
+            st.markdown("#### 🚫 Video Upload Access Lockdown Control")
+            curr_upload = get_setting("lock_upload", "OFF")
+            st.write(f"Current Upload Status: **{'LOCKED (Disabled)' if curr_upload == 'ON' else 'UNLOCKED (Active)'}**")
+            
+            if curr_upload == "OFF":
+                if st.button("🔒 ACTIVATE UPLOAD LOCKDOWN (Stop All Video Uploads Worldwide)"):
+                    set_setting("lock_upload", "ON")
+                    st.warning("Upload system locked! Users can no longer upload videos.")
+                    st.rerun()
+            else:
+                if st.button("🔓 DISABLE UPLOAD LOCKDOWN (Allow Users to Upload)"):
+                    set_setting("lock_upload", "OFF")
+                    st.success("Upload system unlocked successfully!")
+                    st.rerun()
+
+        # 3. EMERGENCY LOGIN KILL-SWITCH
+        with o_tab3:
+            st.markdown("#### ⚡ Emergency System & Login Kill-Switch")
+            curr_login = get_setting("lock_login", "OFF")
+            st.write(f"Current Login Status: **{'LOCKED (Disabled)' if curr_login == 'ON' else 'UNLOCKED (Active)'}**")
+            
+            if curr_login == "OFF":
+                if st.button("🚨 ACTIVATE LOGIN KILL-SWITCH (Block User Logins/Registers)"):
+                    set_setting("lock_login", "ON")
+                    st.error("Login System Killed! Users cannot login now.")
+                    st.rerun()
+            else:
+                if st.button("🟢 DISABLE LOGIN KILL-SWITCH (Restore User Logins)"):
+                    set_setting("lock_login", "OFF")
+                    st.success("Login System Restored!")
+                    st.rerun()
+
+        # 4. DYNAMIC BANK GATEWAY SETUP
+        with o_tab4:
+            st.markdown("#### 🏦 Set Owner Custom Bank Account Gateway")
+            b_acc_name = st.text_input("Account Name", value=get_setting("bank_account_name"))
+            b_bank_name = st.text_input("Bank Name", value=get_setting("bank_name"))
+            b_iban = st.text_input("IBAN Number", value=get_setting("bank_iban"))
+            b_swift = st.text_input("BIC / SWIFT Code", value=get_setting("bank_swift"))
+            b_acc_num = st.text_input("Account Number", value=get_setting("bank_acc_num"))
+            b_acc_type = st.text_input("Account Type", value=get_setting("bank_acc_type"))
+            
+            if st.button("💳 Save Owner Bank Details Worldwide"):
+                set_setting("bank_account_name", b_acc_name)
+                set_setting("bank_name", b_bank_name)
+                set_setting("bank_iban", b_iban)
+                set_setting("bank_swift", b_swift)
+                set_setting("bank_acc_num", b_acc_num)
+                set_setting("bank_acc_type", b_acc_type)
+                st.success("Bank Gateway Details Updated for All Users!")
+                st.rerun()
+
+        # 5. CONTENT, SUSPENSION & PAYOUT MODERATION
+        with o_tab5:
+            st.markdown("#### 🛠️ Monetization, Bad Content Block & Bank Payout Approvals")
+            
+            st.markdown("##### A. Pending Monetization Approvals")
             conn = get_db_connection()
             c = conn.cursor()
             c.execute("SELECT * FROM monetization_requests WHERE status = 'Pending'")
             m_reqs = c.fetchall()
             if m_reqs:
                 for mr in m_reqs:
-                    st.write(f"User ID: {mr['user_id']} | Followers: {mr['followers_count']} | Bank Details: {mr['bank_info']}")
-                    col_ma1, col_ma2 = st.columns(2)
-                    if col_ma1.button(f"✅ Approve Monetization ({mr['mon_id']})"):
+                    st.write(f"User ID: {mr['user_id']} | Followers: {mr['followers_count']} | Bank: {mr['bank_info']}")
+                    if st.button(f"✅ Approve Monetization ({mr['mon_id']})"):
                         c.execute("UPDATE master_app_table SET monetization_status = 'Approved' WHERE user_id = ?", (mr['user_id'],))
                         c.execute("UPDATE monetization_requests SET status = 'Approved' WHERE mon_id = ?", (mr['mon_id'],))
                         conn.commit()
-                        st.success("Monetization Approved Successfully!")
-                        st.rerun()
-                    if col_ma2.button(f"❌ Reject ({mr['mon_id']})"):
-                        c.execute("UPDATE monetization_requests SET status = 'Rejected' WHERE mon_id = ?", (mr['mon_id'],))
-                        conn.commit()
-                        st.warning("Monetization Request Rejected.")
+                        st.success("Monetization Approved!")
                         st.rerun()
             else:
                 st.info("No pending monetization requests.")
-            conn.close()
 
-        # 2. Bad Content Block & User Suspend
-        with owner_tab2:
-            st.markdown("#### 🚫 Content & User Moderation Control")
-            conn = get_db_connection()
-            c = conn.cursor()
+            st.markdown("---")
+            st.markdown("##### B. Bad Content Delete & User Suspend")
             c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY created_at DESC")
             all_posts = c.fetchall()
             for p in all_posts:
                 col_cp1, col_cp2, col_cp3 = st.columns([3, 1, 1])
-                col_cp1.write(f"📌 **{p['title']}** (By: {p['full_name']} | User ID: {p['user_id']})")
-                
-                if col_cp2.button("🗑️ Delete Post", key=f"owner_del_{p['record_id']}"):
+                col_cp1.write(f"📌 **{p['title']}** (By: {p['full_name']})")
+                if col_cp2.button("🗑️ Delete", key=f"ow_del_{p['record_id']}"):
                     c.execute("DELETE FROM master_app_table WHERE record_id = ?", (p['record_id'],))
                     conn.commit()
-                    st.success("Post Deleted!")
                     st.rerun()
-                    
-                if col_cp3.button("🚫 Block User", key=f"owner_sus_{p['record_id']}"):
+                if col_cp3.button("🚫 Block User", key=f"ow_sus_{p['record_id']}"):
                     sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
                     c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, p['user_id']))
                     c.execute("DELETE FROM master_app_table WHERE record_id = ?", (p['record_id'],))
                     conn.commit()
-                    st.error(f"User {p['full_name']} Suspended for 30 Days & Post Removed!")
                     st.rerun()
-            conn.close()
 
-        # 3. Auto Bank Payout Approve
-        with owner_tab3:
-            st.markdown("#### 🏦 Auto Payouts & Boost Approval via Bank")
-            conn = get_db_connection()
-            c = conn.cursor()
+            st.markdown("---")
+            st.markdown("##### C. Auto Bank Boost & Payout Approval")
             c.execute("SELECT * FROM boost_requests WHERE status = 'Pending'")
             b_reqs = c.fetchall()
             if b_reqs:
                 for br in b_reqs:
-                    st.write(f"Post ID: {br['post_id']} | Plan: {br['plan']} | Trx Ref: {br['trx_info']}")
-                    if st.button(f"⚡ Approve Bank Payment & Auto Boost ({br['boost_id']})"):
+                    st.write(f"Post ID: {br['post_id']} | Plan: {br['plan']} | Trx: {br['trx_info']}")
+                    if st.button(f"⚡ Approve Payment & Auto Boost ({br['boost_id']})"):
                         c.execute("UPDATE master_app_table SET is_boosted = 1 WHERE record_id = ?", (br['post_id'],))
                         c.execute("UPDATE boost_requests SET status = 'Approved' WHERE boost_id = ?", (br['boost_id'],))
                         conn.commit()
-                        st.success("Bank Payment Verified & Boost Activated!")
+                        st.success("Bank Payment Approved!")
                         st.rerun()
             else:
-                st.info("No pending bank payment approvals.")
+                st.info("No pending payment approvals.")
             conn.close()
 
     # PUBLIC LIVE FEED
@@ -395,9 +500,7 @@ with tab_feed:
         conn.close()
 
         for post in posts:
-            # Auto View Counter Trigger
             increment_views(post["record_id"])
-            
             st.markdown("<div style='background:#18191a; padding:15px; border-radius:12px; margin-bottom:20px;'>", unsafe_allow_html=True)
             
             conn = get_db_connection()
@@ -447,7 +550,7 @@ with tab_feed:
             cat = post.get("post_category", "general")
             
             if media_path and os.path.exists(media_path):
-                st.markdown("<div class='video-watermark-wrapper'><div class='video-watermark-badge'>BD AI BOOK</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
                 if cat == "picture":
                     st.image(media_path, use_container_width=True)
                 elif cat == "short":
@@ -494,7 +597,7 @@ with tab_feed:
             st.markdown("</div>", unsafe_allow_html=True)
 
 # ------------------------------------------
-# TAB 2: PROFILE & CREATOR STUDIO WITH DELETE OPTION
+# TAB 2: PROFILE & STUDIO (WITH UPLOAD LOCKDOWN CHECK)
 # ------------------------------------------
 with tab_profile:
     if not st.session_state.user_id:
@@ -540,45 +643,49 @@ with tab_profile:
 
         st.markdown("---")
         st.markdown("### 📤 Upload New Post")
-        post_type = st.selectbox("Format", ["short", "long", "picture"])
-        title = st.text_input("Title")
-        desc = st.text_area("Description")
-        p_tags = st.text_input("Hashtags")
-        uploaded_media = st.file_uploader("Media File", type=["mp4", "jpg", "png"])
         
-        if st.button("Publish Post"):
-            if uploaded_media and title:
-                if any(w in (title + " " + desc).lower() for w in BANNED_KEYWORDS):
+        # Upload Lockdown Check
+        if get_setting("lock_upload") == "ON":
+            st.error("🚫 Video Upload System is temporarily disabled by Owner.")
+        else:
+            post_type = st.selectbox("Format", ["short", "long", "picture"])
+            title = st.text_input("Title")
+            desc = st.text_area("Description")
+            p_tags = st.text_input("Hashtags")
+            uploaded_media = st.file_uploader("Media File", type=["mp4", "jpg", "png"])
+            
+            if st.button("Publish Post"):
+                if uploaded_media and title:
+                    if any(w in (title + " " + desc).lower() for w in BANNED_KEYWORDS):
+                        conn = get_db_connection()
+                        c = conn.cursor()
+                        sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+                        c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, st.session_state.user_id))
+                        conn.commit()
+                        conn.close()
+                        st.error("🚫 Inappropriate Content Detected! Account suspended.")
+                        st.rerun()
+                        st.stop()
+
+                    ext = os.path.splitext(uploaded_media.name)[1]
+                    m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{ext}")
+                    with open(m_path, "wb") as f: f.write(uploaded_media.getbuffer())
+                    
+                    rec_id = str(uuid.uuid4())
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
                     conn = get_db_connection()
                     c = conn.cursor()
-                    sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
-                    c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, st.session_state.user_id))
+                    c.execute("""
+                        INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, tags, media_path, post_category, views_count, likes_count, created_at)
+                        VALUES (?, 'post', ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?)
+                    """, (rec_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), title, desc, p_tags, m_path, post_type, now))
                     conn.commit()
                     conn.close()
-                    st.error("🚫 Inappropriate Content Detected! Account suspended.")
+                    st.success("Published Successfully!")
                     st.rerun()
-                    st.stop()
-
-                ext = os.path.splitext(uploaded_media.name)[1]
-                m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{ext}")
-                with open(m_path, "wb") as f: f.write(uploaded_media.getbuffer())
-                
-                rec_id = str(uuid.uuid4())
-                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                
-                conn = get_db_connection()
-                c = conn.cursor()
-                c.execute("""
-                    INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, tags, media_path, post_category, views_count, likes_count, created_at)
-                    VALUES (?, 'post', ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?)
-                """, (rec_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), title, desc, p_tags, m_path, post_type, now))
-                conn.commit()
-                conn.close()
-                st.success("Published Successfully!")
-                st.rerun()
 
         st.markdown("---")
-        # USER OWN POSTS MANAGEMENT WITH DELETE OPTION
         st.markdown("### 🎬 My Uploaded Videos & Posts")
         conn = get_db_connection()
         c = conn.cursor()
@@ -604,7 +711,7 @@ with tab_profile:
             st.info("You haven't uploaded any videos yet.")
 
 # ------------------------------------------
-# TAB 3: MONETIZATION & BOOSTING WITH 1000 FOLLOWERS LOGIC
+# TAB 3: MONETIZATION & DYNAMIC BANK PAYMENTS
 # ------------------------------------------
 with tab_monetization:
     st.markdown("### 💸 Worldwide Monetization & Video Boost Center")
@@ -650,7 +757,17 @@ with tab_monetization:
         st.write("Target Views: 300,000+")
         
     with st.expander("💳 Send Payment & Submit Boost Request"):
-        st.markdown(BANK_DETAILS)
+        # Dynamic Bank Display Loaded from Master Owner Config
+        st.markdown(f"""
+        🏦 **International Payment Wire Gateway (Boost & Payout)**
+        - **Account Name:** {get_setting("bank_account_name")}
+        - **Bank Name:** {get_setting("bank_name")}
+        - **IBAN:** {get_setting("bank_iban")}
+        - **BIC/SWIFT Code:** {get_setting("bank_swift")}
+        - **Account Number:** {get_setting("bank_acc_num")}
+        - **Account Type:** {get_setting("bank_acc_type")}
+        """)
+        
         b_plan = st.selectbox("Select Plan", ["30 Days ($30)", "60 Days ($60)"])
         b_post_id = st.text_input("Enter Video Record ID / Title to Boost")
         b_trx = st.text_area("Enter Payment Reference / Transaction ID")
