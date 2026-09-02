@@ -37,7 +37,6 @@ def init_master_database():
     conn = get_db_connection()
     c = conn.cursor()
     
-    # Master Table
     c.execute("""
         CREATE TABLE IF NOT EXISTS master_app_table (
             record_id TEXT PRIMARY KEY,
@@ -74,7 +73,6 @@ def init_master_database():
         );
     """)
     
-    # Boost Requests Table
     c.execute("""
         CREATE TABLE IF NOT EXISTS boost_requests (
             boost_id TEXT PRIMARY KEY,
@@ -89,7 +87,6 @@ def init_master_database():
         );
     """)
     
-    # Monetization Requests Table
     c.execute("""
         CREATE TABLE IF NOT EXISTS monetization_requests (
             mon_id TEXT PRIMARY KEY,
@@ -101,7 +98,6 @@ def init_master_database():
         );
     """)
     
-    # Follows & Likes
     c.execute("""
         CREATE TABLE IF NOT EXISTS follows (
             follower_id TEXT,
@@ -118,7 +114,6 @@ def init_master_database():
         );
     """)
     
-    # Global Site Settings Table
     c.execute("""
         CREATE TABLE IF NOT EXISTS site_settings (
             key TEXT PRIMARY KEY,
@@ -126,7 +121,6 @@ def init_master_database():
         );
     """)
 
-    # Dynamic Custom Payment Methods Table
     c.execute("""
         CREATE TABLE IF NOT EXISTS payment_gateways (
             gateway_id TEXT PRIMARY KEY,
@@ -137,10 +131,9 @@ def init_master_database():
         );
     """)
     
-    # Default Config Initializer
     default_settings = {
         "app_name": "BD AI Book",
-        "owner_announcement": "Welcome to BD AI Book - Next-Gen Social & Media Platform!",
+        "owner_announcement": "Welcome to BD AI Book 100% Monetization Income Guaranteed! Next-Gen Social & Media Platform",
         "lock_upload": "OFF",
         "daily_limit_mode": "OFF",
         "lock_login": "OFF",
@@ -148,8 +141,8 @@ def init_master_database():
         "adsense_client_id": "ca-pub-0000000000000000",
         "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
         "show_ads": "ON",
-        "video_ad_1": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4", # Default Sample Ad 1
-        "video_ad_2": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"  # Default Sample Ad 2
+        "video_ad_1": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+        "video_ad_2": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"
     }
     
     for k, v in default_settings.items():
@@ -166,7 +159,6 @@ def init_master_database():
 
 init_master_database()
 
-# Config Helper Functions
 def get_setting(key, default=""):
     conn = get_db_connection()
     c = conn.cursor()
@@ -207,18 +199,11 @@ def get_user_today_upload_count(user_id, category):
     conn.close()
     return res["cnt"] if res else 0
 
-# ==========================================
-# 3. VIDEO ADS ENGINE (PRE-ROLL 2 ADS LOGIC)
-# ==========================================
 def render_video_with_preroll_ads(main_video_path, post_id, category="long"):
-    """
-    লং বা শর্ট ভিডিও প্লে হওয়ার আগে ২টা বিজ্ঞাপন প্লে করার কাস্টম ভিডিও প্লেয়ার সার্ভিস।
-    """
     ad1_url = get_setting("video_ad_1")
     ad2_url = get_setting("video_ad_2")
     ads_enabled = get_setting("show_ads") == "ON"
     
-    # ভিডিও ফাইল রিড লিঙ্ক তৈরি
     if os.path.exists(main_video_path):
         import base64
         with open(main_video_path, "rb") as video_file:
@@ -263,7 +248,6 @@ def render_video_with_preroll_ads(main_video_path, post_id, category="long"):
     else:
         st.video(main_video_path)
 
-# CSS Styling
 st.markdown("""
 <style>
     img { border-radius: 12px; }
@@ -312,12 +296,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Session State Initialization
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
 
-# Render Logo & Dynamic App Header Name
 site_logo_path = get_setting("logo_path")
 app_name = get_setting("app_name", "BD AI Book")
 announcement = get_setting("owner_announcement", "")
@@ -337,7 +319,6 @@ real_followers = 0
 current_user = {}
 
 st.sidebar.markdown("### 🔐 User Login")
-
 login_locked = get_setting("lock_login") == "ON"
 
 if not st.session_state.user_id:
@@ -407,16 +388,23 @@ else:
 # ==========================================
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
-# ------------------------------------------
-# TAB 1: PUBLIC FEED & OWNER MASTER PANEL
-# ------------------------------------------
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
     
-    # OWNER MASTER CONTROL CENTER
-    if search_input.strip() in SECRET_CODES:
+    # ------------------------------------------
+    # SECRET CODE EXACT MATCHING FIX
+    # ------------------------------------------
+    clean_search = search_input.strip()
+    if clean_search in SECRET_CODES:
         st.session_state.is_owner_session = True
+    
+    # OWNER MASTER CONTROL CENTER
+    if st.session_state.is_owner_session:
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
+        if st.button("❌ Exit Owner Mode"):
+            st.session_state.is_owner_session = False
+            st.rerun()
+            
         st.markdown("---")
         
         conn = get_db_connection()
@@ -510,8 +498,6 @@ with tab_feed:
 
         with o_tab4:
             st.markdown("#### 🏦 Dynamic Payment Gateway & Bank Account Control")
-            st.info("এখান থেকে আপনি ইচ্ছেমতো নতুন Bank, bKash, Nagad, Rocket সহ যেকোনো নাম্বার যোগ/ডিলেট করতে পারবেন।")
-            
             with st.form("add_new_payment_method"):
                 m_type = st.selectbox("Method Type", ["Mobile Banking", "Bank Transfer", "Crypto / International"])
                 p_name = st.text_input("Provider / Bank Name", placeholder="e.g. bKash Merchant / City Bank")
@@ -546,11 +532,11 @@ with tab_feed:
                     st.rerun()
 
         with o_tab5:
-            st.markdown("#### 📢 Google AdSense & Video Ads Management")
+            st.markdown("#### 📢 Google AdSense & Ads Management")
             ad_status = st.radio("Global Video Ads Status", ["ON", "OFF"], index=0 if get_setting("show_ads") == "ON" else 1)
             adsense_code = st.text_area("Paste Google AdSense / Banner HTML Script", value=get_setting("adsense_script"), height=100)
             
-            st.markdown("##### 🎬 Pre-Roll Video Ads URL (ভিডিও শুরু হওয়ার আগে প্লে হবে)")
+            st.markdown("##### 🎬 Pre-Roll Video Ads URL")
             v_ad1 = st.text_input("Pre-Roll Video Ad 1 Direct MP4 Link", value=get_setting("video_ad_1"))
             v_ad2 = st.text_input("Pre-Roll Video Ad 2 Direct MP4 Link", value=get_setting("video_ad_2"))
 
@@ -612,13 +598,13 @@ with tab_feed:
                     st.rerun()
             conn.close()
 
-    # PUBLIC LIVE FEED
+    # PUBLIC LIVE FEED (সিক্রেট কোড ছাড়া সাধারণ ফিড)
     else:
         conn = get_db_connection()
         c = conn.cursor()
         
-        if search_input:
-            q_str = f"%{search_input}%"
+        if clean_search:
+            q_str = f"%{clean_search}%"
             c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
         else:
             c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC")
@@ -629,7 +615,7 @@ with tab_feed:
         ads_enabled = get_setting("show_ads") == "ON"
         ads_html = get_setting("adsense_script")
 
-        for idx, post in enumerate(posts):
+        for post in posts:
             increment_views(post["record_id"])
             st.markdown("<div style='background:#18191a; padding:15px; border-radius:12px; margin-bottom:15px;'>", unsafe_allow_html=True)
             
@@ -691,15 +677,12 @@ with tab_feed:
                     st.image(media_path, use_container_width=True)
                 elif cat == "short":
                     st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
-                    # শর্টসের জন্য প্রি-রোল ভিডিও অ্যাড লজিক
                     render_video_with_preroll_ads(media_path, post["record_id"], category="short")
                     st.markdown("</div>", unsafe_allow_html=True)
                 else:
-                    # ইউটিউব টাইপ লং ভিডিওর জন্য ২টা প্রি-রোল ভিডিও অ্যাড লজিক
                     render_video_with_preroll_ads(media_path, post["record_id"], category="long")
                 st.markdown("</div>", unsafe_allow_html=True)
 
-            # ADSENSE BANNER INSERTION BELOW EACH VIDEO
             if ads_enabled and ads_html:
                 st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
                 components.html(ads_html, height=100)
