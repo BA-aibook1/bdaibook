@@ -1,2 +1,3 @@
 streamlit
-pycountry
+psycopg2-binary
+google-cloud-storage
