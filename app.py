@@ -34,152 +34,141 @@ def get_db_connection():
     return conn
 
 def init_master_database():
-    conn = get_db_connection()
-    c = conn.cursor()
-    
-    # Master Table
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS master_app_table (
-            record_id TEXT PRIMARY KEY,
-            data_type TEXT NOT NULL,
-            user_id TEXT,
-            full_name TEXT,
-            auth_identifier TEXT,
-            password_hash TEXT,
-            address TEXT,
-            bio TEXT,
-            profile_pic_path TEXT,
-            cover_pic_path TEXT,
-            fb_link TEXT,
-            tiktok_link TEXT,
-            yt_link TEXT,
-            website_link TEXT,
-            followers_count INTEGER DEFAULT 0,
-            is_verified INTEGER DEFAULT 1,
-            violation_count INTEGER DEFAULT 0,
-            is_suspended INTEGER DEFAULT 0,
-            suspended_until TEXT,
-            title TEXT,
-            content TEXT,
-            tags TEXT,
-            media_path TEXT,
-            post_category TEXT,
-            likes_count INTEGER DEFAULT 0,
-            views_count INTEGER DEFAULT 0,
-            is_boosted INTEGER DEFAULT 0,
-            monetization_status TEXT DEFAULT 'Not Eligible',
-            country TEXT DEFAULT 'Global',
-            is_owner_post INTEGER DEFAULT 0,
-            created_at TEXT
-        );
-    """)
-    
-    # Boost Requests Table
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS boost_requests (
-            boost_id TEXT PRIMARY KEY,
-            user_id TEXT,
-            post_id TEXT,
-            plan TEXT,
-            amount TEXT,
-            trx_info TEXT,
-            payment_method TEXT,
-            status TEXT DEFAULT 'Pending',
-            created_at TEXT
-        );
-    """)
-    
-    # Monetization Requests Table
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS monetization_requests (
-            mon_id TEXT PRIMARY KEY,
-            user_id TEXT,
-            followers_count INTEGER,
-            bank_info TEXT,
-            status TEXT DEFAULT 'Pending',
-            created_at TEXT
-        );
-    """)
-    
-    # Follows & Likes
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS follows (
-            follower_id TEXT,
-            following_id TEXT,
-            PRIMARY KEY (follower_id, following_id)
-        );
-    """)
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS likes (
-            user_id TEXT,
-            post_id TEXT,
-            category TEXT DEFAULT 'general',
-            PRIMARY KEY (user_id, post_id)
-        );
-    """)
-    
-    # Global Site Settings Table
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS site_settings (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        );
-    """)
-
-    # Dynamic Custom Payment Methods Table
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS payment_gateways (
-            gateway_id TEXT PRIMARY KEY,
-            method_type TEXT,
-            provider_name TEXT,
-            account_details TEXT,
-            is_active INTEGER DEFAULT 1
-        );
-    """)
-    
-    # Default Config Initializer
-    default_settings = {
-        "app_name": "BD AI Book",
-        "owner_announcement": "Welcome to BD AI Book - Next-Gen Social & Media Platform!",
-        "lock_upload": "OFF",
-        "daily_limit_mode": "OFF", # ON হলে ১টি শর্ট, ১টি লং, ১০টি পিকচার লিমিট প্রযোজ্য হবে
-        "lock_login": "OFF",
-        "logo_path": "",
-        "adsense_client_id": "ca-pub-0000000000000000",
-        "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
-        "show_ads": "ON"
-    }
-    
-    for k, v in default_settings.items():
-        c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)", (k, v))
-
-    # Default Payment Methods Injection
-    c.execute("SELECT COUNT(*) as cnt FROM payment_gateways")
-    if c.fetchone()["cnt"] == 0:
-        c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Mobile Banking", "bKash Personal", "01700000000"))
-        c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Mobile Banking", "Nagad Personal", "01700000000"))
-        c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Bank Transfer", "Dutch Bangla Bank", "Acc: 123456789, Branch: Dhaka"))
+    with get_db_connection() as conn:
+        c = conn.cursor()
         
-    conn.commit()
-    conn.close()
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS master_app_table (
+                record_id TEXT PRIMARY KEY,
+                data_type TEXT NOT NULL,
+                user_id TEXT,
+                full_name TEXT,
+                auth_identifier TEXT,
+                password_hash TEXT,
+                address TEXT,
+                bio TEXT,
+                profile_pic_path TEXT,
+                cover_pic_path TEXT,
+                fb_link TEXT,
+                tiktok_link TEXT,
+                yt_link TEXT,
+                website_link TEXT,
+                followers_count INTEGER DEFAULT 0,
+                is_verified INTEGER DEFAULT 1,
+                violation_count INTEGER DEFAULT 0,
+                is_suspended INTEGER DEFAULT 0,
+                suspended_until TEXT,
+                title TEXT,
+                content TEXT,
+                tags TEXT,
+                media_path TEXT,
+                post_category TEXT,
+                likes_count INTEGER DEFAULT 0,
+                views_count INTEGER DEFAULT 0,
+                is_boosted INTEGER DEFAULT 0,
+                monetization_status TEXT DEFAULT 'Not Eligible',
+                country TEXT DEFAULT 'Global',
+                is_owner_post INTEGER DEFAULT 0,
+                created_at TEXT
+            );
+        """)
+        
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS boost_requests (
+                boost_id TEXT PRIMARY KEY,
+                user_id TEXT,
+                post_id TEXT,
+                plan TEXT,
+                amount TEXT,
+                trx_info TEXT,
+                payment_method TEXT,
+                status TEXT DEFAULT 'Pending',
+                created_at TEXT
+            );
+        """)
+        
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS monetization_requests (
+                mon_id TEXT PRIMARY KEY,
+                user_id TEXT,
+                followers_count INTEGER,
+                bank_info TEXT,
+                status TEXT DEFAULT 'Pending',
+                created_at TEXT
+            );
+        """)
+        
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS follows (
+                follower_id TEXT,
+                following_id TEXT,
+                PRIMARY KEY (follower_id, following_id)
+            );
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS likes (
+                user_id TEXT,
+                post_id TEXT,
+                category TEXT DEFAULT 'general',
+                PRIMARY KEY (user_id, post_id)
+            );
+        """)
+        
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS site_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            );
+        """)
+
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS payment_gateways (
+                gateway_id TEXT PRIMARY KEY,
+                method_type TEXT,
+                provider_name TEXT,
+                account_details TEXT,
+                is_active INTEGER DEFAULT 1
+            );
+        """)
+        
+        default_settings = {
+            "app_name": "BD AI Book",
+            "owner_announcement": "Welcome to BD AI Book - Next-Gen Social & Media Platform!",
+            "lock_upload": "OFF",
+            "daily_limit_mode": "OFF",
+            "lock_login": "OFF",
+            "logo_path": "",
+            "adsense_client_id": "ca-pub-0000000000000000",
+            "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
+            "show_ads": "ON"
+        }
+        
+        for k, v in default_settings.items():
+            c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)", (k, v))
+
+        c.execute("SELECT COUNT(*) as cnt FROM payment_gateways")
+        if c.fetchone()["cnt"] == 0:
+            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Mobile Banking", "bKash Personal", "01700000000"))
+            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Mobile Banking", "Nagad Personal", "01700000000"))
+            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Bank Transfer", "Dutch Bangla Bank", "Acc: 123456789, Branch: Dhaka"))
+            
+        conn.commit()
 
 init_master_database()
 
 # Config Helper Functions
 def get_setting(key, default=""):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT value FROM site_settings WHERE key = ?", (key,))
-    row = c.fetchone()
-    conn.close()
-    return row["value"] if row else default
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT value FROM site_settings WHERE key = ?", (key,))
+        row = c.fetchone()
+        return row["value"] if row else default
 
 def set_setting(key, value):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", (key, str(value)))
-    conn.commit()
-    conn.close()
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", (key, str(value)))
+        conn.commit()
 
 def hash_pass(pwd): 
     return hashlib.sha256(pwd.encode()).hexdigest()
@@ -188,24 +177,21 @@ def get_meta_blue_badge():
     return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px;"><path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.66.425-1.55-.008-3.25-1.196-4.438-1.187-1.188-2.887-1.62-4.437-1.196C13.95 1.875 12.58 1 11.5 1s-2.45.875-3.16 2.148c-1.55-.425-3.25.008-4.438 1.196-1.188 1.187-1.62 2.887-1.196 4.437C1.875 9.55 1 10.92 1 12s.875 2.45 2.148 3.16c-.425 1.55.008 3.25 1.196 4.438 1.187 1.188 2.887 1.62 4.437 1.196C9.55 22.125 10.92 23 12 23s2.45-.875 3.16-2.148c1.55.425-.008 4.438-1.196 1.188-1.187 1.62-2.887 1.196-4.437 1.273-.71 2.148-2.08 2.148-3.66z"/><path fill="#ffffff" d="M9.8 17.3l-4.2-4.2 1.4-1.4 2.8 2.8 7.4-7.4 1.4 1.4z"/></svg>"""
 
 def increment_views(post_id):
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("UPDATE master_app_table SET views_count = views_count + 1 WHERE record_id = ?", (post_id,))
-    conn.commit()
-    conn.close()
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("UPDATE master_app_table SET views_count = views_count + 1 WHERE record_id = ?", (post_id,))
+        conn.commit()
 
-# Helper: ইউজার আজকের দিনে কতগুলো নির্দিষ্ট ধরনের পোস্ট আপলোড করেছে চেক করা
 def get_user_today_upload_count(user_id, category):
-    conn = get_db_connection()
-    c = conn.cursor()
-    twenty_four_hours_ago = (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
-    c.execute("""
-        SELECT COUNT(*) as cnt FROM master_app_table 
-        WHERE data_type = 'post' AND user_id = ? AND post_category = ? AND created_at >= ?
-    """, (user_id, category, twenty_four_hours_ago))
-    res = c.fetchone()
-    conn.close()
-    return res["cnt"] if res else 0
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        twenty_four_hours_ago = (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+        c.execute("""
+            SELECT COUNT(*) as cnt FROM master_app_table 
+            WHERE data_type = 'post' AND user_id = ? AND post_category = ? AND created_at >= ?
+        """, (user_id, category, twenty_four_hours_ago))
+        res = c.fetchone()
+        return res["cnt"] if res else 0
 
 # CSS Styling
 st.markdown("""
@@ -275,12 +261,12 @@ if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
 
 # ==========================================
-# 4. AUTHENTICATION SYSTEM
+# 4. AUTHENTICATION SYSTEM (FIXED SECURITY)
 # ==========================================
 real_followers = 0
 current_user = {}
 
-st.sidebar.markdown("### 🔐 User Login")
+st.sidebar.markdown("### 🔐 User Login / Register")
 
 login_locked = get_setting("lock_login") == "ON"
 
@@ -290,48 +276,54 @@ if not st.session_state.user_id:
     else:
         auth_input = st.sidebar.text_input("Gmail or Mobile")
         auth_pass = st.sidebar.text_input("Password", type="password")
+        
         if st.sidebar.button("Send OTP"):
             if auth_input and auth_pass:
                 st.session_state.otp_code = str(random.randint(100000, 999999))
                 st.sidebar.info(f"📩 OTP Code: **{st.session_state.otp_code}**")
+            else:
+                st.sidebar.warning("Please provide both identifier and password!")
                 
         if st.session_state.otp_code:
             user_otp = st.sidebar.text_input("Enter OTP Code")
-            if st.sidebar.button("Verify & Login"):
+            if st.sidebar.button("Verify & Proceed"):
                 if user_otp == st.session_state.otp_code:
-                    conn = get_db_connection()
-                    c = conn.cursor()
-                    c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND auth_identifier = ?", (auth_input,))
-                    usr = c.fetchone()
-                    if usr:
-                        st.session_state.user_id = usr["user_id"]
-                        st.sidebar.success("Logged In!")
-                        conn.close()
-                        st.rerun()
-                    else:
-                        new_uid = str(uuid.uuid4())
-                        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        c.execute("""
-                            INSERT INTO master_app_table (record_id, data_type, user_id, full_name, auth_identifier, password_hash, is_verified, created_at)
-                            VALUES (?, 'user', ?, ?, ?, ?, 1, ?)
-                        """, (new_uid, new_uid, f"User_{new_uid[:4]}", auth_input, hash_pass(auth_pass), now))
-                        conn.commit()
-                        conn.close()
-                        st.session_state.user_id = new_uid
-                        st.sidebar.success("Registered & Logged In!")
-                        st.rerun()
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND auth_identifier = ?", (auth_input,))
+                        usr = c.fetchone()
+                        
+                        if usr:
+                            # 🔒 Password Match Verification Added
+                            if usr["password_hash"] == hash_pass(auth_pass):
+                                st.session_state.user_id = usr["user_id"]
+                                st.sidebar.success("Logged In Successfully!")
+                                st.rerun()
+                            else:
+                                st.sidebar.error("❌ Invalid Password!")
+                        else:
+                            # Registration
+                            new_uid = str(uuid.uuid4())
+                            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            c.execute("""
+                                INSERT INTO master_app_table (record_id, data_type, user_id, full_name, auth_identifier, password_hash, is_verified, created_at)
+                                VALUES (?, 'user', ?, ?, ?, ?, 1, ?)
+                            """, (new_uid, new_uid, f"User_{new_uid[:4]}", auth_input, hash_pass(auth_pass), now))
+                            conn.commit()
+                            st.session_state.user_id = new_uid
+                            st.sidebar.success("Registered & Logged In!")
+                            st.rerun()
 else:
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (st.session_state.user_id,))
-    raw_user = c.fetchone()
-    
-    c.execute("SELECT COUNT(*) as cnt FROM follows WHERE following_id = ?", (st.session_state.user_id,))
-    f_res = c.fetchone()
-    real_followers = f_res["cnt"] if f_res else 0
-    conn.close()
-    
-    current_user = dict(raw_user) if raw_user else {}
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (st.session_state.user_id,))
+        raw_user = c.fetchone()
+        
+        c.execute("SELECT COUNT(*) as cnt FROM follows WHERE following_id = ?", (st.session_state.user_id,))
+        f_res = c.fetchone()
+        real_followers = f_res["cnt"] if f_res else 0
+        
+        current_user = dict(raw_user) if raw_user else {}
     
     if current_user.get("is_suspended"):
         sus_until = current_user.get("suspended_until", "")
@@ -344,6 +336,7 @@ else:
     if st.sidebar.button("Logout"):
         st.session_state.user_id = None
         st.session_state.is_owner_session = False
+        st.session_state.otp_code = None
         st.rerun()
 
 # ==========================================
@@ -357,21 +350,19 @@ tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "�
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
     
-    # OWNER MASTER CONTROL CENTER
     if search_input.strip() in SECRET_CODES:
         st.session_state.is_owner_session = True
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
         st.markdown("---")
         
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'user'")
-        total_users = c.fetchone()["cnt"]
-        c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post'")
-        total_posts = c.fetchone()["cnt"]
-        c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE is_boosted = 1")
-        total_boosted = c.fetchone()["cnt"]
-        conn.close()
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'user'")
+            total_users = c.fetchone()["cnt"]
+            c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post'")
+            total_posts = c.fetchone()["cnt"]
+            c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE is_boosted = 1")
+            total_boosted = c.fetchone()["cnt"]
 
         col_m1, col_m2, col_m3 = st.columns(3)
         col_m1.metric("👥 Total App Users", total_users)
@@ -454,7 +445,6 @@ with tab_feed:
 
         with o_tab4:
             st.markdown("#### 🏦 Dynamic Payment Gateway & Bank Account Control")
-            st.info("এখান থেকে আপনি ইচ্ছেমতো নতুন Bank, bKash, Nagad, Rocket সহ যেকোনো নাম্বার যোগ/ডিলেট করতে পারবেন।")
             
             with st.form("add_new_payment_method"):
                 m_type = st.selectbox("Method Type", ["Mobile Banking", "Bank Transfer", "Crypto / International"])
@@ -463,30 +453,27 @@ with tab_feed:
                 submit_gw = st.form_submit_button("➕ Add New Payment Method")
                 
                 if submit_gw and p_name and p_details:
-                    conn = get_db_connection()
-                    c = conn.cursor()
-                    c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), m_type, p_name, p_details))
-                    conn.commit()
-                    conn.close()
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), m_type, p_name, p_details))
+                        conn.commit()
                     st.success("Payment Method Added Successfully!")
                     st.rerun()
 
             st.markdown("##### Existing Active Payment Gateways")
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute("SELECT * FROM payment_gateways")
-            gateways = c.fetchall()
-            conn.close()
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM payment_gateways")
+                gateways = c.fetchall()
 
             for gw in gateways:
                 col_g1, col_g2 = st.columns([4, 1])
                 col_g1.write(f"📌 **[{gw['method_type']}] {gw['provider_name']}** — {gw['account_details']}")
                 if col_g2.button("🗑️ Remove", key=f"del_gw_{gw['gateway_id']}"):
-                    conn = get_db_connection()
-                    c = conn.cursor()
-                    c.execute("DELETE FROM payment_gateways WHERE gateway_id = ?", (gw['gateway_id'],))
-                    conn.commit()
-                    conn.close()
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("DELETE FROM payment_gateways WHERE gateway_id = ?", (gw['gateway_id'],))
+                        conn.commit()
                     st.rerun()
 
         with o_tab5:
@@ -502,67 +489,61 @@ with tab_feed:
 
         with o_tab6:
             st.markdown("#### 🛠️ Content & Moderation")
-            conn = get_db_connection()
-            c = conn.cursor()
-            
-            st.markdown("##### Monetization Approvals")
-            c.execute("SELECT * FROM monetization_requests WHERE status = 'Pending'")
-            m_reqs = c.fetchall()
-            for mr in m_reqs:
-                st.write(f"User ID: {mr['user_id']} | Bank: {mr['bank_info']}")
-                if st.button(f"✅ Approve ({mr['mon_id']})"):
-                    c.execute("UPDATE master_app_table SET monetization_status = 'Approved' WHERE user_id = ?", (mr['user_id'],))
-                    c.execute("UPDATE monetization_requests SET status = 'Approved' WHERE mon_id = ?", (mr['mon_id'],))
-                    conn.commit()
-                    st.rerun()
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                st.markdown("##### Monetization Approvals")
+                c.execute("SELECT * FROM monetization_requests WHERE status = 'Pending'")
+                m_reqs = c.fetchall()
+                for mr in m_reqs:
+                    st.write(f"User ID: {mr['user_id']} | Bank: {mr['bank_info']}")
+                    if st.button(f"✅ Approve ({mr['mon_id']})"):
+                        c.execute("UPDATE master_app_table SET monetization_status = 'Approved' WHERE user_id = ?", (mr['user_id'],))
+                        c.execute("UPDATE monetization_requests SET status = 'Approved' WHERE mon_id = ?", (mr['mon_id'],))
+                        conn.commit()
+                        st.rerun()
 
-            st.markdown("##### Delete Content & Suspend User")
-            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY created_at DESC")
-            all_posts = c.fetchall()
-            for p in all_posts:
-                col_cp1, col_cp2, col_cp3 = st.columns([3, 1, 1])
-                col_cp1.write(f"📌 **{p['title']}** ({p['full_name']})")
-                if col_cp2.button("🗑️ Delete", key=f"ow_del_{p['record_id']}"):
-                    c.execute("DELETE FROM master_app_table WHERE record_id = ?", (p['record_id'],))
-                    conn.commit()
-                    st.rerun()
-                if col_cp3.button("🚫 Block User", key=f"ow_sus_{p['record_id']}"):
-                    sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
-                    c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, p['user_id']))
-                    c.execute("DELETE FROM master_app_table WHERE record_id = ?", (p['record_id'],))
-                    conn.commit()
-                    st.rerun()
-            conn.close()
+                st.markdown("##### Delete Content & Suspend User")
+                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY created_at DESC")
+                all_posts = c.fetchall()
+                for p in all_posts:
+                    col_cp1, col_cp2, col_cp3 = st.columns([3, 1, 1])
+                    col_cp1.write(f"📌 **{p['title']}** ({p['full_name']})")
+                    if col_cp2.button("🗑️ Delete", key=f"ow_del_{p['record_id']}"):
+                        c.execute("DELETE FROM master_app_table WHERE record_id = ?", (p['record_id'],))
+                        conn.commit()
+                        st.rerun()
+                    if col_cp3.button("🚫 Block User", key=f"ow_sus_{p['record_id']}"):
+                        sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+                        c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, p['user_id']))
+                        c.execute("DELETE FROM master_app_table WHERE record_id = ?", (p['record_id'],))
+                        conn.commit()
+                        st.rerun()
 
         with o_tab7:
             st.markdown("#### 🚀 Video Boost Requests")
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute("SELECT * FROM boost_requests WHERE status = 'Pending'")
-            b_reqs = c.fetchall()
-            for br in b_reqs:
-                st.write(f"📌 Post ID: {br['post_id']} | Method: {br['payment_method']} | Trx: {br['trx_info']} | Plan: {br['plan']}")
-                if st.button(f"🔥 Approve & Boost ({br['boost_id']})"):
-                    c.execute("UPDATE master_app_table SET is_boosted = 1 WHERE record_id = ?", (br['post_id'],))
-                    c.execute("UPDATE boost_requests SET status = 'Approved' WHERE boost_id = ?", (br['boost_id'],))
-                    conn.commit()
-                    st.success("Post Boosted!")
-                    st.rerun()
-            conn.close()
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM boost_requests WHERE status = 'Pending'")
+                b_reqs = c.fetchall()
+                for br in b_reqs:
+                    st.write(f"📌 Post ID: {br['post_id']} | Method: {br['payment_method']} | Trx: {br['trx_info']} | Plan: {br['plan']}")
+                    if st.button(f"🔥 Approve & Boost ({br['boost_id']})"):
+                        c.execute("UPDATE master_app_table SET is_boosted = 1 WHERE record_id = ?", (br['post_id'],))
+                        c.execute("UPDATE boost_requests SET status = 'Approved' WHERE boost_id = ?", (br['boost_id'],))
+                        conn.commit()
+                        st.success("Post Boosted!")
+                        st.rerun()
 
-    # PUBLIC LIVE FEED
     else:
-        conn = get_db_connection()
-        c = conn.cursor()
-        
-        if search_input:
-            q_str = f"%{search_input}%"
-            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
-        else:
-            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC")
-            
-        posts = [dict(r) for r in c.fetchall()]
-        conn.close()
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            if search_input:
+                q_str = f"%{search_input}%"
+                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
+            else:
+                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC")
+                
+            posts = [dict(r) for r in c.fetchall()]
 
         ads_enabled = get_setting("show_ads") == "ON"
         ads_html = get_setting("adsense_script")
@@ -571,20 +552,19 @@ with tab_feed:
             increment_views(post["record_id"])
             st.markdown("<div style='background:#18191a; padding:15px; border-radius:12px; margin-bottom:15px;'>", unsafe_allow_html=True)
             
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute("SELECT profile_pic_path FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (post.get("user_id"),))
-            author = c.fetchone()
-            
-            c.execute("SELECT COUNT(*) as cnt FROM follows WHERE following_id = ?", (post.get("user_id"),))
-            f_row = c.fetchone()
-            author_followers = f_row["cnt"] if f_row else 0
-            
-            is_following = False
-            if st.session_state.user_id:
-                c.execute("SELECT * FROM follows WHERE follower_id = ? AND following_id = ?", (st.session_state.user_id, post.get("user_id")))
-                if c.fetchone(): is_following = True
-            conn.close()
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT profile_pic_path FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (post.get("user_id"),))
+                author = c.fetchone()
+                
+                c.execute("SELECT COUNT(*) as cnt FROM follows WHERE following_id = ?", (post.get("user_id"),))
+                f_row = c.fetchone()
+                author_followers = f_row["cnt"] if f_row else 0
+                
+                is_following = False
+                if st.session_state.user_id:
+                    c.execute("SELECT * FROM follows WHERE follower_id = ? AND following_id = ?", (st.session_state.user_id, post.get("user_id")))
+                    if c.fetchone(): is_following = True
             
             author_pic = author["profile_pic_path"] if author and author["profile_pic_path"] and os.path.exists(author["profile_pic_path"]) else None
             
@@ -603,18 +583,16 @@ with tab_feed:
                     st.caption(f"👥 Followers: {author_followers:,} | Category: {post.get('post_category')}")
                 
             with col_h2:
-                # Follow Button Logic
                 if st.session_state.user_id and st.session_state.user_id != post.get("user_id"):
                     fol_lbl = "✔ Following" if is_following else "➕ Follow"
                     if st.button(fol_lbl, key=f"fol_{post['record_id']}"):
-                        conn = get_db_connection()
-                        c = conn.cursor()
-                        if is_following:
-                            c.execute("DELETE FROM follows WHERE follower_id = ? AND following_id = ?", (st.session_state.user_id, post.get("user_id")))
-                        else:
-                            c.execute("INSERT OR REPLACE INTO follows VALUES (?, ?)", (st.session_state.user_id, post.get("user_id")))
-                        conn.commit()
-                        conn.close()
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            if is_following:
+                                c.execute("DELETE FROM follows WHERE follower_id = ? AND following_id = ?", (st.session_state.user_id, post.get("user_id")))
+                            else:
+                                c.execute("INSERT OR REPLACE INTO follows VALUES (?, ?)", (st.session_state.user_id, post.get("user_id")))
+                            conn.commit()
                         st.rerun()
 
             if post.get("title"): st.subheader(post["title"])
@@ -636,22 +614,20 @@ with tab_feed:
                     st.video(media_path)
                 st.markdown("</div>", unsafe_allow_html=True)
 
-            # ADSENSE BANNER INSERTION BELOW EACH VIDEO
             if ads_enabled and ads_html:
                 st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
                 components.html(ads_html, height=100)
                 st.markdown("</div>", unsafe_allow_html=True)
 
-            conn = get_db_connection()
-            c = conn.cursor()
-            c.execute("SELECT COUNT(*) as cnt FROM likes WHERE post_id = ?", (post["record_id"],))
-            real_likes = c.fetchone()["cnt"]
-            
-            has_liked = False
-            if st.session_state.user_id:
-                c.execute("SELECT * FROM likes WHERE user_id = ? AND post_id = ?", (st.session_state.user_id, post["record_id"]))
-                if c.fetchone(): has_liked = True
-            conn.close()
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT COUNT(*) as cnt FROM likes WHERE post_id = ?", (post["record_id"],))
+                real_likes = c.fetchone()["cnt"]
+                
+                has_liked = False
+                if st.session_state.user_id:
+                    c.execute("SELECT * FROM likes WHERE user_id = ? AND post_id = ?", (st.session_state.user_id, post["record_id"]))
+                    if c.fetchone(): has_liked = True
 
             st.markdown("---")
             col_b1, col_b2, col_b3 = st.columns(3)
@@ -660,20 +636,19 @@ with tab_feed:
             like_lbl = f"❤️ Liked ({real_likes})" if has_liked else f"👍 Like ({real_likes})"
             if col_b2.button(like_lbl, key=f"lk_{post['record_id']}"):
                 if st.session_state.user_id:
-                    conn = get_db_connection()
-                    c = conn.cursor()
-                    if has_liked:
-                        c.execute("DELETE FROM likes WHERE user_id = ? AND post_id = ?", (st.session_state.user_id, post["record_id"]))
-                    else:
-                        c.execute("INSERT OR REPLACE INTO likes (user_id, post_id, category) VALUES (?, ?, ?)", (st.session_state.user_id, post["record_id"], cat))
-                    conn.commit()
-                    conn.close()
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        if has_liked:
+                            c.execute("DELETE FROM likes WHERE user_id = ? AND post_id = ?", (st.session_state.user_id, post["record_id"]))
+                        else:
+                            c.execute("INSERT OR REPLACE INTO likes (user_id, post_id, category) VALUES (?, ?, ?)", (st.session_state.user_id, post["record_id"], cat))
+                        conn.commit()
                     st.rerun()
                 else:
                     st.warning("Please login to like!")
 
             if col_b3.button("🚀 Share", key=f"sh_{post['record_id']}"):
-                st.toast("Sharing Window Opened!")
+                st.toast("Sharing Link Copied!")
                 
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -710,11 +685,10 @@ with tab_profile:
                     p_path = os.path.join(UPLOAD_DIR, f"dp_{st.session_state.user_id}.png")
                     with open(p_path, "wb") as f: f.write(up_prof.getbuffer())
                     
-                conn = get_db_connection()
-                c = conn.cursor()
-                c.execute("UPDATE master_app_table SET full_name = ?, bio = ?, profile_pic_path = ? WHERE user_id = ?", (u_name, u_bio, p_path, st.session_state.user_id))
-                conn.commit()
-                conn.close()
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("UPDATE master_app_table SET full_name = ?, bio = ?, profile_pic_path = ? WHERE user_id = ?", (u_name, u_bio, p_path, st.session_state.user_id))
+                    conn.commit()
                 st.success("Profile Updated!")
                 st.rerun()
 
@@ -726,7 +700,6 @@ with tab_profile:
         else:
             post_type = st.selectbox("Format", ["short", "long", "picture"])
             
-            # Daily Limit Info Banner (If Active)
             if get_setting("daily_limit_mode") == "ON":
                 current_cnt = get_user_today_upload_count(st.session_state.user_id, post_type)
                 limit_max = 1 if post_type in ["short", "long"] else 10
@@ -739,7 +712,6 @@ with tab_profile:
             
             if st.button("Publish Post"):
                 if uploaded_media and title:
-                    # 1. Check Global Daily Limits
                     if get_setting("daily_limit_mode") == "ON":
                         today_count = get_user_today_upload_count(st.session_state.user_id, post_type)
                         if post_type == "short" and today_count >= 1:
@@ -752,14 +724,12 @@ with tab_profile:
                             st.error("🚫 Limit Exceeded! You can only upload 10 Pictures/Posts per 24 hours.")
                             st.stop()
 
-                    # 2. Moderation Banned Keywords Check
                     if any(w in (title + " " + desc).lower() for w in BANNED_KEYWORDS):
-                        conn = get_db_connection()
-                        c = conn.cursor()
-                        sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
-                        c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, st.session_state.user_id))
-                        conn.commit()
-                        conn.close()
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+                            c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, st.session_state.user_id))
+                            conn.commit()
                         st.error("🚫 Inappropriate Content Detected! Account suspended.")
                         st.rerun()
 
@@ -770,14 +740,13 @@ with tab_profile:
                     rec_id = str(uuid.uuid4())
                     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     
-                    conn = get_db_connection()
-                    c = conn.cursor()
-                    c.execute("""
-                        INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, tags, media_path, post_category, views_count, likes_count, created_at)
-                        VALUES (?, 'post', ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?)
-                    """, (rec_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), title, desc, p_tags, m_path, post_type, now))
-                    conn.commit()
-                    conn.close()
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, tags, media_path, post_category, views_count, likes_count, created_at)
+                            VALUES (?, 'post', ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?)
+                        """, (rec_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), title, desc, p_tags, m_path, post_type, now))
+                        conn.commit()
                     st.success("Published Successfully!")
                     st.rerun()
 
@@ -798,14 +767,13 @@ with tab_monetization:
             bank_info_input = st.text_area("Enter Your Bank Account / bKash / Nagad Details for Payouts")
             if st.button("Submit Monetization Application"):
                 if bank_info_input:
-                    conn = get_db_connection()
-                    c = conn.cursor()
-                    c.execute("""
-                        INSERT INTO monetization_requests (mon_id, user_id, followers_count, bank_info, created_at)
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (str(uuid.uuid4()), st.session_state.user_id, real_followers, bank_info_input, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-                    conn.commit()
-                    conn.close()
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO monetization_requests (mon_id, user_id, followers_count, bank_info, created_at)
+                            VALUES (?, ?, ?, ?, ?)
+                        """, (str(uuid.uuid4()), st.session_state.user_id, real_followers, bank_info_input, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                        conn.commit()
                     st.success("Application Submitted!")
     else:
         st.info(f"📈 **Monetization Progress:** {real_followers}/1,000 Real Followers needed.")
@@ -816,14 +784,13 @@ with tab_monetization:
     if not st.session_state.user_id:
         st.warning("Please login to boost posts.")
     else:
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT record_id, title FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
-        user_posts = c.fetchall()
-        
-        c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
-        active_gateways = c.fetchall()
-        conn.close()
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT record_id, title FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
+            user_posts = c.fetchall()
+            
+            c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
+            active_gateways = c.fetchall()
         
         if not user_posts:
             st.info("You haven't uploaded any posts yet to boost.")
@@ -850,14 +817,13 @@ with tab_monetization:
             
             if st.button("Submit Boost Request"):
                 if trx_id:
-                    conn = get_db_connection()
-                    c = conn.cursor()
-                    c.execute("""
-                        INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, boost_plan.split('(')[-1].replace(')', ''), trx_id, selected_gw_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-                    conn.commit()
-                    conn.close()
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, boost_plan.split('(')[-1].replace(')', ''), trx_id, selected_gw_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                        conn.commit()
                     st.success("✅ Boost Request Submitted Successfully! Owner will verify and activate boost shortly.")
                 else:
                     st.error("Please enter the Transaction ID.")
