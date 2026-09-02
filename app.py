@@ -24,7 +24,6 @@ LOCAL_DB_FILE = "bd_ai_book_master.db"
 SECRET_CODES = ["S$s123456789112233", "S$s123456789112233BDAIBOOK"]
 BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
-# Cleaned & Secured Payment Gateway Information
 BANK_DETAILS = """
 🏦 **International Payment Wire Gateway (Boost & Payout)**
 - **Account Name:** Md Sohel Rana
@@ -36,7 +35,7 @@ BANK_DETAILS = """
 """
 
 # ==========================================
-# 2. MASTER DATABASE ENGINE & SAFE MIGRATION
+# 2. MASTER DATABASE ENGINE & MIGRATION
 # ==========================================
 def get_db_connection():
     conn = sqlite3.connect(LOCAL_DB_FILE, check_same_thread=False)
@@ -76,6 +75,7 @@ def init_master_database():
             likes_count INTEGER DEFAULT 0,
             views_count INTEGER DEFAULT 0,
             is_boosted INTEGER DEFAULT 0,
+            monetization_status TEXT DEFAULT 'Not Eligible',
             country TEXT DEFAULT 'Global',
             is_owner_post INTEGER DEFAULT 0,
             created_at TEXT
@@ -89,6 +89,16 @@ def init_master_database():
             plan TEXT,
             amount TEXT,
             trx_info TEXT,
+            status TEXT DEFAULT 'Pending',
+            created_at TEXT
+        );
+    """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS monetization_requests (
+            mon_id TEXT PRIMARY KEY,
+            user_id TEXT,
+            followers_count INTEGER,
+            bank_info TEXT,
             status TEXT DEFAULT 'Pending',
             created_at TEXT
         );
@@ -115,12 +125,6 @@ def init_master_database():
         );
     """)
     
-    # Auto-migration check
-    c.execute("PRAGMA table_info(likes);")
-    columns = [column[1] for column in c.fetchall()]
-    if "category" not in columns:
-        c.execute("ALTER TABLE likes ADD COLUMN category TEXT DEFAULT 'general';")
-
     conn.commit()
     conn.close()
 
@@ -133,6 +137,13 @@ def hash_pass(pwd): return hashlib.sha256(pwd.encode()).hexdigest()
 
 def get_meta_blue_badge():
     return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px;"><path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.66.425-1.55-.008-3.25-1.196-4.438-1.187-1.188-2.887-1.62-4.437-1.196C13.95 1.875 12.58 1 11.5 1s-2.45.875-3.16 2.148c-1.55-.425-3.25.008-4.438 1.196-1.188 1.187-1.62 2.887-1.196 4.437C1.875 9.55 1 10.92 1 12s.875 2.45 2.148 3.16c-.425 1.55.008 3.25 1.196 4.438 1.187 1.188 2.887 1.62 4.437 1.196C9.55 22.125 10.92 23 12 23s2.45-.875 3.16-2.148c1.55.425-.008 4.438-1.196 1.188-1.187 1.62-2.887 1.196-4.437 1.273-.71 2.148-2.08 2.148-3.66z"/><path fill="#ffffff" d="M9.8 17.3l-4.2-4.2 1.4-1.4 2.8 2.8 7.4-7.4 1.4 1.4z"/></svg>"""
+
+def increment_views(post_id):
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE master_app_table SET views_count = views_count + 1 WHERE record_id = ?", (post_id,))
+    conn.commit()
+    conn.close()
 
 st.markdown("""
 <style>
@@ -163,17 +174,6 @@ st.markdown("""
         overflow: hidden;
     }
 </style>
-
-<script>
-function shareContent(title, url) {
-    if (navigator.share) {
-        navigator.share({ title: title, url: url }).catch(console.error);
-    } else {
-        navigator.clipboard.writeText(url);
-        alert("Post Link Copied!");
-    }
-}
-</script>
 """, unsafe_allow_html=True)
 
 # Session Setup
@@ -197,7 +197,7 @@ st.markdown("<h1 style='text-align: center; color:#0064e0;'>BD AI Book</h1>", un
 st.caption("<p style='text-align: center;'>Next-Gen Global Social & Media Platform</p>", unsafe_allow_html=True)
 
 # ==========================================
-# 4. AUTHENTICATION & LOGIN SYSTEM
+# 4. AUTHENTICATION SYSTEM
 # ==========================================
 real_followers = 0
 current_user = {}
@@ -272,7 +272,7 @@ tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "�
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
     
-    # OWNER MONITORING DASHBOARD (Secret Code Trigger)
+    # 👑 OWNER MASTER CONTROL CENTER
     if search_input.strip() in SECRET_CODES:
         st.session_state.is_owner_session = True
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
@@ -288,57 +288,91 @@ with tab_feed:
         total_boosted = c.fetchone()["cnt"]
         conn.close()
 
-        # Real-time System Metrics
         col_m1, col_m2, col_m3 = st.columns(3)
         col_m1.metric("👥 Total App Users", total_users)
         col_m2.metric("🎬 Total App Posts", total_posts)
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🖼️ Change Site Logo")
-        new_logo = st.file_uploader("Upload App Logo", type=["png", "jpg", "jpeg"])
-        if st.button("Update Logo"):
-            if new_logo:
-                l_path = os.path.join(UPLOAD_DIR, "site_logo.png")
-                with open(l_path, "wb") as f: f.write(new_logo.getbuffer())
-                conn = get_db_connection()
-                c = conn.cursor()
-                c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('logo_path', ?)", (l_path,))
-                conn.commit()
-                conn.close()
-                st.success("Logo Updated!")
-                st.rerun()
+        
+        # OWNER CONTROLS (3 MAIN BUTTON LOGICS)
+        st.markdown("### 🛠️ Owner Master Actions (3 Power Buttons)")
+        
+        owner_tab1, owner_tab2, owner_tab3 = st.tabs(["1️⃣ Monetization Approvals", "2️⃣ Bad Content Block & Suspend", "3️⃣ Auto Bank Payout Approve"])
+        
+        # 1. Monetization Approval
+        with owner_tab1:
+            st.markdown("#### 💰 Pending Monetization Requests")
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT * FROM monetization_requests WHERE status = 'Pending'")
+            m_reqs = c.fetchall()
+            if m_reqs:
+                for mr in m_reqs:
+                    st.write(f"User ID: {mr['user_id']} | Followers: {mr['followers_count']} | Bank Details: {mr['bank_info']}")
+                    col_ma1, col_ma2 = st.columns(2)
+                    if col_ma1.button(f"✅ Approve Monetization ({mr['mon_id']})"):
+                        c.execute("UPDATE master_app_table SET monetization_status = 'Approved' WHERE user_id = ?", (mr['user_id'],))
+                        c.execute("UPDATE monetization_requests SET status = 'Approved' WHERE mon_id = ?", (mr['mon_id'],))
+                        conn.commit()
+                        st.success("Monetization Approved Successfully!")
+                        st.rerun()
+                    if col_ma2.button(f"❌ Reject ({mr['mon_id']})"):
+                        c.execute("UPDATE monetization_requests SET status = 'Rejected' WHERE mon_id = ?", (mr['mon_id'],))
+                        conn.commit()
+                        st.warning("Monetization Request Rejected.")
+                        st.rerun()
+            else:
+                st.info("No pending monetization requests.")
+            conn.close()
 
-        st.markdown("---")
-        st.markdown("### 🚀 Pending Boost Requests")
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT * FROM boost_requests WHERE status = 'Pending'")
-        b_reqs = c.fetchall()
-        if b_reqs:
-            for br in b_reqs:
-                st.write(f"Post ID: {br['post_id']} | Plan: {br['plan']} | Payment Info: {br['trx_info']}")
-                if st.button(f"Approve Boost {br['boost_id']}"):
-                    c.execute("UPDATE master_app_table SET is_boosted = 1 WHERE record_id = ?", (br['post_id'],))
-                    c.execute("UPDATE boost_requests SET status = 'Approved' WHERE boost_id = ?", (br['boost_id'],))
+        # 2. Bad Content Block & User Suspend
+        with owner_tab2:
+            st.markdown("#### 🚫 Content & User Moderation Control")
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY created_at DESC")
+            all_posts = c.fetchall()
+            for p in all_posts:
+                col_cp1, col_cp2, col_cp3 = st.columns([3, 1, 1])
+                col_cp1.write(f"📌 **{p['title']}** (By: {p['full_name']} | User ID: {p['user_id']})")
+                
+                if col_cp2.button("🗑️ Delete Post", key=f"owner_del_{p['record_id']}"):
+                    c.execute("DELETE FROM master_app_table WHERE record_id = ?", (p['record_id'],))
                     conn.commit()
-                    st.success("Boost Approved!")
+                    st.success("Post Deleted!")
                     st.rerun()
-        else:
-            st.info("No pending boost requests.")
-        conn.close()
+                    
+                if col_cp3.button("🚫 Block User", key=f"owner_sus_{p['record_id']}"):
+                    sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+                    c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, p['user_id']))
+                    c.execute("DELETE FROM master_app_table WHERE record_id = ?", (p['record_id'],))
+                    conn.commit()
+                    st.error(f"User {p['full_name']} Suspended for 30 Days & Post Removed!")
+                    st.rerun()
+            conn.close()
 
-        st.markdown("---")
-        st.markdown("### 👥 Manage Registered Users")
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute("SELECT user_id, full_name, auth_identifier, created_at FROM master_app_table WHERE data_type = 'user'")
-        all_u = c.fetchall()
-        for u in all_u:
-            st.text(f"ID: {u['user_id']} | Name: {u['full_name']} | Auth: {u['auth_identifier']} | Joined: {u['created_at']}")
-        conn.close()
+        # 3. Auto Bank Payout Approve
+        with owner_tab3:
+            st.markdown("#### 🏦 Auto Payouts & Boost Approval via Bank")
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT * FROM boost_requests WHERE status = 'Pending'")
+            b_reqs = c.fetchall()
+            if b_reqs:
+                for br in b_reqs:
+                    st.write(f"Post ID: {br['post_id']} | Plan: {br['plan']} | Trx Ref: {br['trx_info']}")
+                    if st.button(f"⚡ Approve Bank Payment & Auto Boost ({br['boost_id']})"):
+                        c.execute("UPDATE master_app_table SET is_boosted = 1 WHERE record_id = ?", (br['post_id'],))
+                        c.execute("UPDATE boost_requests SET status = 'Approved' WHERE boost_id = ?", (br['boost_id'],))
+                        conn.commit()
+                        st.success("Bank Payment Verified & Boost Activated!")
+                        st.rerun()
+            else:
+                st.info("No pending bank payment approvals.")
+            conn.close()
 
-    # PUBLIC LIVE FEED WITH SMART RECOMMENDATION ALGORITHM
+    # PUBLIC LIVE FEED
     else:
         conn = get_db_connection()
         c = conn.cursor()
@@ -347,8 +381,7 @@ with tab_feed:
         if st.session_state.user_id:
             c.execute("SELECT category, COUNT(*) as cnt FROM likes WHERE user_id = ? GROUP BY category ORDER BY cnt DESC LIMIT 1", (st.session_state.user_id,))
             fav_row = c.fetchone()
-            if fav_row and fav_row["category"]: 
-                fav_category = fav_row["category"]
+            if fav_row and fav_row["category"]: fav_category = fav_row["category"]
 
         if search_input:
             q_str = f"%{search_input}%"
@@ -362,11 +395,14 @@ with tab_feed:
         conn.close()
 
         for post in posts:
+            # Auto View Counter Trigger
+            increment_views(post["record_id"])
+            
             st.markdown("<div style='background:#18191a; padding:15px; border-radius:12px; margin-bottom:20px;'>", unsafe_allow_html=True)
             
             conn = get_db_connection()
             c = conn.cursor()
-            c.execute("SELECT profile_pic_path, fb_link, tiktok_link, yt_link, website_link FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (post.get("user_id"),))
+            c.execute("SELECT profile_pic_path FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (post.get("user_id"),))
             author = c.fetchone()
             
             c.execute("SELECT COUNT(*) as cnt FROM follows WHERE following_id = ?", (post.get("user_id"),))
@@ -385,8 +421,7 @@ with tab_feed:
                 tick = get_meta_blue_badge() if post.get("is_verified") else ""
                 boost_badge = "🔥 [BOOSTED]" if post.get("is_boosted") else ""
                 
-                if author_pic:
-                    st.image(author_pic, width=50)
+                if author_pic: st.image(author_pic, width=50)
                 st.markdown(f"### {post.get('full_name')} {tick} <span style='color:orange;'>{boost_badge}</span>", unsafe_allow_html=True)
                 st.caption(f"👥 Real Followers: {author_followers:,} | Category: {post.get('post_category')}")
                 
@@ -435,8 +470,8 @@ with tab_feed:
             conn.close()
 
             st.markdown("---")
-            col_b1, col_b2, col_b3, col_b4 = st.columns(4)
-            col_b1.write(f"👁️ **{post.get('views_count', 0):,}** Views")
+            col_b1, col_b2, col_b3 = st.columns(3)
+            col_b1.write(f"👁️ **{(post.get('views_count', 0) + 1):,}** Views")
             
             like_lbl = f"❤️ Liked ({real_likes})" if has_liked else f"👍 Like ({real_likes})"
             if col_b2.button(like_lbl, key=f"lk_{post['record_id']}"):
@@ -453,16 +488,13 @@ with tab_feed:
                 else:
                     st.warning("Please login to like!")
 
-            col_b3.button("💬 Comment", key=f"cm_{post['record_id']}")
-            
-            if col_b4.button("🚀 Share", key=f"sh_{post['record_id']}"):
-                st.markdown(f"<script>shareContent('{post.get('title', '')}', window.location.href);</script>", unsafe_allow_html=True)
+            if col_b3.button("🚀 Share", key=f"sh_{post['record_id']}"):
                 st.toast("Sharing Window Opened!")
                 
             st.markdown("</div>", unsafe_allow_html=True)
 
 # ------------------------------------------
-# TAB 2: PROFILE & CREATOR STUDIO
+# TAB 2: PROFILE & CREATOR STUDIO WITH DELETE OPTION
 # ------------------------------------------
 with tab_profile:
     if not st.session_state.user_id:
@@ -486,40 +518,21 @@ with tab_profile:
         with col_p2:
             st.write(f"👥 **Real Followers:** {real_followers:,}")
             st.write(f"**Bio:** {current_user.get('bio', 'No bio added')}")
-            st.write(f"**Address:** {current_user.get('address', 'Not set')}")
 
-        with st.expander("⚙️ Edit Profile & Social Links"):
+        with st.expander("⚙️ Edit Profile"):
             u_name = st.text_input("Name", value=current_user.get("full_name", ""))
-            u_addr = st.text_input("Address", value=current_user.get("address") or "")
             u_bio = st.text_area("Bio", value=current_user.get("bio") or "")
-            
-            u_fb = st.text_input("Facebook Profile URL", value=current_user.get("fb_link") or "")
-            u_tiktok = st.text_input("TikTok Profile URL", value=current_user.get("tiktok_link") or "")
-            u_yt = st.text_input("YouTube Channel URL", value=current_user.get("yt_link") or "")
-            u_web = st.text_input("Website Link", value=current_user.get("website_link") or "")
-            
-            up_prof = st.file_uploader("Upload Profile Picture (Circular Avatar)", type=["jpg", "png", "jpeg"], key="dp_edit")
-            up_cov = st.file_uploader("Upload Cover Photo", type=["jpg", "png", "jpeg"], key="cov_edit")
+            up_prof = st.file_uploader("Upload Profile Picture", type=["jpg", "png", "jpeg"], key="dp_edit")
             
             if st.button("Save Profile"):
                 p_path = profile_path
-                c_path = cover_path
-                
                 if up_prof:
                     p_path = os.path.join(UPLOAD_DIR, f"dp_{st.session_state.user_id}.png")
                     with open(p_path, "wb") as f: f.write(up_prof.getbuffer())
-                if up_cov:
-                    c_path = os.path.join(UPLOAD_DIR, f"cov_{st.session_state.user_id}.png")
-                    with open(c_path, "wb") as f: f.write(up_cov.getbuffer())
                     
                 conn = get_db_connection()
                 c = conn.cursor()
-                c.execute("""
-                    UPDATE master_app_table 
-                    SET full_name = ?, address = ?, bio = ?, profile_pic_path = ?, cover_pic_path = ?,
-                        fb_link = ?, tiktok_link = ?, yt_link = ?, website_link = ? 
-                    WHERE user_id = ?
-                """, (u_name, u_addr, u_bio, p_path, c_path, u_fb, u_tiktok, u_yt, u_web, st.session_state.user_id))
+                c.execute("UPDATE master_app_table SET full_name = ?, bio = ?, profile_pic_path = ? WHERE user_id = ?", (u_name, u_bio, p_path, st.session_state.user_id))
                 conn.commit()
                 conn.close()
                 st.success("Profile Updated!")
@@ -530,7 +543,7 @@ with tab_profile:
         post_type = st.selectbox("Format", ["short", "long", "picture"])
         title = st.text_input("Title")
         desc = st.text_area("Description")
-        p_tags = st.text_input("Hashtags (e.g. #BD_AI_BOOK #Viral)")
+        p_tags = st.text_input("Hashtags")
         uploaded_media = st.file_uploader("Media File", type=["mp4", "jpg", "png"])
         
         if st.button("Publish Post"):
@@ -542,7 +555,7 @@ with tab_profile:
                     c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, st.session_state.user_id))
                     conn.commit()
                     conn.close()
-                    st.error("🚫 Inappropriate Content Detected! Account suspended for 30 days.")
+                    st.error("🚫 Inappropriate Content Detected! Account suspended.")
                     st.rerun()
                     st.stop()
 
@@ -564,15 +577,61 @@ with tab_profile:
                 st.success("Published Successfully!")
                 st.rerun()
 
+        st.markdown("---")
+        # USER OWN POSTS MANAGEMENT WITH DELETE OPTION
+        st.markdown("### 🎬 My Uploaded Videos & Posts")
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND user_id = ? ORDER BY created_at DESC", (st.session_state.user_id,))
+        my_posts = c.fetchall()
+        conn.close()
+
+        if my_posts:
+            for mp in my_posts:
+                col_mp1, col_mp2 = st.columns([4, 1])
+                with col_mp1:
+                    st.write(f"📌 **{mp['title']}** ({mp['post_category']}) - 👁️ {mp['views_count']:,} views")
+                with col_mp2:
+                    if st.button("🗑️ Delete", key=f"del_my_{mp['record_id']}"):
+                        conn = get_db_connection()
+                        c = conn.cursor()
+                        c.execute("DELETE FROM master_app_table WHERE record_id = ?", (mp['record_id'],))
+                        conn.commit()
+                        conn.close()
+                        st.success("Post deleted successfully!")
+                        st.rerun()
+        else:
+            st.info("You haven't uploaded any videos yet.")
+
 # ------------------------------------------
-# TAB 3: GLOBAL MONETIZATION & BOOSTING
+# TAB 3: MONETIZATION & BOOSTING WITH 1000 FOLLOWERS LOGIC
 # ------------------------------------------
 with tab_monetization:
     st.markdown("### 💸 Worldwide Monetization & Video Boost Center")
     
-    if real_followers >= 1000:
-        st.success(f"🎉 **Monetization Active!** You have {real_followers:,} Real Followers (Requirement: 1,000).")
+    mon_status = current_user.get("monetization_status", "Not Eligible")
+    
+    if mon_status == "Approved":
+        st.success(f"🎉 **Monetization Active & Approved!**")
         st.metric("Estimated Earning Balance", "$1,250.00 USD")
+    elif real_followers >= 1000:
+        st.success(f"🎉 **You are eligible for Monetization!** You have {real_followers:,} Real Followers (Requirement: 1,000).")
+        
+        with st.expander("📝 Apply for Monetization Payout"):
+            bank_info_input = st.text_area("Enter Your Bank Account Details for Payouts")
+            if st.button("Submit Monetization Application"):
+                if bank_info_input:
+                    conn = get_db_connection()
+                    c = conn.cursor()
+                    c.execute("""
+                        INSERT INTO monetization_requests (mon_id, user_id, followers_count, bank_info, created_at)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (str(uuid.uuid4()), st.session_state.user_id, real_followers, bank_info_input, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                    conn.commit()
+                    conn.close()
+                    st.success("Application Submitted! Owner will review and approve via bank payout system.")
+                else:
+                    st.warning("Please provide bank details.")
     else:
         st.info(f"📈 **Monetization Progress:** {real_followers}/1,000 Real Followers needed to start earning.")
         
