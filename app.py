@@ -103,6 +103,7 @@ def init_master_database():
         CREATE TABLE IF NOT EXISTS likes (
             user_id TEXT,
             post_id TEXT,
+            category TEXT,
             PRIMARY KEY (user_id, post_id)
         );
     """)
@@ -119,7 +120,7 @@ def init_master_database():
 init_master_database()
 
 # ==========================================
-# 3. HELPER & CUSTOM CSS (CIRCULAR AVATARS & WATERMARK)
+# 3. HELPER & CUSTOM CSS
 # ==========================================
 def hash_pass(pwd): return hashlib.sha256(pwd.encode()).hexdigest()
 
@@ -128,18 +129,13 @@ def get_meta_blue_badge():
 
 st.markdown("""
 <style>
-    /* Circular Avatars Styling */
-    img {
-        border-radius: 12px;
-    }
+    img { border-radius: 12px; }
     .stImage > img {
         border-radius: 50% !important;
         object-fit: cover !important;
         border: 2px solid #0064e0 !important;
     }
-    .video-watermark-wrapper {
-        position: relative;
-    }
+    .video-watermark-wrapper { position: relative; }
     .video-watermark-badge {
         position: absolute;
         top: 12px;
@@ -238,7 +234,6 @@ else:
     c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (st.session_state.user_id,))
     raw_user = c.fetchone()
     
-    # Real Followers Calculation
     c.execute("SELECT COUNT(*) as cnt FROM follows WHERE following_id = ?", (st.session_state.user_id,))
     f_res = c.fetchone()
     real_followers = f_res["cnt"] if f_res else 0
@@ -249,7 +244,7 @@ else:
     if current_user.get("is_suspended"):
         sus_until = current_user.get("suspended_until", "")
         if datetime.now().strftime("%Y-%m-%d %H:%M:%S") < sus_until:
-            st.error(f"🚫 Account Suspended for community guidelines violation until: {sus_until}")
+            st.error(f"🚫 Account Suspended until: {sus_until}")
             st.stop()
 
     st.sidebar.markdown(f"User: **{current_user.get('full_name', 'User')}**")
@@ -265,17 +260,49 @@ else:
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
 # ------------------------------------------
-# TAB 1: PUBLIC LIVE FEED
+# TAB 1: PUBLIC LIVE FEED & OWNER MONITORING
 # ------------------------------------------
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
     
-    # OWNER COMMAND ACCESS
+    # OWNER COMMAND ACCESS & FULL MONITORING PANEL
     if search_input.strip() in SECRET_CODES:
         st.session_state.is_owner_session = True
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
         st.markdown("---")
         
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'user'")
+        total_users = c.fetchone()["cnt"]
+        c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post'")
+        total_posts = c.fetchone()["cnt"]
+        c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE is_boosted = 1")
+        total_boosted = c.fetchone()["cnt"]
+        conn.close()
+
+        # Admin Statistics Dashboard
+        col_m1, col_m2, col_m3 = st.columns(3)
+        col_m1.metric("👥 Total App Users", total_users)
+        col_m2.metric("🎬 Total App Posts", total_posts)
+        col_m3.metric("🔥 Active Boosted Posts", total_boosted)
+
+        st.markdown("---")
+        st.markdown("### 🖼️ Change App Logo")
+        new_logo = st.file_uploader("Upload New Site Logo", type=["png", "jpg", "jpeg"])
+        if st.button("Update Logo"):
+            if new_logo:
+                l_path = os.path.join(UPLOAD_DIR, "site_logo.png")
+                with open(l_path, "wb") as f: f.write(new_logo.getbuffer())
+                conn = get_db_connection()
+                c = conn.cursor()
+                c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES ('logo_path', ?)", (l_path,))
+                conn.commit()
+                conn.close()
+                st.success("Logo Updated!")
+                st.rerun()
+
+        st.markdown("---")
         st.markdown("### 🚀 Pending Boost Requests")
         conn = get_db_connection()
         c = conn.cursor()
@@ -294,13 +321,32 @@ with tab_feed:
             st.info("No pending boost requests.")
         conn.close()
 
-    # FEED DISPLAY
+        st.markdown("---")
+        st.markdown("### 👥 Manage Registered Users")
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT user_id, full_name, auth_identifier, created_at FROM master_app_table WHERE data_type = 'user'")
+        all_u = c.fetchall()
+        for u in all_u:
+            st.text(f"ID: {u['user_id']} | Name: {u['full_name']} | Auth: {u['auth_identifier']} | Joined: {u['created_at']}")
+        conn.close()
+
+    # FEED DISPLAY WITH AI RECOMMENDATION ALGORITHM
     else:
         conn = get_db_connection()
         c = conn.cursor()
+        
+        fav_category = None
+        if st.session_state.user_id:
+            c.execute("SELECT category, COUNT(*) as cnt FROM likes WHERE user_id = ? GROUP BY category ORDER BY cnt DESC LIMIT 1", (st.session_state.user_id,))
+            fav_row = c.fetchone()
+            if fav_row: fav_category = fav_row["category"]
+
         if search_input:
             q_str = f"%{search_input}%"
             c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
+        elif fav_category:
+            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, CASE WHEN post_category = ? THEN 0 ELSE 1 END, created_at DESC", (fav_category,))
         else:
             c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC")
             
@@ -310,7 +356,6 @@ with tab_feed:
         for post in posts:
             st.markdown("<div style='background:#18191a; padding:15px; border-radius:12px; margin-bottom:20px;'>", unsafe_allow_html=True)
             
-            # Real Follower Count & Status
             conn = get_db_connection()
             c = conn.cursor()
             c.execute("SELECT profile_pic_path, fb_link, tiktok_link, yt_link, website_link FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (post.get("user_id"),))
@@ -355,7 +400,6 @@ with tab_feed:
             if post.get("content"): st.write(post["content"])
             if post.get("tags"): st.markdown(f"<span style='color:#0064e0;'>{post['tags']}</span>", unsafe_allow_html=True)
             
-            # Video / Photo with Watermark Overlay
             media_path = post.get("media_path")
             cat = post.get("post_category")
             
@@ -371,7 +415,6 @@ with tab_feed:
                     st.video(media_path)
                 st.markdown("</div>", unsafe_allow_html=True)
 
-            # Real Likes Logic
             conn = get_db_connection()
             c = conn.cursor()
             c.execute("SELECT COUNT(*) as cnt FROM likes WHERE post_id = ?", (post["record_id"],))
@@ -383,7 +426,6 @@ with tab_feed:
                 if c.fetchone(): has_liked = True
             conn.close()
 
-            # Interactive Stats
             st.markdown("---")
             col_b1, col_b2, col_b3, col_b4 = st.columns(4)
             col_b1.write(f"👁️ **{post.get('views_count', 0):,}** Views")
@@ -396,7 +438,7 @@ with tab_feed:
                     if has_liked:
                         c.execute("DELETE FROM likes WHERE user_id = ? AND post_id = ?", (st.session_state.user_id, post["record_id"]))
                     else:
-                        c.execute("INSERT OR REPLACE INTO likes VALUES (?, ?)", (st.session_state.user_id, post["record_id"]))
+                        c.execute("INSERT OR REPLACE INTO likes (user_id, post_id, category) VALUES (?, ?, ?)", (st.session_state.user_id, post["record_id"], cat))
                     conn.commit()
                     conn.close()
                     st.rerun()
@@ -438,7 +480,6 @@ with tab_profile:
             st.write(f"**Bio:** {current_user.get('bio', 'No bio added')}")
             st.write(f"**Address:** {current_user.get('address', 'Not set')}")
 
-        # Edit Profile Panel
         with st.expander("⚙️ Edit Profile & Social Links"):
             u_name = st.text_input("Name", value=current_user.get("full_name", ""))
             u_addr = st.text_input("Address", value=current_user.get("address") or "")
@@ -476,7 +517,6 @@ with tab_profile:
                 st.success("Profile Updated!")
                 st.rerun()
 
-        # Publish Media
         st.markdown("---")
         st.markdown("### 📤 Upload New Post")
         post_type = st.selectbox("Format", ["short", "long", "picture"])
