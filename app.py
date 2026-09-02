@@ -25,6 +25,72 @@ LOCAL_DB_FILE = "bd_ai_book_master.db"
 SECRET_CODES = ["S$s123456789112233", "S$s123456789112233BDAIBOOK"]
 BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
+# CSS: হেডার ফিক্সড করা এবং রিলোডজনিত লাফালাফি বন্ধ করা
+st.markdown("""
+<style>
+    /* Sticky Header Logic */
+    div[data-testid="stHeader"] {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        z-index: 999;
+    }
+    
+    img { border-radius: 12px; }
+    .stImage > img {
+        border-radius: 50% !important;
+        object-fit: cover !important;
+        border: 2px solid #0064e0 !important;
+    }
+    .fb-post-card {
+        background: #18191a;
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        border: 1px solid #2f3031;
+    }
+    .video-watermark-wrapper { position: relative; }
+    .video-watermark-badge {
+        position: absolute;
+        top: 12px;
+        right: 15px;
+        background: rgba(0, 100, 224, 0.85);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: bold;
+        z-index: 99;
+        pointer-events: none;
+    }
+    .tiktok-container {
+        max-width: 320px;
+        margin: 0 auto;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid #333;
+    }
+    .announcement-box {
+        background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        padding: 12px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 15px;
+        font-weight: bold;
+    }
+    .ad-container {
+        margin-top: 15px;
+        margin-bottom: 15px;
+        padding: 8px;
+        background: #0e0e10;
+        border-radius: 8px;
+        text-align: center;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # ==========================================
 # 2. MASTER DATABASE ENGINE & CONFIG SYSTEM
 # ==========================================
@@ -193,63 +259,6 @@ def get_user_today_upload_count(user_id, category):
         res = c.fetchone()
         return res["cnt"] if res else 0
 
-# CSS Styling
-st.markdown("""
-<style>
-    img { border-radius: 12px; }
-    .stImage > img {
-        border-radius: 50% !important;
-        object-fit: cover !important;
-        border: 2px solid #0064e0 !important;
-    }
-    .fb-post-card {
-        background: #18191a;
-        padding: 16px;
-        border-radius: 12px;
-        margin-bottom: 20px;
-        border: 1px solid #2f3031;
-    }
-    .video-watermark-wrapper { position: relative; }
-    .video-watermark-badge {
-        position: absolute;
-        top: 12px;
-        right: 15px;
-        background: rgba(0, 100, 224, 0.85);
-        color: white;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: bold;
-        z-index: 99;
-        pointer-events: none;
-    }
-    .tiktok-container {
-        max-width: 320px;
-        margin: 0 auto;
-        border-radius: 14px;
-        overflow: hidden;
-        border: 1px solid #333;
-    }
-    .announcement-box {
-        background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
-        color: white;
-        padding: 12px;
-        border-radius: 10px;
-        text-align: center;
-        margin-bottom: 15px;
-        font-weight: bold;
-    }
-    .ad-container {
-        margin-top: 15px;
-        margin-bottom: 15px;
-        padding: 8px;
-        background: #0e0e10;
-        border-radius: 8px;
-        text-align: center;
-    }
-</style>
-""", unsafe_allow_html=True)
-
 # Session State Initialization
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
@@ -351,7 +360,7 @@ else:
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
 # ------------------------------------------
-# HELPER: FACEBOOK POST RENDERER (FIXED KEYS)
+# HELPER: FACEBOOK POST RENDERER (With Edit/Delete Support)
 # ------------------------------------------
 def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     increment_views(post["record_id"])
@@ -390,7 +399,6 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     with col_h2:
         if st.session_state.user_id and st.session_state.user_id != post.get("user_id"):
             fol_lbl = "✔ Following" if is_following else "➕ Follow"
-            # UNIQUE KEY FIX
             if st.button(fol_lbl, key=f"fol_{prefix}_{post['record_id']}"):
                 with get_db_connection() as conn:
                     c = conn.cursor()
@@ -401,10 +409,34 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                     conn.commit()
                 st.rerun()
 
+    # Post Content
     if post.get("title"): st.subheader(post["title"])
     if post.get("content"): st.write(post["content"])
     if post.get("tags"): st.markdown(f"<span style='color:#0064e0;'>{post['tags']}</span>", unsafe_allow_html=True)
-    
+
+    # USER POST EDIT & DELETE SYSTEM
+    if st.session_state.user_id and st.session_state.user_id == post.get("user_id"):
+        with st.expander("✏️ Edit or Delete Post"):
+            new_title = st.text_input("Edit Title", value=post.get("title", ""), key=f"et_{prefix}_{post['record_id']}")
+            new_content = st.text_area("Edit Description", value=post.get("content", ""), key=f"ec_{prefix}_{post['record_id']}")
+            
+            col_ed1, col_ed2 = st.columns(2)
+            if col_ed1.button("💾 Save Changes", key=f"save_{prefix}_{post['record_id']}"):
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("UPDATE master_app_table SET title = ?, content = ? WHERE record_id = ?", (new_title, new_content, post["record_id"]))
+                    conn.commit()
+                st.success("Post updated successfully!")
+                st.rerun()
+                
+            if col_ed2.button("🗑️ Delete Post", key=f"del_{prefix}_{post['record_id']}"):
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("DELETE FROM master_app_table WHERE record_id = ?", (post["record_id"],))
+                    conn.commit()
+                st.success("Post deleted!")
+                st.rerun()
+
     media_path = post.get("media_path")
     cat = post.get("post_category", "general")
     
@@ -440,7 +472,6 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     col_b1.write(f"👁️ **{(post.get('views_count', 0) + 1):,}** Views")
     
     like_lbl = f"❤️ Liked ({real_likes})" if has_liked else f"👍 Like ({real_likes})"
-    # UNIQUE KEY FIX
     if col_b2.button(like_lbl, key=f"lk_{prefix}_{post['record_id']}"):
         if st.session_state.user_id:
             with get_db_connection() as conn:
@@ -454,7 +485,6 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         else:
             st.warning("Please login to like!")
 
-    # UNIQUE KEY FIX
     if col_b3.button("🚀 Share", key=f"sh_{prefix}_{post['record_id']}"):
         st.toast("Sharing Link Copied!")
         
@@ -531,9 +561,9 @@ with tab_feed:
                         st.rerun()
 
             st.markdown("---")
-            st.markdown("#### ⚙️ Global Daily Limit Switch (১ Short, ১ Long, ১০ Post per day)")
+            st.markdown("#### ⚙️ Global Daily Limit Switch")
             curr_daily_limit = get_setting("daily_limit_mode", "OFF")
-            st.write(f"Global Daily Limit Status: **{'ACTIVE (১টি Short, ১টি Long, ১০টি Post)' if curr_daily_limit == 'ON' else 'UNLIMITED (যত খুশি পোস্ট)'}**")
+            st.write(f"Global Daily Limit Status: **{'ACTIVE' if curr_daily_limit == 'ON' else 'UNLIMITED'}**")
 
             with col_u2:
                 if curr_daily_limit == "OFF":
@@ -560,8 +590,7 @@ with tab_feed:
                     st.rerun()
 
         with o_tab4:
-            st.markdown("#### 🏦 Dynamic Payment Gateway & Bank Account Control")
-            
+            st.markdown("#### 🏦 Dynamic Payment Gateway Control")
             with st.form("add_new_payment_method"):
                 m_type = st.selectbox("Method Type", ["Mobile Banking", "Bank Transfer", "Crypto / International"])
                 p_name = st.text_input("Provider / Bank Name", placeholder="e.g. bKash Merchant / City Bank")
@@ -651,7 +680,7 @@ with tab_feed:
                         st.rerun()
 
     else:
-        # Fetching Posts Data from Database
+        # Fetch Posts Data
         with get_db_connection() as conn:
             c = conn.cursor()
             if search_input:
@@ -665,9 +694,6 @@ with tab_feed:
         ads_enabled = get_setting("show_ads") == "ON"
         ads_html = get_setting("adsense_script")
 
-        # ----------------------------------------------------
-        # FACEBOOK STYLE FEED FILTERING
-        # ----------------------------------------------------
         sub_feed1, sub_feed2, sub_feed3, sub_feed4 = st.tabs(["🌐 All Feed", "🎬 Reels / Shorts", "🖼️ Photos", "📹 Long Videos"])
 
         with sub_feed1:
