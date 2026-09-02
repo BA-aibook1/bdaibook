@@ -25,18 +25,25 @@ LOCAL_DB_FILE = "bd_ai_book_master.db"
 SECRET_CODES = ["S$s123456789112233", "S$s123456789112233BDAIBOOK"]
 BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
-# CSS: হেডার ফিক্সড করা এবং রিলোডজনিত লাফালাফি বন্ধ করা
+# CSS: হেডার সম্পূর্ণ স্থির (Fixed Sticky Header) করা এবং স্ক্রোলিং সমস্যা সমাধান
 st.markdown("""
 <style>
-    /* Sticky Header Logic */
+    /* Streamlit Default padding & space override */
+    .block-container {
+        padding-top: 1rem !important;
+    }
+    
+    /* Sticky Top Header Container */
     div[data-testid="stHeader"] {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
-        z-index: 999;
+        background-color: #0e1117;
+        z-index: 99999;
+        border-bottom: 1px solid #222;
     }
-    
+
     img { border-radius: 12px; }
     .stImage > img {
         border-radius: 50% !important;
@@ -74,11 +81,12 @@ st.markdown("""
     .announcement-box {
         background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
         color: white;
-        padding: 12px;
+        padding: 10px;
         border-radius: 10px;
         text-align: center;
-        margin-bottom: 15px;
+        margin-bottom: 10px;
         font-weight: bold;
+        font-size: 13px;
     }
     .ad-container {
         margin-top: 15px;
@@ -263,17 +271,30 @@ def get_user_today_upload_count(user_id, category):
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
+if "active_tab" not in st.session_state: st.session_state.active_tab = 0
 
-# Render Logo & Dynamic App Header Name
+# Dynamic App Header & Logo with Profile Avatar Quick Switch
 site_logo_path = get_setting("logo_path")
 app_name = get_setting("app_name", "BD AI Book")
 announcement = get_setting("owner_announcement", "")
 
-if site_logo_path and os.path.exists(site_logo_path):
-    col_l1, col_l2, col_l3 = st.columns([2, 1, 2])
-    with col_l2: st.image(site_logo_path, width=120)
+# Fixed Header Component
+top_col1, top_col2, top_col3 = st.columns([1, 3, 1])
+with top_col1:
+    if site_logo_path and os.path.exists(site_logo_path):
+        st.image(site_logo_path, width=50)
+    else:
+        st.markdown("📖")
 
-st.markdown(f"<h1 style='text-align: center; color:#0064e0;'>{app_name}</h1>", unsafe_allow_html=True)
+with top_col2:
+    st.markdown(f"<h3 style='text-align: center; color:#0064e0; margin:0;'>{app_name}</h3>", unsafe_allow_html=True)
+
+with top_col3:
+    # প্রোফাইল শর্টকাট বাটন
+    if st.button("👤 Profile", key="quick_profile_btn"):
+        st.session_state.active_tab = 1
+        st.rerun()
+
 if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
 
@@ -360,7 +381,7 @@ else:
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
 # ------------------------------------------
-# HELPER: FACEBOOK POST RENDERER (With Edit/Delete Support)
+# HELPER: FACEBOOK POST RENDERER
 # ------------------------------------------
 def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     increment_views(post["record_id"])
