@@ -24,15 +24,15 @@ LOCAL_DB_FILE = "bd_ai_book_master.db"
 SECRET_CODES = ["S$s123456789112233", "S$s123456789112233BDAIBOOK"]
 BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
+# Cleaned & Secured Payment Gateway Information
 BANK_DETAILS = """
 🏦 **International Payment Wire Gateway (Boost & Payout)**
 - **Account Name:** Md Sohel Rana
-- **Recipient Address:** Bangladesh, Barabari, SHIBRAM BARABARI SADAR LALMONIRHAT, 5500
+- **Bank Name:** Clear Bank
 - **IBAN:** GB89CLRB04281239130579
-- **BIC/SWIFT code:** CLRBGB22XXX
-- **Account number:** 39130579
-- **Bank Name:** Clear Bank (133 Houndsditch, LONDON, EC3A 7BX)
-- **Account type:** Checking (Current)
+- **BIC/SWIFT Code:** CLRBGB22XXX
+- **Account Number:** 39130579
+- **Account Type:** Checking (Current)
 """
 
 # ==========================================
@@ -115,7 +115,7 @@ def init_master_database():
         );
     """)
     
-    # Auto-migration for existing databases
+    # Auto-migration check
     c.execute("PRAGMA table_info(likes);")
     columns = [column[1] for column in c.fetchall()]
     if "category" not in columns:
