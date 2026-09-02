@@ -1,5 +1,6 @@
+
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta
 import hashlib
 import os
 import random
@@ -10,7 +11,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ==========================================
-# 1. APPLICATION CONFIGURATION & META
+# 1. GLOBAL APPLICATION CONFIGURATION & META
 # ==========================================
 st.set_page_config(
     page_title="BD AI Book — Enterprise Global Platform",
@@ -19,6 +20,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Meta tags for crawlers, SEO, and ad networks
 components.html(
     """
     <meta name="msvalidate.01" content="e776b8ce73ea3dcc07551e8a021a0907">
@@ -27,8 +29,9 @@ components.html(
     height=0,
 )
 
-SECRET_OWNER_KEY = "Ss123456789112233"
+SECRET_OWNER_KEY = "S$s123456789112233"
 
+# Cloud Environment Variables
 DATABASE_URL = os.environ.get("DATABASE_URL", None)
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", None)
 
@@ -41,7 +44,7 @@ for folder in [VIDEO_DIR, IMAGE_DIR]:
         os.makedirs(folder)
 
 # ==========================================
-# 2. CRASH-PROOF DATABASE ENGINE
+# 2. HIGH-AVAILABILITY DATABASE ENGINE
 # ==========================================
 def get_db_connection():
     if DATABASE_URL:
@@ -54,134 +57,218 @@ def get_db_connection():
         conn.row_factory = sqlite3.Row
         return conn, "sqlite"
 
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
 def init_master_database_system():
     conn, db_type = get_db_connection()
     cursor = conn.cursor()
 
-    try:
-        if db_type == "postgresql":
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id VARCHAR(36) PRIMARY KEY,
-                    full_name VARCHAR(100) NOT NULL,
-                    phone_number VARCHAR(150) UNIQUE NOT NULL,
-                    country VARCHAR(60) DEFAULT 'Bangladesh',
-                    bio TEXT DEFAULT '',
-                    profile_pic_base64 TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-            """)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS posts (
-                    id VARCHAR(36) PRIMARY KEY,
-                    user_id VARCHAR(36) NOT NULL,
-                    title VARCHAR(255),
-                    content TEXT,
-                    media_url TEXT,
-                    category VARCHAR(50) DEFAULT 'general',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-            """)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS site_settings (
-                    key_name VARCHAR(50) PRIMARY KEY,
-                    val_data TEXT
-                );
-            """)
-        else:
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS users (
-                    id TEXT PRIMARY KEY,
-                    full_name TEXT NOT NULL,
-                    phone_number TEXT UNIQUE NOT NULL,
-                    country TEXT DEFAULT 'Bangladesh',
-                    bio TEXT DEFAULT '',
-                    profile_pic_base64 TEXT,
-                    created_at TEXT
-                )
-            """)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS posts (
-                    id TEXT PRIMARY KEY,
-                    user_id TEXT NOT NULL,
-                    title TEXT,
-                    content TEXT,
-                    media_url TEXT,
-                    category TEXT DEFAULT 'general',
-                    created_at TEXT
-                )
-            """)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS site_settings (
-                    key_name TEXT PRIMARY KEY,
-                    val_data TEXT
-                )
-            """)
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-    finally:
-        conn.close()
+    if db_type == "postgresql":
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id VARCHAR(36) PRIMARY KEY,
+                full_name VARCHAR(100) NOT NULL,
+                phone_number VARCHAR(30) UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                country VARCHAR(60) DEFAULT 'Global / Other',
+                profile_pic_base64 TEXT,
+                is_verified BOOLEAN DEFAULT TRUE,
+                is_suspended BOOLEAN DEFAULT FALSE,
+                suspended_until TIMESTAMP,
+                watch_time_hours REAL DEFAULT 0.0,
+                followers_count INT DEFAULT 0,
+                is_monetized BOOLEAN DEFAULT FALSE,
+                payout_method VARCHAR(50),
+                payout_account_details TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS posts (
+                id VARCHAR(36) PRIMARY KEY,
+                user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
+                title VARCHAR(255),
+                content TEXT,
+                media_url TEXT,
+                category VARCHAR(50) DEFAULT 'general',
+                likes_count INT DEFAULT 0,
+                views_count INT DEFAULT 0,
+                is_published BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS comments (
+                id VARCHAR(36) PRIMARY KEY,
+                post_id VARCHAR(36) REFERENCES posts(id) ON DELETE CASCADE,
+                user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
+                comment_text TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+    else:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                full_name TEXT NOT NULL,
+                phone_number TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                country TEXT DEFAULT 'Global / Other',
+                profile_pic_base64 TEXT,
+                is_verified INTEGER DEFAULT 1,
+                is_suspended INTEGER DEFAULT 0,
+                suspended_until TEXT,
+                watch_time_hours REAL DEFAULT 0.0,
+                followers_count INTEGER DEFAULT 0,
+                is_monetized INTEGER DEFAULT 0,
+                payout_method TEXT,
+                payout_account_details TEXT,
+                created_at TEXT
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS posts (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                title TEXT,
+                content TEXT,
+                media_url TEXT,
+                category TEXT DEFAULT 'general',
+                likes_count INTEGER DEFAULT 0,
+                views_count INTEGER DEFAULT 0,
+                is_published INTEGER DEFAULT 1,
+                created_at TEXT,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS comments (
+                id TEXT PRIMARY KEY,
+                post_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                comment_text TEXT NOT NULL,
+                created_at TEXT,
+                FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            )
+        """)
+
+    conn.commit()
+    conn.close()
 
 init_master_database_system()
 
-# Safe Data Fetcher (Prevents operational errors)
-def fetch_posts_safely(category_name):
-    conn, db_type = get_db_connection()
-    c = conn.cursor()
-    posts = []
-    try:
-        if db_type == "postgresql":
-            c.execute("SELECT * FROM posts WHERE category = %s ORDER BY created_at DESC", (category_name,))
-        else:
-            c.execute("SELECT * FROM posts WHERE category = ? ORDER BY created_at DESC", (category_name,))
-        posts = [dict(r) for r in c.fetchall()]
-    except Exception:
-        posts = []
-    finally:
-        conn.close()
-    return posts
-
-def get_site_setting(key, default_val=""):
-    conn, db_type = get_db_connection()
-    c = conn.cursor()
-    val = default_val
-    try:
-        query = "SELECT val_data FROM site_settings WHERE key_name = %s" if db_type == "postgresql" else "SELECT val_data FROM site_settings WHERE key_name = ?"
-        c.execute(query, (key,))
-        row = c.fetchone()
-        if row and row["val_data"]:
-            val = row["val_data"]
-    except Exception:
-        pass
-    finally:
-        conn.close()
-    return val
-
-def set_site_setting(key, value):
-    conn, db_type = get_db_connection()
-    c = conn.cursor()
-    try:
-        if db_type == "postgresql":
-            c.execute("INSERT INTO site_settings (key_name, val_data) VALUES (%s, %s) ON CONFLICT (key_name) DO UPDATE SET val_data = EXCLUDED.val_data", (key, str(value)))
-        else:
-            c.execute("INSERT OR REPLACE INTO site_settings (key_name, val_data) VALUES (?, ?)", (key, str(value)))
-        conn.commit()
-    except Exception:
-        conn.rollback()
-    finally:
-        conn.close()
-
-# AI Safety Check
-BANNED_KEYWORDS = ["sex", "porn", "nude", "adult", "xvideo", "গালাগালি", "খারাপ", "অশ্লীল", "১৮+"]
+# ==========================================
+# 3. AI CONTENT SAFETY & SUSPENSION ENGINE
+# ==========================================
+BANNED_KEYWORDS = [
+    "sex", "porn", "nude", "adult", "xvideo", "badword1", "badword2",
+    "গালাগালি", "খারাপ", "অশ্লীল", "১৮+"
+]
 
 def check_ai_content_safety(text_to_check: str) -> bool:
-    if not text_to_check: return True
+    if not text_to_check:
+        return True
     lowered = text_to_check.lower()
     for word in BANNED_KEYWORDS:
-        if word in lowered: return False
+        if word in lowered:
+            return False
     return True
 
+def suspend_user_account(user_id: str, days: int = 30):
+    conn, db_type = get_db_connection()
+    c = conn.cursor()
+    until_date = datetime.now() + timedelta(days=days)
+    until_str = until_date.strftime("%Y-%m-%d %H:%M:%S")
+
+    if db_type == "postgresql":
+        c.execute("UPDATE users SET is_suspended = TRUE, suspended_until = %s WHERE id = %s", (until_date, user_id))
+    else:
+        c.execute("UPDATE users SET is_suspended = 1, suspended_until = ? WHERE id = ?", (until_str, user_id))
+    
+    conn.commit()
+    conn.close()
+
+def is_user_suspended(user_id: str) -> tuple[bool, str]:
+    if user_id == "owner_admin":
+        return False, ""
+        
+    conn, _ = get_db_connection()
+    c = conn.cursor()
+    query = "SELECT is_suspended, suspended_until FROM users WHERE id = %s" if DATABASE_URL else "SELECT is_suspended, suspended_until FROM users WHERE id = ?"
+    c.execute(query, (user_id,))
+    usr = c.fetchone()
+    conn.close()
+
+    if not usr or not usr["is_suspended"]:
+        return False, ""
+
+    suspended_until = usr["suspended_until"]
+    if isinstance(suspended_until, str):
+        until_dt = datetime.strptime(suspended_until, "%Y-%m-%d %H:%M:%S")
+    else:
+        until_dt = suspended_until
+
+    if datetime.now() < until_dt:
+        return True, until_dt.strftime("%b %d, %Y")
+    else:
+        conn, db_type = get_db_connection()
+        c = conn.cursor()
+        if db_type == "postgresql":
+            c.execute("UPDATE users SET is_suspended = FALSE WHERE id = %s", (user_id,))
+        else:
+            c.execute("UPDATE users SET is_suspended = 0 WHERE id = ?", (user_id,))
+        conn.commit()
+        conn.close()
+        return False, ""
+
+def get_daily_upload_count(user_id: str, category: str) -> int:
+    conn, _ = get_db_connection()
+    c = conn.cursor()
+    one_day_ago = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+    
+    query = """
+        SELECT COUNT(*) as cnt FROM posts 
+        WHERE user_id = %s AND category = %s AND created_at >= %s
+    """ if DATABASE_URL else """
+        SELECT COUNT(*) as cnt FROM posts 
+        WHERE user_id = ? AND category = ? AND created_at >= ?
+    """
+    c.execute(query, (user_id, category, one_day_ago))
+    res = c.fetchone()
+    conn.close()
+    return res["cnt"] if res else 0
+
+# ==========================================
+# 4. MONETIZATION & AUTOMATIC APPROVAL ENGINE
+# ==========================================
+def check_and_update_monetization(user_id: str):
+    if user_id == "owner_admin":
+        return
+    
+    conn, db_type = get_db_connection()
+    c = conn.cursor()
+    query = "SELECT watch_time_hours, followers_count, is_monetized FROM users WHERE id = %s" if DATABASE_URL else "SELECT watch_time_hours, followers_count, is_monetized FROM users WHERE id = ?"
+    c.execute(query, (user_id,))
+    usr = c.fetchone()
+
+    if usr:
+        w_hours = usr["watch_time_hours"] or 0.0
+        followers = usr["followers_count"] or 0
+        monetized = usr["is_monetized"]
+
+        if not monetized and w_hours >= 3000.0 and followers >= 300:
+            if db_type == "postgresql":
+                c.execute("UPDATE users SET is_monetized = TRUE WHERE id = %s", (user_id,))
+            else:
+                c.execute("UPDATE users SET is_monetized = 1 WHERE id = ?", (user_id,))
+            conn.commit()
+    conn.close()
+
+# ==========================================
+# 5. MEDIA STORAGE & ADS
+# ==========================================
 def save_media_file(uploaded_file, file_prefix, extension):
     filename = f"{file_prefix}{extension}"
     if GCS_BUCKET_NAME:
@@ -192,45 +279,70 @@ def save_media_file(uploaded_file, file_prefix, extension):
             blob = bucket.blob(filename)
             blob.upload_from_string(uploaded_file.getvalue(), content_type=uploaded_file.type)
             return blob.public_url
-        except Exception:
+        except Exception as e:
+            st.error(f"Cloud Storage Error: {e}")
             return ""
     else:
-        target_dir = IMAGE_DIR if extension.lower() in [".jpg", ".png", ".jpeg"] else VIDEO_DIR
+        target_dir = IMAGE_DIR if extension in [".jpg", ".png", ".jpeg"] else VIDEO_DIR
         filepath = os.path.join(target_dir, filename)
         with open(filepath, "wb") as f:
             f.write(uploaded_file.getbuffer())
         return filepath
 
-def show_verified_profile(user_id, subtitle="Member"):
-    display_name = "Global User"
-    user_country = "Bangladesh"
-    b64_img = None
-    
-    if user_id == "owner_admin":
-        display_name = "System Owner"
-        user_country = "Global HQ"
-    else:
-        try:
-            conn, db_type = get_db_connection()
-            c = conn.cursor()
-            query = "SELECT full_name, country, profile_pic_base64 FROM users WHERE id = %s" if db_type == "postgresql" else "SELECT full_name, country, profile_pic_base64 FROM users WHERE id = ?"
-            c.execute(query, (user_id,))
-            u_data = c.fetchone()
-            if u_data:
-                display_name = u_data["full_name"]
-                user_country = u_data["country"] if u_data["country"] else "Bangladesh"
-                b64_img = u_data["profile_pic_base64"]
-            conn.close()
-        except Exception:
-            pass
+DIRECT_AD_LINKS = ["", "", ""] 
 
+def render_ad_button():
+    valid_links = [link for link in DIRECT_AD_LINKS if link.strip()]
+    ad_url = random.choice(valid_links) if valid_links else "#"
+    if ad_url == "#": return ""
+    return f"""
+        <div style="text-align: center; margin: 12px 0;">
+            <a href="{ad_url}" target="_blank" style="background: linear-gradient(45deg, #00c853, #00e676); color: #000; padding: 10px 22px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block;">
+                👉 Click Here / Watch Sponsored Content 🌐
+            </a>
+        </div>
+    """
+
+# ==========================================
+# 6. USER INTERFACE & PROFILE HELPER
+# ==========================================
+ALLOWED_COUNTRIES = [
+    "United States", "United Kingdom", "Canada", "Australia", "Germany", 
+    "France", "Japan", "India", "Bangladesh", "Pakistan", "Saudi Arabia", 
+    "United Arab Emirates", "Malaysia", "Global / Other"
+]
+
+PAYMENT_METHODS = [
+    "bKash (বাংলাদেশ)",
+    "Nagad (বাংলাদেশ)",
+    "PayPal (International)",
+    "Mastercard (Global)",
+    "Dual Currency Visa Card",
+    "Other Card / Bank Wire"
+]
+
+def show_verified_profile(user_id, subtitle="Member"):
+    conn, _ = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT full_name, is_verified, country, profile_pic_base64, is_monetized FROM users WHERE id = %s" if DATABASE_URL else "SELECT full_name, is_verified, country, profile_pic_base64, is_monetized FROM users WHERE id = ?", (user_id,))
+    u_data = c.fetchone()
+    conn.close()
+    
+    display_name = u_data["full_name"] if u_data else "Global User"
+    is_verified = u_data["is_verified"] if u_data else True
+    user_country = u_data["country"] if u_data and u_data["country"] else "Global HQ"
+    b64_img = u_data["profile_pic_base64"] if (u_data and u_data["profile_pic_base64"]) else None
+    is_monetized = u_data["is_monetized"] if u_data else False
+    
     img_html = f'<img src="data:image/jpeg;base64,{b64_img}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid #00c853;">' if b64_img else '<div style="width:45px; height:45px; border-radius:50%; background:#2a2a2a; color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px;">👤</div>'
     verified_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block;"><path fill="#1877F2" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.2 14.2l-3.5-3.5 1.41-1.41 2.09 2.08 5.68-5.67 1.41 1.41-7.09 7.09z"/></svg>'
+    monetized_badge = '<span style="background:#ffd700; color:#000; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:4px; margin-left:6px;">💰 MONETIZED</span>' if is_monetized else ''
     
-    card_html = f"""<div style="display:flex; align-items:center; gap:12px; background: #18191a; padding: 10px; border-radius: 10px; border: 1px solid #2d2f31; margin-bottom: 12px;">{img_html}<div><div style="font-weight:bold; color:#e4e6eb; font-size: 16px; display: flex; align-items: center;">{display_name} {verified_svg}</div><div style="color:#b0b3b8; font-size:12px;">{subtitle} • 🌐 {user_country}</div></div></div>"""
+    tick = verified_svg if is_verified else ''
+    
+    card_html = f"""<div style="display:flex; align-items:center; gap:12px; background: #18191a; padding: 10px; border-radius: 10px; border: 1px solid #2d2f31; margin-bottom: 12px;">{img_html}<div><div style="font-weight:bold; color:#e4e6eb; font-size: 16px; display: flex; align-items: center;">{display_name} {tick} {monetized_badge}</div><div style="color:#b0b3b8; font-size:12px;">{subtitle} • 🌐 {user_country}</div></div></div>"""
     st.markdown(card_html, unsafe_allow_html=True)
 
-# Styling
 st.markdown("""
     <style>
     .stApp { background-color: #121212; color: #e4e6eb; }
@@ -238,23 +350,22 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Header Title
-header_text = get_site_setting("header_text", "🛡️ BD AI Book — World Enterprise Platform 🛡️")
-st.markdown(f'<div style="text-align: center; padding: 10px 0;"><h1 style="color: #00c853; font-weight: 900; margin: 0;">{header_text}</h1></div>', unsafe_allow_html=True)
+st.markdown("""
+    <div style="text-align: center; padding: 10px 0;">
+        <h1 style="color: #00c853; font-weight: 900; margin: 0;">🛡️ Global AI Book — World Enterprise Platform 🛡️</h1>
+    </div>
+""", unsafe_allow_html=True)
 st.divider()
 
-# Session State Setup
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "user_name" not in st.session_state: st.session_state.user_name = None
 if "active_tab" not in st.session_state: st.session_state.active_tab = "🌍 World Feed"
-if "sent_otp" not in st.session_state: st.session_state.sent_otp = None
-if "temp_identifier" not in st.session_state: st.session_state.temp_identifier = None
 
 # ==========================================
-# 3. SIDEBAR SYSTEM
+# 7. SIDEBAR & AUTHENTICATION
 # ==========================================
-st.sidebar.markdown("### 🔍 Search / Owner Access")
-search_query = st.sidebar.text_input("Enter Search Keyword or Owner Key", key="search_query")
+st.sidebar.markdown("### 🔍 Search Engine")
+search_query = st.sidebar.text_input("Search content or Admin Passcode...", key="search_query")
 
 if search_query.strip() == SECRET_OWNER_KEY:
     st.session_state.user_id = "owner_admin"
@@ -262,60 +373,65 @@ if search_query.strip() == SECRET_OWNER_KEY:
     st.session_state.active_tab = "👑 Owner Control Center"
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔑 Global OTP Login / Register")
+mode = st.sidebar.radio("Select Access Mode", ["📱 Secure Login", "📝 New Registration"])
 
-login_input = st.sidebar.text_input("Enter Gmail or Mobile Number")
+if mode == "📱 Secure Login":
+    login_phone = st.sidebar.text_input("Mobile Number / User ID")
+    login_pass = st.sidebar.text_input("Password", type="password")
+    
+    if st.sidebar.button("Login"):
+        clean_phone = login_phone.strip()
+        if clean_phone and login_pass:
+            hashed_pass = hash_password(login_pass)
+            conn, _ = get_db_connection()
+            c = conn.cursor()
+            query = "SELECT * FROM users WHERE phone_number = %s AND password_hash = %s" if DATABASE_URL else "SELECT * FROM users WHERE phone_number = ? AND password_hash = ?"
+            c.execute(query, (clean_phone, hashed_pass))
+            usr = c.fetchone()
+            conn.close()
+            
+            if usr:
+                st.session_state.user_id = usr["id"]
+                st.session_state.user_name = usr["full_name"]
+                st.sidebar.success(f"✅ Welcome back, {usr['full_name']}!")
+                check_and_update_monetization(usr["id"])
+                st.rerun()
+            else:
+                st.sidebar.error("❌ Invalid Credentials!")
 
-if st.sidebar.button("Send 6-Digit OTP Code"):
-    if login_input.strip():
-        generated_otp = str(random.randint(100000, 999999))
-        st.session_state.sent_otp = generated_otp
-        st.session_state.temp_identifier = login_input.strip()
-        st.sidebar.info(f"🔑 Your Verification Code: **{generated_otp}**")
-    else:
-        st.sidebar.warning("⚠️ Enter a valid Gmail or Mobile Number.")
-
-if st.session_state.sent_otp:
-    user_otp = st.sidebar.text_input("Enter 6-Digit OTP Code", type="password")
-    if st.sidebar.button("Verify & Enter Platform"):
-        if user_otp.strip() == st.session_state.sent_otp:
-            identifier = st.session_state.temp_identifier
+elif mode == "📝 New Registration":
+    reg_name = st.sidebar.text_input("Full Name")
+    reg_phone = st.sidebar.text_input("Mobile Number")
+    reg_pass = st.sidebar.text_input("Password", type="password")
+    reg_country = st.sidebar.selectbox("Country", ALLOWED_COUNTRIES)
+    
+    if st.sidebar.button("Register Account"):
+        if reg_name and reg_phone and reg_pass:
+            user_uuid = str(uuid.uuid4())
+            hashed_pass = hash_password(reg_pass)
+            created_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
             conn, db_type = get_db_connection()
             c = conn.cursor()
             try:
-                query = "SELECT * FROM users WHERE phone_number = %s" if db_type == "postgresql" else "SELECT * FROM users WHERE phone_number = ?"
-                c.execute(query, (identifier,))
-                usr = c.fetchone()
-
-                if not usr:
-                    new_id = str(uuid.uuid4())
-                    created_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    user_disp_name = identifier.split('@')[0] if '@' in identifier else identifier
-                    
-                    ins_query = """
-                        INSERT INTO users (id, full_name, phone_number, country, created_at)
-                        VALUES (%s, %s, %s, 'Bangladesh', %s)
-                    """ if db_type == "postgresql" else """
-                        INSERT INTO users (id, full_name, phone_number, country, created_at)
-                        VALUES (?, ?, ?, 'Bangladesh', ?)
-                    """
-                    c.execute(ins_query, (new_id, user_disp_name, identifier, created_time))
-                    conn.commit()
-                    st.session_state.user_id = new_id
-                    st.session_state.user_name = user_disp_name
-                else:
-                    st.session_state.user_id = usr["id"]
-                    st.session_state.user_name = usr["full_name"]
+                query = """
+                    INSERT INTO users (id, full_name, phone_number, password_hash, country, is_verified, is_suspended, created_at)
+                    VALUES (%s, %s, %s, %s, %s, TRUE, FALSE, %s)
+                """ if db_type == "postgresql" else """
+                    INSERT INTO users (id, full_name, phone_number, password_hash, country, is_verified, is_suspended, created_at)
+                    VALUES (?, ?, ?, ?, ?, 1, 0, ?)
+                """
+                c.execute(query, (user_uuid, reg_name, reg_phone, hashed_pass, reg_country, created_time))
+                conn.commit()
+                
+                st.session_state.user_id = user_uuid
+                st.session_state.user_name = reg_name
+                st.sidebar.success("🎉 Account created successfully!")
+                st.rerun()
             except Exception as e:
-                st.sidebar.error("Database Login Error. Reloading...")
+                st.sidebar.error("❌ Phone number already registered!")
             finally:
                 conn.close()
-
-            st.session_state.sent_otp = None
-            st.sidebar.success("🎉 Authentication Successful!")
-            st.rerun()
-        else:
-            st.sidebar.error("❌ Invalid Code!")
 
 if st.session_state.user_id:
     st.sidebar.markdown(f"Authenticated as: **{st.session_state.user_name}**")
@@ -325,7 +441,7 @@ if st.session_state.user_id:
         st.session_state.active_tab = "🌍 World Feed"
         st.rerun()
 
-nav_tabs = ["🌍 World Feed", "📱 TikTok Shorts Feed", "📺 Direct Long Videos", "📤 Upload Studio", "👤 My Profile"]
+nav_tabs = ["🌍 World Feed", "📱 TikTok Shorts Feed", "📺 Direct Long Videos", "📤 Upload Studio", "💵 Monetization Hub"]
 if st.session_state.user_id == "owner_admin":
     nav_tabs.append("👑 Owner Control Center")
 
@@ -334,204 +450,197 @@ tab = st.sidebar.radio("Navigation", nav_tabs, index=current_index)
 st.session_state.active_tab = tab
 
 # ==========================================
-# 4. CONTENT FEEDS & MANAGEMENT
+# 8. CONTENT FEEDS & UPLOAD CONTROL
 # ==========================================
 
+# --- World Feed ---
 if tab == "🌍 World Feed":
-    st.markdown("### 🌍 World Feed (General Posts)")
-    posts = fetch_posts_safely('general')
-
-    if not posts:
-        st.info("ℹ️ No posts found. Be the first to share something in 'Upload Studio'!")
+    st.markdown("### 🌍 World Feed")
+    conn, _ = get_db_connection()
+    c = conn.cursor()
+    query = "SELECT * FROM posts WHERE category = 'general' AND is_published = TRUE ORDER BY created_at DESC" if DATABASE_URL else "SELECT * FROM posts WHERE category = 'general' AND is_published = 1 ORDER BY created_at DESC"
+    c.execute(query)
+    posts = [dict(r) for r in c.fetchall()]
+    conn.close()
 
     for item in posts:
         st.markdown('<div class="feed-card">', unsafe_allow_html=True)
         show_verified_profile(item["user_id"], subtitle=f"Posted {item.get('created_at')}")
         if item.get("title"): st.markdown(f"#### {item['title']}")
         st.write(item.get("content", ""))
+        
         media_path = item.get("media_url")
-        if media_path and (media_path.startswith("http") or os.path.exists(media_path)):
-            st.image(media_path, use_container_width=True)
+        if media_path:
+            if media_path.startswith("http") or os.path.exists(media_path):
+                st.image(media_path, use_container_width=True)
+            
+        ad_html = render_ad_button()
+        if ad_html: st.markdown(ad_html, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
+# --- Video Feeds ---
 elif tab in ["📱 TikTok Shorts Feed", "📺 Direct Long Videos"]:
     cat_type = "short" if tab == "📱 TikTok Shorts Feed" else "long"
     st.markdown(f"### {'📱 TikTok Shorts Feed' if cat_type == 'short' else '📺 Direct Long Videos'}")
     
-    vids = fetch_posts_safely(cat_type)
-
-    if not vids:
-        st.info(f"ℹ️ No videos found in this category yet.")
+    conn, _ = get_db_connection()
+    c = conn.cursor()
+    query = "SELECT * FROM posts WHERE category = %s AND is_published = TRUE ORDER BY created_at DESC" if DATABASE_URL else "SELECT * FROM posts WHERE category = ? AND is_published = 1 ORDER BY created_at DESC"
+    c.execute(query, (cat_type,))
+    vids = [dict(r) for r in c.fetchall()]
+    conn.close()
 
     for vid in vids:
         st.markdown('<div class="feed-card">', unsafe_allow_html=True)
         show_verified_profile(vid["user_id"], subtitle=f"Uploaded {vid.get('created_at')}")
         if vid.get("title"): st.subheader(vid['title'])
         st.write(vid.get('content', ''))
+        
         media_path = vid.get("media_url")
-        if media_path and (media_path.startswith("http") or os.path.exists(media_path)):
-            st.video(media_path)
+        if media_path:
+            if media_path.startswith("http") or os.path.exists(media_path):
+                st.video(media_path)
+            
+        ad_html = render_ad_button()
+        if ad_html: st.markdown(ad_html, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
+# --- Upload Studio WITH AI SAFETY & LIMITS ---
 elif tab == "📤 Upload Studio":
-    st.markdown("### 📤 Upload Studio (Posts & Videos)")
+    st.markdown("### 📤 Upload Studio")
     if not st.session_state.user_id:
-        st.warning("⚠️ Please login using Gmail or Mobile Number in the sidebar to publish content.")
+        st.warning("⚠️ Please login to publish content.")
     else:
-        cat = st.selectbox("Category", ["General Post (Photo/Text)", "TikTok Short Video", "Direct Long Video"])
-        title_in = st.text_input("Title")
-        desc_in = st.text_area("Description")
-        
-        post_uuid = str(uuid.uuid4())
-        created_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        if cat == "General Post (Photo/Text)":
-            f_up = st.file_uploader("Select Photo (JPG/PNG)", type=["jpg", "png", "jpeg"])
-            if st.button("Publish Post"):
-                if not check_ai_content_safety(title_in) or not check_ai_content_safety(desc_in):
-                    st.error("🚨 Inappropriate text detected!")
-                else:
-                    media_link = save_media_file(f_up, post_uuid, ".jpg") if f_up else ""
-                    conn, db_type = get_db_connection()
-                    c = conn.cursor()
-                    try:
-                        query = "INSERT INTO posts (id, user_id, title, content, media_url, category, created_at) VALUES (%s, %s, %s, %s, %s, 'general', %s)" if db_type == "postgresql" else "INSERT INTO posts (id, user_id, title, content, media_url, category, created_at) VALUES (?, ?, ?, ?, ?, 'general', ?)"
-                        c.execute(query, (post_uuid, st.session_state.user_id, title_in, desc_in, media_link, created_time))
-                        conn.commit()
-                        st.success("✅ Post published successfully!")
-                    except Exception as e:
-                        st.error("Failed to insert post.")
-                    finally:
-                        conn.close()
-                    st.rerun()
+        suspended, until_date = is_user_suspended(st.session_state.user_id)
+        if suspended:
+            st.error(f"🚫 YOUR ACCOUNT IS SUSPENDED UNTIL {until_date} FOR VIOLATING COMMUNITY SAFETY RULES (NSFW / Profanity Content).")
         else:
-            cat_code = "short" if cat == "TikTok Short Video" else "long"
-            v_up = st.file_uploader("Select Video File", type=["mp4", "mov", "mkv", "avi"])
-            if st.button("Publish Video"):
-                if not v_up:
-                    st.warning("⚠️ Please select a video file.")
-                elif not check_ai_content_safety(title_in) or not check_ai_content_safety(desc_in):
-                    st.error("🚨 Inappropriate text detected!")
-                else:
-                    ext = os.path.splitext(v_up.name)[1]
-                    media_link = save_media_file(v_up, post_uuid, ext)
-                    conn, db_type = get_db_connection()
-                    c = conn.cursor()
-                    try:
-                        query = "INSERT INTO posts (id, user_id, title, content, media_url, category, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s)" if db_type == "postgresql" else "INSERT INTO posts (id, user_id, title, content, media_url, category, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
-                        c.execute(query, (post_uuid, st.session_state.user_id, title_in, desc_in, media_link, cat_code, created_time))
-                        conn.commit()
-                        st.success("✅ Video uploaded successfully!")
-                    except Exception as e:
-                        st.error("Failed to upload video.")
-                    finally:
-                        conn.close()
-                    st.rerun()
-
-elif tab == "👤 My Profile":
-    st.markdown("### 👤 User Profile Dashboard")
-    if not st.session_state.user_id:
-        st.warning("⚠️ Please login to view and edit your profile.")
-    else:
-        conn, db_type = get_db_connection()
-        c = conn.cursor()
-        usr = None
-        try:
-            query = "SELECT * FROM users WHERE id = %s" if db_type == "postgresql" else "SELECT * FROM users WHERE id = ?"
-            c.execute(query, (st.session_state.user_id,))
-            usr = c.fetchone()
-        except Exception:
-            pass
-        finally:
-            conn.close()
-        
-        show_verified_profile(st.session_state.user_id, subtitle="Active Member")
-
-        profile_tab1, profile_tab2 = st.tabs(["📝 Edit My Profile", "🎬 My Uploads"])
-
-        with profile_tab1:
-            curr_name = usr["full_name"] if usr else st.session_state.user_name
-            curr_bio = usr["bio"] if usr and "bio" in usr.keys() and usr["bio"] else ""
-            curr_country = usr["country"] if usr and usr["country"] else "Bangladesh"
-
-            new_name = st.text_input("Full Name / Display Name", value=curr_name)
-            new_bio = st.text_area("Profile Bio / Address", value=curr_bio)
-            new_country = st.text_input("Country", value=curr_country)
-            pic_file = st.file_uploader("Upload Profile Picture", type=["jpg", "png", "jpeg"])
-
-            if st.button("Save Profile Changes"):
-                b64_str = usr["profile_pic_base64"] if usr else None
-                if pic_file:
-                    b64_str = base64.b64encode(pic_file.getvalue()).decode('utf-8')
-                
-                conn, db_type = get_db_connection()
-                c = conn.cursor()
-                try:
-                    if db_type == "postgresql":
-                        c.execute("UPDATE users SET full_name = %s, bio = %s, country = %s, profile_pic_base64 = %s WHERE id = %s",
-                                  (new_name, new_bio, new_country, b64_str, st.session_state.user_id))
+            cat = st.selectbox("Category", ["General Post (Photo/Text)", "TikTok Short Video", "Direct Long Video"])
+            title_in = st.text_input("Title")
+            desc_in = st.text_area("Description")
+            
+            post_uuid = str(uuid.uuid4())
+            created_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            if cat == "General Post (Photo/Text)":
+                f_up = st.file_uploader("Select Photo (Max 15 per day)", type=["jpg", "png", "jpeg"])
+                if st.button("Publish Post"):
+                    if not check_ai_content_safety(title_in) or not check_ai_content_safety(desc_in) or (f_up and not check_ai_content_safety(f_up.name)):
+                        suspend_user_account(st.session_state.user_id, days=30)
+                        st.error("🚨 Violating Content Detected! Your account has been suspended for 30 days by AI Moderation.")
+                        st.rerun()
+                    elif get_daily_upload_count(st.session_state.user_id, "general") >= 15:
+                        st.warning("⚠️ Daily limit reached! You can only post 15 general posts per day.")
                     else:
-                        c.execute("UPDATE users SET full_name = ?, bio = ?, country = ?, profile_pic_base64 = ? WHERE id = ?",
-                                  (new_name, new_bio, new_country, b64_str, st.session_state.user_id))
-                    conn.commit()
-                    st.session_state.user_name = new_name
-                    st.success("🎉 Profile updated successfully!")
-                except Exception as e:
-                    st.error("Error updating profile.")
-                finally:
-                    conn.close()
-                st.rerun()
-
-        with profile_tab2:
-            st.markdown("#### 📁 My Uploaded Contents")
-            conn, db_type = get_db_connection()
-            c = conn.cursor()
-            my_posts = []
-            try:
-                p_query = "SELECT * FROM posts WHERE user_id = %s ORDER BY created_at DESC" if db_type == "postgresql" else "SELECT * FROM posts WHERE user_id = ? ORDER BY created_at DESC"
-                c.execute(p_query, (st.session_state.user_id,))
-                my_posts = [dict(r) for r in c.fetchall()]
-            except Exception:
-                pass
-            finally:
-                conn.close()
-
-            if not my_posts:
-                st.info("ℹ️ You haven't uploaded anything yet.")
-            else:
-                for item in my_posts:
-                    st.markdown('<div class="feed-card">', unsafe_allow_html=True)
-                    st.caption(f"Category: **{item['category'].upper()}** | Uploaded: {item['created_at']}")
-                    if item.get("title"): st.markdown(f"**{item['title']}**")
-                    if item.get("content"): st.write(item["content"])
-                    
-                    m_path = item.get("media_url")
-                    if m_path and (m_path.startswith("http") or os.path.exists(m_path)):
-                        if item["category"] in ["short", "long"]:
-                            st.video(m_path)
-                        else:
-                            st.image(m_path, use_container_width=True)
-                    
-                    if st.button(f"🗑️ Delete Post", key=f"del_{item['id']}"):
+                        media_link = save_media_file(f_up, post_uuid, ".jpg") if f_up else ""
                         conn, db_type = get_db_connection()
                         c = conn.cursor()
-                        try:
-                            del_q = "DELETE FROM posts WHERE id = %s" if db_type == "postgresql" else "DELETE FROM posts WHERE id = ?"
-                            c.execute(del_q, (item['id'],))
-                            conn.commit()
-                            st.success("Deleted successfully!")
-                        except Exception:
-                            pass
-                        finally:
-                            conn.close()
+                        query = """
+                            INSERT INTO posts (id, user_id, title, content, media_url, category, views_count, created_at)
+                            VALUES (%s, %s, %s, %s, %s, 'general', 15000, %s)
+                        """ if db_type == "postgresql" else """
+                            INSERT INTO posts (id, user_id, title, content, media_url, category, views_count, created_at)
+                            VALUES (?, ?, ?, ?, ?, 'general', 15000, ?)
+                        """
+                        c.execute(query, (post_uuid, st.session_state.user_id, title_in, desc_in, media_link, created_time))
+                        conn.commit()
+                        conn.close()
+                        st.success("✅ General Post published globally!")
                         st.rerun()
-                    st.markdown('</div>', unsafe_allow_html=True)
 
+            else:
+                cat_code = "short" if cat == "TikTok Short Video" else "long"
+                limit_num = 1
+                v_up = st.file_uploader(f"Select Video (Max {limit_num} per day)", type=["mp4", "mov"])
+                
+                if st.button("Publish Video"):
+                    if not v_up:
+                        st.warning("⚠️ Please attach a video file first.")
+                    elif not check_ai_content_safety(title_in) or not check_ai_content_safety(desc_in) or not check_ai_content_safety(v_up.name):
+                        suspend_user_account(st.session_state.user_id, days=30)
+                        st.error("🚨 Unsafe or Bad Content Detected! Your account has been suspended for 30 days by AI Moderation.")
+                        st.rerun()
+                    elif get_daily_upload_count(st.session_state.user_id, cat_code) >= limit_num:
+                        st.warning(f"⚠️ Daily limit reached! You can only upload {limit_num} {cat_code} video per day.")
+                    else:
+                        media_link = save_media_file(v_up, post_uuid, ".mp4")
+                        conn, db_type = get_db_connection()
+                        c = conn.cursor()
+                        query = """
+                            INSERT INTO posts (id, user_id, title, content, media_url, category, views_count, created_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, 15000, %s)
+                        """ if db_type == "postgresql" else """
+                            INSERT INTO posts (id, user_id, title, content, media_url, category, views_count, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, 15000, ?)
+                        """
+                        c.execute(query, (post_uuid, st.session_state.user_id, title_in, desc_in, media_link, cat_code, created_time))
+                        conn.commit()
+                        conn.close()
+                        st.success("✅ Video uploaded successfully!")
+                        st.rerun()
+
+# --- Monetization Hub ---
+elif tab == "💵 Monetization Hub":
+    st.markdown("### 💵 Monetization & Revenue Program")
+    if not st.session_state.user_id:
+        st.warning("⚠️ Please log in to view your Monetization Status.")
+    elif st.session_state.user_id == "owner_admin":
+        st.info("👑 System Owner Account — Monetization features are automatically unlocked.")
+    else:
+        conn, _ = get_db_connection()
+        c = conn.cursor()
+        query = "SELECT watch_time_hours, followers_count, is_monetized, payout_method, payout_account_details FROM users WHERE id = %s" if DATABASE_URL else "SELECT watch_time_hours, followers_count, is_monetized, payout_method, payout_account_details FROM users WHERE id = ?"
+        c.execute(query, (st.session_state.user_id,))
+        u_info = c.fetchone()
+        conn.close()
+
+        w_hours = u_info["watch_time_hours"] if u_info and u_info["watch_time_hours"] else 0.0
+        followers = u_info["followers_count"] if u_info and u_info["followers_count"] else 0
+        is_monetized = u_info["is_monetized"] if u_info else False
+        current_method = u_info["payout_method"] if u_info else ""
+        current_acc = u_info["payout_account_details"] if u_info else ""
+
+        check_and_update_monetization(st.session_state.user_id)
+
+        st.markdown("#### 📊 Monetization Requirements Eligibility")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.metric(label="⏱️ Watch Time (Goal: 3,000 Hours)", value=f"{w_hours:.1f} Hours")
+            st.progress(min(w_hours / 3000.0, 1.0))
+            
+        with col2:
+            st.metric(label="👥 Followers (Goal: 300 Followers)", value=f"{followers}")
+            st.progress(min(followers / 300.0, 1.0))
+
+        st.divider()
+
+        if is_monetized or (w_hours >= 3000.0 and followers >= 300):
+            st.success("🎉 **MONETIZATION APPROVED!** Profile review complete. Your account is eligible for payout distribution.")
+            st.markdown("### 💳 Payout Setup & Payment Method")
+            st.write("নিচে আপনার পছন্দের পেমেন্ট মেথড নির্বাচন করুন এবং অ্যাকাউন্টের বিবরণ দিয়ে সেভ করুন:")
+
+            p_method = st.selectbox("Select Payout Method", PAYMENT_METHODS, index=PAYMENT_METHODS.index(current_method) if current_method in PAYMENT_METHODS else 0)
+            p_details = st.text_input("Account Details (e.g. Bkash/Nagad Number, Card Number, PayPal Email)", value=current_acc)
+
+            if st.button("Save Payout Method"):
+                if p_details.strip():
+                    conn, db_type = get_db_connection()
+                    c = conn.cursor()
+                    if db_type == "postgresql":
+                        c.execute("UPDATE users SET payout_method = %s, payout_account_details = %s, is_monetized = TRUE WHERE id = %s", (p_method, p_details, st.session_state.user_id))
+                    else:
+                        c.execute("UPDATE users SET payout_method = ?, payout_account_details = ?, is_monetized = 1 WHERE id = ?", (p_method, p_details, st.session_state.user_id))
+                    conn.commit()
+                    conn.close()
+                    st.success("✅ Payout account settings saved successfully!")
+                    st.rerun()
+                else:
+                    st.error("⚠️ Please enter valid account details.")
+        else:
+            st.warning("🔒 **Monetization Inactive:** আপনার ৩,০০০ ঘণ্টা ওয়াচটাইম এবং ৩০০ ফলোয়ার পূর্ণ হলে সিস্টেম অটোমেটিক প্রোফাইল যাচাই করে মনিটাইজেশন অন করে দেবে।")
+
+# --- Owner Control Center ---
 elif tab == "👑 Owner Control Center":
     st.markdown("### 👑 Master Control Center")
-    st.success("👑 Authenticated as System Owner!")
-    new_h_text = st.text_input("Header Title Banner Text", value=get_site_setting("header_text", "🛡️ BD AI Book 🛡️"))
-    if st.button("Update Header"):
-        set_site_setting("header_text", new_h_text)
-        st.success("Header updated successfully!")
-        st.rerun()
+    st.success("👑 Authenticated as Global Platform Owner!")
