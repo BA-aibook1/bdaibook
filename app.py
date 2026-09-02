@@ -82,6 +82,7 @@ def init_master_database():
             plan TEXT,
             amount TEXT,
             trx_info TEXT,
+            payment_method TEXT,
             status TEXT DEFAULT 'Pending',
             created_at TEXT
         );
@@ -136,7 +137,10 @@ def init_master_database():
         "bank_swift": "CLRBGB22XXX",
         "bank_acc_num": "39130579",
         "bank_acc_type": "Checking (Current)",
-        "logo_path": ""
+        "logo_path": "",
+        "bkash_number": "01700000000",
+        "nagad_number": "01700000000",
+        "rocket_number": "01700000000"
     }
     
     for k, v in default_settings.items():
@@ -340,14 +344,15 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner 5 Master Control Power Panels")
+        st.markdown("### 🎛️ Owner 6 Master Control Power Panels")
         
-        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5 = st.tabs([
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6 = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
             "3️⃣ Emergency Kill-Switch", 
-            "4️⃣ Bank Setup",
-            "5️⃣ Content Moderation"
+            "4️⃣ Bank & Mobile Wallet Setup",
+            "5️⃣ Content Moderation",
+            "6️⃣ Boost Requests"
         ])
         
         with o_tab1:
@@ -395,7 +400,7 @@ with tab_feed:
                     st.rerun()
 
         with o_tab4:
-            st.markdown("#### 🏦 Owner Bank Account Gateway")
+            st.markdown("#### 🏦 Owner Bank & Mobile Wallet Gateway")
             b_acc_name = st.text_input("Account Name", value=get_setting("bank_account_name"))
             b_bank_name = st.text_input("Bank Name", value=get_setting("bank_name"))
             b_iban = st.text_input("IBAN Number", value=get_setting("bank_iban"))
@@ -403,14 +408,22 @@ with tab_feed:
             b_acc_num = st.text_input("Account Number", value=get_setting("bank_acc_num"))
             b_acc_type = st.text_input("Account Type", value=get_setting("bank_acc_type"))
             
-            if st.button("💳 Save Bank Details"):
+            st.markdown("##### 📱 Mobile Banking Numbers (bKash / Nagad / Rocket)")
+            bk_num = st.text_input("bKash Personal/Merchant", value=get_setting("bkash_number", "01700000000"))
+            ng_num = st.text_input("Nagad Number", value=get_setting("nagad_number", "01700000000"))
+            rk_num = st.text_input("Rocket Number", value=get_setting("rocket_number", "01700000000"))
+            
+            if st.button("💳 Save Payment Details"):
                 set_setting("bank_account_name", b_acc_name)
                 set_setting("bank_name", b_bank_name)
                 set_setting("bank_iban", b_iban)
                 set_setting("bank_swift", b_swift)
                 set_setting("bank_acc_num", b_acc_num)
                 set_setting("bank_acc_type", b_acc_type)
-                st.success("Bank Gateway Updated!")
+                set_setting("bkash_number", bk_num)
+                set_setting("nagad_number", ng_num)
+                set_setting("rocket_number", rk_num)
+                st.success("Payment Gateway Updated!")
                 st.rerun()
 
         with o_tab5:
@@ -444,6 +457,22 @@ with tab_feed:
                     c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, p['user_id']))
                     c.execute("DELETE FROM master_app_table WHERE record_id = ?", (p['record_id'],))
                     conn.commit()
+                    st.rerun()
+            conn.close()
+
+        with o_tab6:
+            st.markdown("#### 🚀 Video Boost Requests")
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT * FROM boost_requests WHERE status = 'Pending'")
+            b_reqs = c.fetchall()
+            for br in b_reqs:
+                st.write(f"📌 Post ID: {br['post_id']} | Method: {br['payment_method']} | Trx: {br['trx_info']} | Plan: {br['plan']}")
+                if st.button(f"🔥 Approve & Boost ({br['boost_id']})"):
+                    c.execute("UPDATE master_app_table SET is_boosted = 1 WHERE record_id = ?", (br['post_id'],))
+                    c.execute("UPDATE boost_requests SET status = 'Approved' WHERE boost_id = ?", (br['boost_id'],))
+                    conn.commit()
+                    st.success("Post Boosted!")
                     st.rerun()
             conn.close()
 
@@ -482,16 +511,22 @@ with tab_feed:
             
             author_pic = author["profile_pic_path"] if author and author["profile_pic_path"] and os.path.exists(author["profile_pic_path"]) else None
             
-            col_h1, col_h2 = st.columns([4, 1])
+            col_h1, col_h2 = st.columns([3, 2])
             with col_h1:
-                tick = get_meta_blue_badge() if post.get("is_verified") else ""
-                boost_badge = "🔥 [BOOSTED]" if post.get("is_boosted") else ""
-                
-                if author_pic: st.image(author_pic, width=50)
-                st.markdown(f"### {post.get('full_name')} {tick} <span style='color:orange;'>{boost_badge}</span>", unsafe_allow_html=True)
-                st.caption(f"👥 Real Followers: {author_followers:,} | Category: {post.get('post_category')}")
+                col_pic, col_info = st.columns([1, 4])
+                with col_pic:
+                    if author_pic: 
+                        st.image(author_pic, width=50)
+                    else:
+                        st.markdown("👤")
+                with col_info:
+                    tick = get_meta_blue_badge() if post.get("is_verified") else ""
+                    boost_badge = "🔥 [BOOSTED]" if post.get("is_boosted") else ""
+                    st.markdown(f"**{post.get('full_name')}** {tick} <span style='color:orange;'>{boost_badge}</span>", unsafe_allow_html=True)
+                    st.caption(f"👥 Followers: {author_followers:,} | Category: {post.get('post_category')}")
                 
             with col_h2:
+                # Follow Button Logic
                 if st.session_state.user_id and st.session_state.user_id != post.get("user_id"):
                     fol_lbl = "✔ Following" if is_following else "➕ Follow"
                     if st.button(fol_lbl, key=f"fol_{post['record_id']}"):
@@ -656,7 +691,7 @@ with tab_monetization:
     elif real_followers >= 1000:
         st.success(f"🎉 **You are eligible for Monetization!**")
         with st.expander("📝 Apply for Monetization Payout"):
-            bank_info_input = st.text_area("Enter Your Bank Account Details for Payouts")
+            bank_info_input = st.text_area("Enter Your Bank Account / bKash / Nagad Details for Payouts")
             if st.button("Submit Monetization Application"):
                 if bank_info_input:
                     conn = get_db_connection()
@@ -670,3 +705,55 @@ with tab_monetization:
                     st.success("Application Submitted!")
     else:
         st.info(f"📈 **Monetization Progress:** {real_followers}/1,000 Real Followers needed.")
+
+    st.markdown("---")
+    st.markdown("### 🔥 Boost Your Video / Post (bKash & Mobile Banking)")
+    
+    if not st.session_state.user_id:
+        st.warning("Please login to boost posts.")
+    else:
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute("SELECT record_id, title FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
+        user_posts = c.fetchall()
+        conn.close()
+        
+        if not user_posts:
+            st.info("You haven't uploaded any posts yet to boost.")
+        else:
+            post_options = {p["title"]: p["record_id"] for p in user_posts}
+            selected_title = st.selectbox("Select Post to Boost", list(post_options.keys()))
+            selected_post_id = post_options[selected_title]
+            
+            boost_plan = st.selectbox("Select Boost Package", [
+                "Basic - 5,000 Views ($5 / 550 BDT)",
+                "Pro - 20,000 Views ($15 / 1650 BDT)",
+                "VIP Unlimited - 100,000 Views ($50 / 5500 BDT)"
+            ])
+            
+            pay_method = st.radio("Select Payment Method", ["bKash", "Nagad", "Rocket", "Bank Wire"])
+            
+            if pay_method == "bKash":
+                st.info(f"📱 Send Money to bKash Number: **{get_setting('bkash_number')}**")
+            elif pay_method == "Nagad":
+                st.info(f"📱 Send Money to Nagad Number: **{get_setting('nagad_number')}**")
+            elif pay_method == "Rocket":
+                st.info(f"📱 Send Money to Rocket Number: **{get_setting('rocket_number')}**")
+            else:
+                st.info(f"🏦 Bank Name: {get_setting('bank_name')} | Account: {get_setting('bank_acc_num')}")
+                
+            trx_id = st.text_input("Enter Payment Transaction ID (TrxID) / Reference")
+            
+            if st.button("Submit Boost Request"):
+                if trx_id:
+                    conn = get_db_connection()
+                    c = conn.cursor()
+                    c.execute("""
+                        INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, boost_plan.split('(')[-1].replace(')', ''), trx_id, pay_method, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                    conn.commit()
+                    conn.close()
+                    st.success("✅ Boost Request Submitted Successfully! Owner will verify and activate boost shortly.")
+                else:
+                    st.error("Please enter the Transaction ID.")
