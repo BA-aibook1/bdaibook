@@ -471,7 +471,8 @@ with tab_feed:
             author = c.fetchone()
             
             c.execute("SELECT COUNT(*) as cnt FROM follows WHERE following_id = ?", (post.get("user_id"),))
-            author_followers = c.fetchone()["cnt"] if c.fetchone() else 0
+            f_row = c.fetchone()
+            author_followers = f_row["cnt"] if f_row else 0
             
             is_following = False
             if st.session_state.user_id:
