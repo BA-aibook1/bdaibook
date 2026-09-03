@@ -729,6 +729,10 @@ with tab_feed:
                 c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY created_at DESC LIMIT 30")
                 live_posts = c.fetchall()
             
+            # Dynamic Ad Settings Retrieve
+            ads_enabled = get_setting("show_ads") == "ON"
+            ads_html = get_setting("adsense_script")
+
             if not live_posts:
                 st.info("কোনো অ্যাক্টিভিটি পাওয়া যায়নি।")
             else:
@@ -750,6 +754,12 @@ with tab_feed:
                             st.image(lp['media_path'], width=300)
                         else:
                             st.video(lp['media_path'])
+
+                    # Dynamic AdSense Banner Placement
+                    if ads_enabled and ads_html:
+                        st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
+                        components.html(ads_html, height=120, scrolling=False)
+                        st.markdown("</div>", unsafe_allow_html=True)
                             
                     col_act1, col_act2 = st.columns(2)
                     if col_act1.button("🗑️ Delete Post", key=f"v_del_{lp['record_id']}"):
