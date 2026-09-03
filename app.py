@@ -89,12 +89,14 @@ st.markdown("""
         font-size: 13px;
     }
     .ad-container {
-        margin-top: 15px;
+        margin-top: 10px;
         margin-bottom: 15px;
-        padding: 8px;
+        padding: 5px;
         background: #0e0e10;
         border-radius: 8px;
         text-align: center;
+        width: 100%;
+        overflow: hidden;
     }
     /* Vertical Owner Monitor Live Scroll Feed UI */
     .vertical-live-feed-box {
@@ -230,7 +232,7 @@ def init_master_database():
             "lock_login": "OFF",
             "logo_path": "",
             "adsense_client_id": "ca-pub-0000000000000000",
-            "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
+            "adsense_script": """<div style="background:#222; color:#0064e0; text-align:center; padding:10px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Ad Banner Placeholder (Paste JS Script from Panel 5)</b></div>""",
             "show_ads": "ON"
         }
         
@@ -397,7 +399,7 @@ else:
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
 # ------------------------------------------
-# HELPER: FACEBOOK POST RENDERER
+# HELPER: FACEBOOK & VIDEO POST RENDERER WITH AUTO ADS
 # ------------------------------------------
 def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     increment_views(post["record_id"])
@@ -477,6 +479,13 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     media_path = post.get("media_path")
     cat = post.get("post_category", "general")
     
+    # Pre-roll Ad Placement for Long Videos
+    if cat == "long" and ads_enabled and ads_html:
+        st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
+        components.html(ads_html, height=120, scrolling=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # Media Display
     if media_path and os.path.exists(media_path):
         st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
         if cat == "picture":
@@ -489,9 +498,10 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
             st.video(media_path)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    if ads_enabled and ads_html:
+    # Auto Ad Insertion Below Shorts & General Videos
+    if ads_enabled and ads_html and cat != "long":
         st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
-        components.html(ads_html, height=100)
+        components.html(ads_html, height=120, scrolling=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     with get_db_connection() as conn:
@@ -660,14 +670,14 @@ with tab_feed:
                     st.rerun()
 
         with o_tab5:
-            st.markdown("#### 📢 Google AdSense & Ads Management")
+            st.markdown("#### 📢 Google AdSense & JS Ads Management")
             ad_status = st.radio("Global Video Ads Status", ["ON", "OFF"], index=0 if get_setting("show_ads") == "ON" else 1)
-            adsense_code = st.text_area("Paste Google AdSense / Banner HTML Script", value=get_setting("adsense_script"), height=150)
+            adsense_code = st.text_area("Paste Google AdSense / Any JS Ad Script", value=get_setting("adsense_script"), height=180, help="যে কোনো অ্যাড নেটওয়ার্কের JavaScript বা HTML কোড এখানে কপি-পেস্ট করুন।")
             
             if st.button("💾 Save AdSense Configuration"):
                 set_setting("show_ads", ad_status)
                 set_setting("adsense_script", adsense_code)
-                st.success("AdSense Settings Saved!")
+                st.success("AdSense Code Updated Global Ready!")
                 st.rerun()
 
         with o_tab6:
@@ -729,7 +739,6 @@ with tab_feed:
                 c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY created_at DESC LIMIT 30")
                 live_posts = c.fetchall()
             
-            # Dynamic Ad Settings Retrieve
             ads_enabled = get_setting("show_ads") == "ON"
             ads_html = get_setting("adsense_script")
 
@@ -755,10 +764,9 @@ with tab_feed:
                         else:
                             st.video(lp['media_path'])
 
-                    # Dynamic AdSense Banner Placement
                     if ads_enabled and ads_html:
                         st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
-                        components.html(ads_html, height=120, scrolling=False)
+                        components.html(ads_html, height=120, scrolling=True)
                         st.markdown("</div>", unsafe_allow_html=True)
                             
                     col_act1, col_act2 = st.columns(2)
