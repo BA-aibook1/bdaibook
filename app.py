@@ -227,6 +227,21 @@ def init_master_database():
                 is_active INTEGER DEFAULT 1
             );
         """)
+
+        # NEW TABLE FOR THIRD PARTY SPONSORS
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS sponsor_video_requests (
+                request_id TEXT PRIMARY KEY,
+                user_id TEXT,
+                sponsor_name TEXT,
+                trx_id_10digit TEXT,
+                bank_details_used TEXT,
+                video_link TEXT,
+                video_file_path TEXT,
+                status TEXT DEFAULT 'Pending',
+                created_at TEXT
+            );
+        """)
         
         default_settings = {
             "app_name": "BD AI Book",
@@ -245,9 +260,10 @@ def init_master_database():
 
         c.execute("SELECT COUNT(*) as cnt FROM payment_gateways")
         if c.fetchone()["cnt"] == 0:
-            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Mobile Banking", "bKash Personal", "01700000000"))
-            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Mobile Banking", "Nagad Personal", "01700000000"))
-            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Bank Transfer", "Dutch Bangla Bank", "Acc: 123456789, Branch: Dhaka"))
+            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Bank Transfer (Foreign)", "Clear Bank (GB)", "IBAN: GB89CLRB04281239130579\nBIC/SWIFT: CLRBGB22XXX\nAccount No: 39130579\nBank: Clear Bank, 133 Houndsditch, LONDON, EC3A 7BX\nType: Checking (Current)"))
+            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Bank Transfer (BD)", "Islami Bank Bangladesh PLC", "Account No: 20502530202612312\nBranch: Lalmonirhat Br, Lalmonirhat\nRouting No: 125520465"))
+            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Crypto", "USDT (TRC20)", "Address: TM6DAbNuF2kaMaRoC8HKi2G8Gi5hVWnbCP"))
+            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Crypto", "USDT (BEP20)", "Address: 0x53052be072029dd76e02b01d925e29b03c5294ad"))
             
         conn.commit()
 
@@ -503,17 +519,20 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     media_path = post.get("media_path")
     cat = post.get("post_category", "general")
     
-    if media_path and os.path.exists(media_path):
-        st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
-        if cat == "picture":
-            st.image(media_path, use_container_width=True)
-        elif cat == "short":
-            st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
+    if media_path:
+        if media_path.startswith("http://") or media_path.startswith("https://"):
             st.video(media_path)
+        elif os.path.exists(media_path):
+            st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
+            if cat == "picture":
+                st.image(media_path, use_container_width=True)
+            elif cat == "short":
+                st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
+                st.video(media_path)
+                st.markdown("</div>", unsafe_allow_html=True)
+            else:
+                st.video(media_path)
             st.markdown("</div>", unsafe_allow_html=True)
-        else:
-            st.video(media_path)
-        st.markdown("</div>", unsafe_allow_html=True)
 
     if ads_enabled and ads_html:
         st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
@@ -579,9 +598,9 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner 9 Master Control Power Panels")
+        st.markdown("### 🎛️ Owner 10 Master Control Power Panels")
         
-        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9 = st.tabs([
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10 = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
             "3️⃣ Emergency Kill-Switch", 
@@ -590,7 +609,8 @@ with tab_feed:
             "6️⃣ Content Moderation",
             "7️⃣ Boost Requests",
             "8️⃣ Live Monitor Feed",
-            "9️⃣ User Recovery & Management"
+            "9️⃣ User Recovery & Management",
+            "🔟 Sponsor Video Approvals"
         ])
         
         with o_tab1:
@@ -657,9 +677,9 @@ with tab_feed:
         with o_tab4:
             st.markdown("#### 🏦 Dynamic Payment Gateway Control")
             with st.form("add_new_payment_method"):
-                m_type = st.selectbox("Method Type", ["Mobile Banking", "Bank Transfer", "Crypto / International"])
-                p_name = st.text_input("Provider / Bank Name", placeholder="e.g. bKash Merchant / City Bank")
-                p_details = st.text_area("Account Details / Number", placeholder="e.g. Account No: 123456, Branch: Dhaka")
+                m_type = st.selectbox("Method Type", ["Mobile Banking", "Bank Transfer (Foreign)", "Bank Transfer (BD)", "Crypto / International"])
+                p_name = st.text_input("Provider / Bank Name", placeholder="e.g. Clear Bank / Islami Bank / USDT TRC20")
+                p_details = st.text_area("Account Details / Number", placeholder="e.g. Account No / IBAN / Crypto Address")
                 submit_gw = st.form_submit_button("➕ Add New Payment Method")
                 
                 if submit_gw and p_name and p_details:
@@ -678,7 +698,7 @@ with tab_feed:
 
             for gw in gateways:
                 col_g1, col_g2 = st.columns([4, 1])
-                col_g1.write(f"📌 **[{gw['method_type']}] {gw['provider_name']}** — {gw['account_details']}")
+                col_g1.write(f"📌 **[{gw['method_type']}] {gw['provider_name']}** —\n```\n{gw['account_details']}\n```")
                 if col_g2.button("🗑️ Remove", key=f"del_gw_{gw['gateway_id']}"):
                     with get_db_connection() as conn:
                         c = conn.cursor()
@@ -753,7 +773,6 @@ with tab_feed:
                 if st.button("🔄 Refresh Live Feed"):
                     st.rerun()
             with col_rf2:
-                # NEWLY ADDED BUTTON AS REQUESTED
                 if st.button("🆕 Add New Recovery System"):
                     st.success("Recovery System Control Panel Active! Switch to 9th Tab.")
             
@@ -782,11 +801,14 @@ with tab_feed:
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    if lp['media_path'] and os.path.exists(lp['media_path']):
-                        if lp['post_category'] == 'picture':
-                            st.image(lp['media_path'], width=300)
-                        else:
+                    if lp['media_path']:
+                        if lp['media_path'].startswith("http"):
                             st.video(lp['media_path'])
+                        elif os.path.exists(lp['media_path']):
+                            if lp['post_category'] == 'picture':
+                                st.image(lp['media_path'], width=300)
+                            else:
+                                st.video(lp['media_path'])
 
                     # Dynamic AdSense Banner Placement
                     if ads_enabled and ads_html:
@@ -839,6 +861,52 @@ with tab_feed:
                                     conn.commit()
                                 st.success("Recovery Code Updated!")
                                 st.rerun()
+
+        with o_tab10:
+            st.markdown("#### 💼 10th Screen: Sponsor Video Approvals (১০ অক্ষরের ট্রানজেকশন যাচাই)")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM sponsor_video_requests WHERE status = 'Pending' ORDER BY created_at DESC")
+                pending_sponsors = c.fetchall()
+
+            if not pending_sponsors:
+                st.info("কোনো নতুন স্পন্সর ভিডিও বা পেমেন্ট পেন্ডিং নেই।")
+            else:
+                for sp in pending_sponsors:
+                    st.markdown(f"""
+                    <div style='background:#1e2026; padding:12px; border-radius:8px; margin-bottom:10px; border-left:4px solid #0064e0;'>
+                        <b>স্পন্সর নাম:</b> {sp['sponsor_name']}<br>
+                        <b>TrxID (১০ ডিজিট):</b> <span style='color:yellow; font-weight:bold;'>{sp['trx_id_10digit']}</span><br>
+                        <b>পেমেন্ট মাধ্যম:</b> {sp['bank_details_used']}<br>
+                        <b>ভিডিও লিংক / পথ:</b> {sp['video_link'] or sp['video_file_path']}<br>
+                        <small style='color:#888;'>সময়: {sp['created_at']}</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    col_sp_ap1, col_sp_ap2 = st.columns(2)
+                    if col_sp_ap1.button(f"✅ Approve & Auto-Publish Video", key=f"app_sp_{sp['request_id']}"):
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        rec_id = str(uuid.uuid4())
+                        
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, media_path, post_category, is_boosted, created_at)
+                                VALUES (?, 'post', 'SPONSOR', ?, 1, ?, ?, ?, 'long', 1, ?)
+                            """, (rec_id, sp['sponsor_name'], f"Sponsored Video: {sp['sponsor_name']}", f"TrxID: {sp['trx_id_10digit']}", sp['video_link'] or sp['video_file_path'], now_str))
+                            
+                            c.execute("UPDATE sponsor_video_requests SET status = 'Approved' WHERE request_id = ?", (sp['request_id'],))
+                            conn.commit()
+                        st.success("ভিডিওটি সফলভাবে ওয়েবসাইটে লাইভ ও পোস্ট করা হয়েছে!")
+                        st.rerun()
+
+                    if col_sp_ap2.button(f"❌ Reject Request", key=f"rej_sp_{sp['request_id']}"):
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("UPDATE sponsor_video_requests SET status = 'Rejected' WHERE request_id = ?", (sp['request_id'],))
+                            conn.commit()
+                        st.rerun()
 
     else:
         # Fetch Posts Data
@@ -984,7 +1052,7 @@ with tab_profile:
                     st.rerun()
 
 # ------------------------------------------
-# TAB 3: MONETIZATION & BANK PAYMENTS
+# TAB 3: MONETIZATION, BANK PAYMENTS & SPONSORS
 # ------------------------------------------
 with tab_monetization:
     st.markdown("### 💸 Worldwide Monetization & Video Boost Center")
@@ -1012,6 +1080,63 @@ with tab_monetization:
         st.info(f"📈 **Monetization Progress:** {real_followers}/1,000 Real Followers needed.")
 
     st.markdown("---")
+    
+    # NEW SPONSOR SUBMISSION PANEL (থার্ড পার্টি বিজ্ঞাপনদাতার ভিডিও জমা দেওয়ার ফর্ম)
+    st.markdown("### 💼 Third-Party Sponsor & Video Payment Panel")
+    st.caption("বিজ্ঞাপনদাতা বা থার্ড-পার্টিরা ব্যাংক বা ক্রিপ্টোতে পেমেন্ট করে ভিডিও লিংক জমা দিন।")
+
+    with st.expander("📥 Submit Sponsored Video & Payment Info", expanded=True):
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
+            active_gateways = c.fetchall()
+
+        if active_gateways:
+            gw_options = {f"[{gw['method_type']}] {gw['provider_name']}": gw for gw in active_gateways}
+            selected_gw_sp_name = st.selectbox("Select Payment Channel", list(gw_options.keys()), key="sp_gw_select")
+            selected_gw_sp = gw_options[selected_gw_sp_name]
+            
+            st.info(f"💳 **Official Transfer Details:**\n```\n{selected_gw_sp['account_details']}\n```")
+
+        with st.form("sponsor_video_submit_form"):
+            sp_name = st.text_input("Your Name / Company Name")
+            
+            # ১০ অক্ষরের বাধ্যবাধকতা সহ TrxID ইনপুট ফিল্ড
+            trx_10 = st.text_input("Enter Exactly 10-Digit Transaction ID (TrxID / Ref Code)", max_chars=10)
+            
+            sp_video_url = st.text_input("Video Link (YouTube / Facebook / Direct URL)")
+            sp_video_file = st.file_uploader("OR Upload Video File Direct", type=["mp4", "mov"])
+            
+            submit_sp_btn = st.form_submit_button("🚀 Submit to Owner for Approval")
+
+            if submit_sp_btn:
+                clean_trx = trx_10.strip()
+                if len(clean_trx) != 10:
+                    st.error("❌ ভুল ট্রানজেকশন আইডি! ট্রানজেকশন/রেফারেন্স কোডটি অবশ্যই ঠিক ১০ অক্ষরের হতে হবে।")
+                elif not (sp_video_url or sp_video_file):
+                    st.error("❌ অনুগ্রহ করে একটি ভিডিও লিংক অথবা ভিডিও ফাইল আপলোড করুন!")
+                else:
+                    v_file_path = ""
+                    if sp_video_file:
+                        v_file_path = os.path.join(UPLOAD_DIR, f"sp_{uuid.uuid4()}.mp4")
+                        with open(v_file_path, "wb") as f:
+                            f.write(sp_video_file.getbuffer())
+
+                    req_id = str(uuid.uuid4())
+                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO sponsor_video_requests 
+                            (request_id, user_id, sponsor_name, trx_id_10digit, bank_details_used, video_link, video_file_path, status, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+                        """, (req_id, st.session_state.user_id or "Guest", sp_name, clean_trx, selected_gw_sp_name, sp_video_url, v_file_path, now_str))
+                        conn.commit()
+                        
+                    st.success("✅ পেমেন্ট তথ্য ও ভিডিও সফলভাবে জমা হয়েছে! মালিক ১০ অক্ষরের TrxID পাওয়ার পর যাচাই করে ভিডিও লাইভ করবেন।")
+
+    st.markdown("---")
     st.markdown("### 🔥 Boost Your Video / Post (Dynamic Payment Gateways)")
     
     if not st.session_state.user_id:
@@ -1021,9 +1146,6 @@ with tab_monetization:
             c = conn.cursor()
             c.execute("SELECT record_id, title FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
             user_posts = c.fetchall()
-            
-            c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
-            active_gateways = c.fetchall()
         
         if not user_posts:
             st.info("You haven't uploaded any posts yet to boost.")
@@ -1040,13 +1162,12 @@ with tab_monetization:
                 "VIP Unlimited - 100,000 Views ($50 / 5500 BDT)"
             ])
             
-            gw_options = {f"[{gw['method_type']}] {gw['provider_name']}": gw for gw in active_gateways}
-            selected_gw_name = st.selectbox("Select Payment Method", list(gw_options.keys()))
+            selected_gw_name = st.selectbox("Select Payment Method for Boost", list(gw_options.keys()), key="boost_gw_select")
             selected_gw = gw_options[selected_gw_name]
             
-            st.info(f"💳 Send Money / Transfer Details: **{selected_gw['account_details']}**")
+            st.info(f"💳 Send Money / Transfer Details:\n```\n{selected_gw['account_details']}\n```")
                 
-            trx_id = st.text_input("Enter Payment Transaction ID (TrxID) / Reference Code")
+            trx_id = st.text_input("Enter Payment Transaction ID (TrxID) / Reference Code", key="boost_trx_input")
             
             if st.button("Submit Boost Request"):
                 if trx_id:
