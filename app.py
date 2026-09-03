@@ -25,7 +25,7 @@ LOCAL_DB_FILE = "bd_ai_book_master.db"
 SECRET_CODES = ["S$s123456789112233", "S$s123456789112233BDAIBOOK"]
 BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
-# CSS: হেডার সম্পূর্ণ স্থির (Fixed Sticky Header) করা এবং স্ক্রোলিং সমস্যা সমাধান
+# CSS: হেডার সম্পূর্ণ স্থির (Fixed Sticky Header) করা এবং ভার্টিক্যাল লাইভ ফিড স্টাইলিং
 st.markdown("""
 <style>
     /* Streamlit Default padding & space override */
@@ -95,6 +95,23 @@ st.markdown("""
         background: #0e0e10;
         border-radius: 8px;
         text-align: center;
+    }
+    /* Vertical Owner Monitor Live Scroll Feed UI */
+    .vertical-live-feed-box {
+        max-height: 600px;
+        overflow-y: auto;
+        background: #121316;
+        padding: 15px;
+        border-radius: 12px;
+        border: 2px solid #0064e0;
+    }
+    .vertical-live-card {
+        background: #1e2026;
+        border-left: 4px solid #0064e0;
+        padding: 12px;
+        margin-bottom: 15px;
+        border-radius: 8px;
+        color: #fff;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -290,7 +307,6 @@ with top_col2:
     st.markdown(f"<h3 style='text-align: center; color:#0064e0; margin:0;'>{app_name}</h3>", unsafe_allow_html=True)
 
 with top_col3:
-    # প্রোফাইল শর্টকাট বাটন
     if st.button("👤 Profile", key="quick_profile_btn"):
         st.session_state.active_tab = 1
         st.rerun()
@@ -537,16 +553,17 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner 7 Master Control Power Panels")
+        st.markdown("### 🎛️ Owner 8 Master Control Power Panels")
         
-        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7 = st.tabs([
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8 = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
             "3️⃣ Emergency Kill-Switch", 
             "4️⃣ Dynamic Payment Methods",
             "5️⃣ Google AdSense Settings",
             "6️⃣ Content Moderation",
-            "7️⃣ Boost Requests"
+            "7️⃣ Boost Requests",
+            "8️⃣ Live Monitor Feed"
         ])
         
         with o_tab1:
@@ -699,6 +716,58 @@ with tab_feed:
                         conn.commit()
                         st.success("Post Boosted!")
                         st.rerun()
+
+        with o_tab8:
+            st.markdown("#### 📡 Vertical Live Activity Monitor Feed (লাইভ ডিসপ্লে)")
+            st.caption("ইউজারদের রিয়েল-টাইম আপলোড করা পোস্ট এবং অ্যাক্টিভিটি ভার্টিক্যাল স্ক্রোলিং স্ট্রিমে দেখুন:")
+            
+            if st.button("🔄 Refresh Live Feed"):
+                st.rerun()
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY created_at DESC LIMIT 30")
+                live_posts = c.fetchall()
+            
+            if not live_posts:
+                st.info("কোনো অ্যাক্টিভিটি পাওয়া যায়নি।")
+            else:
+                st.markdown("<div class='vertical-live-feed-box'>", unsafe_allow_html=True)
+                for lp in live_posts:
+                    st.markdown(f"""
+                    <div class='vertical-live-card'>
+                        <div style='display:flex; justify-content:space-between;'>
+                            <span>👤 <b>{lp['full_name']}</b> (ID: {lp['user_id'][:8]}...)</span>
+                            <span style='color:#888; font-size:12px;'>⏱️ {lp['created_at']}</span>
+                        </div>
+                        <p style='margin: 8px 0; font-size:15px;'><b>{lp['title']}</b> - <span style='color:#0064e0;'>[{lp['post_category'].upper()}]</span></p>
+                        <p style='color:#ccc; font-size:13px;'>{lp['content'] if lp['content'] else ''}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if lp['media_path'] and os.path.exists(lp['media_path']):
+                        if lp['post_category'] == 'picture':
+                            st.image(lp['media_path'], width=300)
+                        else:
+                            st.video(lp['media_path'])
+                            
+                    col_act1, col_act2 = st.columns(2)
+                    if col_act1.button("🗑️ Delete Post", key=f"v_del_{lp['record_id']}"):
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("DELETE FROM master_app_table WHERE record_id = ?", (lp['record_id'],))
+                            conn.commit()
+                        st.rerun()
+                        
+                    if col_act2.button("🚫 Ban User", key=f"v_ban_{lp['record_id']}"):
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+                            c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, lp['user_id']))
+                            conn.commit()
+                        st.rerun()
+                    st.markdown("---")
+                st.markdown("</div>", unsafe_allow_html=True)
 
     else:
         # Fetch Posts Data
