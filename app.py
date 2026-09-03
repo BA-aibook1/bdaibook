@@ -139,7 +139,6 @@ def init_master_database():
 
         c.execute("SELECT COUNT(*) as cnt FROM payment_gateways")
         if c.fetchone()["cnt"] == 0:
-            # Default Gateways including your provided details
             c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Local Bank", "Islami Bank Bangladesh PLC", "Title: MD. SOHEL RANA\nAccount: 20502530202612312\nBranch: Lalmonirhat Br, Lalmonirhat\nRouting No: 125520465"))
             c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "International Bank (GB)", "Clear Bank", "Name: Md Sohel Rana\nIBAN: GB89CLRB04281239130579\nBIC/SWIFT: CLRBGB22XXX\nAccount No: 39130579\nAddress: 133 Houndsditch, LONDON, EC3A 7BX"))
             c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Crypto (USDT)", "USDT TRC20 Wallet", "TM6DAbNuF2kaMaRoC8HKi2G8Gi5hVWnbCP"))
@@ -430,7 +429,6 @@ with tab_feed:
         st.markdown("---")
         st.markdown("### 🎛️ Owner 10 Master Control Power Panels")
         
-        # 10th Tab added successfully without altering previous ones
         o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10 = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
