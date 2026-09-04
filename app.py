@@ -16,18 +16,6 @@ import streamlit.components.v1 as components
 OWNER_SECRET_KEY = os.getenv("OWNER_SECRET_CODE", "S$s123456789112233BDAIBOOK")
 SECRET_CODES = [OWNER_SECRET_KEY, "S$s123456789112233"]
 
-# অনুমোদিত ওনার জিমেইল লিস্ট (মালিকের আইডেন্টিটি ভেরিফিকেশনের জন্য)
-ALLOWED_OWNER_GMAILS = [
-    "rasohel11223@gmail.com",
-    "rasohel1234@gmail.com",
-    "mr8368810@gmail.com",
-    "s22930619@gmail.com",
-    "sohel82055@gmail.com",
-    "mr8632655@gmail.com",
-    "mr8182773@gmail.com",
-    "mc4605690@gmail.com"
-]
-
 # ==========================================
 # GOOGLE VISION AI AUTO-MODERATION ENGINE
 # ==========================================
@@ -333,7 +321,7 @@ def hash_pass(pwd):
     return hashlib.sha256(pwd.encode()).hexdigest()
 
 # ==========================================
-# FIXED & SAFE EMAIL OTP FUNCTION
+# FIXED & SAFE EMAIL OTP FUNCTION (UPDATED)
 # ==========================================
 def send_real_email_otp(target_email, otp_code):
     sender_email = get_setting("sender_gmail")
@@ -342,6 +330,7 @@ def send_real_email_otp(target_email, otp_code):
     if not sender_email or not app_password:
         return False, "SMTP Credentials Not Set"
 
+    # Clean hidden spaces (\xa0, whitespace, non-ascii characters)
     sender_email = sender_email.replace('\xa0', '').strip()
     app_password = app_password.replace('\xa0', '').strip().replace(' ', '')
     target_email = target_email.replace('\xa0', '').strip()
@@ -358,6 +347,7 @@ def send_real_email_otp(target_email, otp_code):
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
         server.login(sender_email, app_password)
+        # Explicitly encode string to ASCII/UTF-8 safely to prevent codec errors
         server.sendmail(sender_email, [target_email], msg.as_string().encode('utf-8'))
         server.quit()
         return True, "Success"
@@ -386,7 +376,6 @@ def get_user_today_upload_count(user_id, category):
 
 # Session State Initialization
 if "user_id" not in st.session_state: st.session_state.user_id = None
-if "user_email" not in st.session_state: st.session_state.user_email = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
 if "active_tab" not in st.session_state: st.session_state.active_tab = 0
@@ -483,7 +472,6 @@ if not st.session_state.user_id:
                             if usr:
                                 if usr["password_hash"] == hash_pass(auth_pass):
                                     st.session_state.user_id = usr["user_id"]
-                                    st.session_state.user_email = usr["auth_identifier"].strip().lower()
                                     st.sidebar.success("Logged In Successfully!")
                                     st.rerun()
                                 else:
@@ -497,7 +485,6 @@ if not st.session_state.user_id:
                                 """, (new_uid, new_uid, f"User_{new_uid[:4]}", auth_input, hash_pass(auth_pass), now))
                                 conn.commit()
                                 st.session_state.user_id = new_uid
-                                st.session_state.user_email = auth_input.strip().lower()
                                 st.sidebar.success("Registered & Logged In!")
                                 st.rerun()
                     else:
@@ -513,8 +500,6 @@ else:
         real_followers = f_res["cnt"] if f_res else 0
         
         current_user = dict(raw_user) if raw_user else {}
-        if raw_user and raw_user.get("auth_identifier"):
-            st.session_state.user_email = raw_user["auth_identifier"].strip().lower()
     
     if current_user.get("is_suspended"):
         sus_until = current_user.get("suspended_until", "")
@@ -526,7 +511,6 @@ else:
     st.sidebar.markdown(f"👥 Real Followers: **{real_followers:,}**")
     if st.sidebar.button("Logout"):
         st.session_state.user_id = None
-        st.session_state.user_email = None
         st.session_state.is_owner_session = False
         st.session_state.otp_code = None
         st.rerun()
@@ -668,15 +652,9 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
 
 # TAB 1: PUBLIC FEED & OWNER MASTER PANEL
 with tab_feed:
-    search_input = st.text_input("🔍 Search Users, Videos, Hashtags...", key="main_search_box")
+    search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
     
-    # ডিভাইস ও জিমেইল ভেরিফিকেশন চেক
-    is_valid_owner = False
-    if st.session_state.user_email and st.session_state.user_email.lower() in [g.lower() for g in ALLOWED_OWNER_GMAILS]:
-        is_valid_owner = True
-
-    # ওনার প্যানেল খুলবে কেবল যদি ১) সিক্রেট কোড মেলে এবং ২) আইডেন্টিটি মালিকের হয়
-    if search_input.strip() in SECRET_CODES and is_valid_owner:
+    if search_input.strip() in SECRET_CODES:
         st.session_state.is_owner_session = True
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
         st.markdown("---")
@@ -1029,6 +1007,9 @@ with tab_feed:
                 if st.button("🧹 Clear Temporary Cache & Optimize Media Storage"):
                     st.success("✅ Cache Cleared & Storage Optimized!")
 
+        # ==========================================
+        # 12TH BUTTON: SECRET CODE & GLOBAL NOTIFICATION (ENGLISH FIXED)
+        # ==========================================
         with o_tab12:
             st.markdown("#### 📡 12th Screen: Secret Code Connect & Worldwide Gmail Alert Broadcast")
             st.caption("Set up your Sender Gmail and 16-Digit App Password to enable automated email/OTP notifications:")
@@ -1085,7 +1066,7 @@ with tab_feed:
     else:
         with get_db_connection() as conn:
             c = conn.cursor()
-            if search_input and search_input.strip() not in SECRET_CODES:
+            if search_input:
                 q_str = f"%{search_input}%"
                 c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
             else:
