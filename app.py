@@ -14,29 +14,19 @@ import streamlit.components.v1 as components
 # 0. SECURITY & ENVIRONMENT CONFIGURATION
 # ==========================================
 OWNER_SECRET_KEY = os.getenv("OWNER_SECRET_CODE", "S$s123456789112233BDAIBOOK")
-# আপনার দেওয়া দুটি সিক্রেট মাস্টার পাসওয়ার্ড
-SECRET_CODES = ["S$s123456789112233BDAIBOOK", "S$s123456789112233"]
+SECRET_CODES = [OWNER_SECRET_KEY, "S$s123456789112233"]
 
-# অনুমোদিত ওনার জিমেইল তালিকা (Session State)
-if "allowed_owner_emails" not in st.session_state:
-    st.session_state["allowed_owner_emails"] = [
-        "rasohel11223@gmail.com",
-        "rasohel1234@gmail.com",
-        "mr8968810@gmail.com",
-        "s22930619@gmail.com",
-        "sohel82055@gmail.com",
-        "mr0632655@gmail.com",
-        "mr8182773@gmail.com",
-        "md4695090@gmail.com"
-    ]
-
-# হ্যাকড/ব্লকড জিমেইল ট্রাক করার জন্য Session State
-if "blocked_owner_emails" not in st.session_state:
-    st.session_state["blocked_owner_emails"] = []
-
-# প্রতিটি জিমেইলের ভুল পাসওয়ার্ড ট্রাই কাউন্টার
-if "failed_attempts" not in st.session_state:
-    st.session_state["failed_attempts"] = {}
+# অনুমোদিত ওনার জিমেইল লিস্ট (মালিকের আইডেন্টিটি ভেরিফিকেশনের জন্য)
+ALLOWED_OWNER_GMAILS = [
+    "rasohel11223@gmail.com",
+    "rasohel1234@gmail.com",
+    "mr8368810@gmail.com",
+    "s22930619@gmail.com",
+    "sohel82055@gmail.com",
+    "mr8632655@gmail.com",
+    "mr8182773@gmail.com",
+    "mc4605690@gmail.com"
+]
 
 # ==========================================
 # GOOGLE VISION AI AUTO-MODERATION ENGINE
@@ -65,6 +55,7 @@ def check_image_safety_with_ai(image_path):
         return True, "Safe"
     except Exception as e:
         return True, f"AI Check Skipped/Error: {str(e)}"
+
 
 # ==========================================
 # 1. PAGE SETUP & STORAGE DIRECTORY
@@ -395,6 +386,7 @@ def get_user_today_upload_count(user_id, category):
 
 # Session State Initialization
 if "user_id" not in st.session_state: st.session_state.user_id = None
+if "user_email" not in st.session_state: st.session_state.user_email = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
 if "active_tab" not in st.session_state: st.session_state.active_tab = 0
@@ -422,6 +414,7 @@ with top_col3:
 if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
 
+# Global Secret Broadcast Banner
 sys_alert = get_setting("global_notify_msg")
 if sys_alert and sys_alert != "System Active Globally":
     st.info(f"🌐 **Global System Alert:** {sys_alert}")
@@ -490,6 +483,7 @@ if not st.session_state.user_id:
                             if usr:
                                 if usr["password_hash"] == hash_pass(auth_pass):
                                     st.session_state.user_id = usr["user_id"]
+                                    st.session_state.user_email = usr["auth_identifier"].strip().lower()
                                     st.sidebar.success("Logged In Successfully!")
                                     st.rerun()
                                 else:
@@ -503,6 +497,7 @@ if not st.session_state.user_id:
                                 """, (new_uid, new_uid, f"User_{new_uid[:4]}", auth_input, hash_pass(auth_pass), now))
                                 conn.commit()
                                 st.session_state.user_id = new_uid
+                                st.session_state.user_email = auth_input.strip().lower()
                                 st.sidebar.success("Registered & Logged In!")
                                 st.rerun()
                     else:
@@ -518,6 +513,8 @@ else:
         real_followers = f_res["cnt"] if f_res else 0
         
         current_user = dict(raw_user) if raw_user else {}
+        if raw_user and raw_user.get("auth_identifier"):
+            st.session_state.user_email = raw_user["auth_identifier"].strip().lower()
     
     if current_user.get("is_suspended"):
         sus_until = current_user.get("suspended_until", "")
@@ -529,6 +526,7 @@ else:
     st.sidebar.markdown(f"👥 Real Followers: **{real_followers:,}**")
     if st.sidebar.button("Logout"):
         st.session_state.user_id = None
+        st.session_state.user_email = None
         st.session_state.is_owner_session = False
         st.session_state.otp_code = None
         st.rerun()
@@ -670,37 +668,17 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
 
 # TAB 1: PUBLIC FEED & OWNER MASTER PANEL
 with tab_feed:
-    col_s1, col_s2 = st.columns([3, 2])
-    with col_s1:
-        search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Owner Gmail...")
-    with col_s2:
-        pass_code_input = st.text_input("🔑 Secret Password (If Owner)", type="password")
+    search_input = st.text_input("🔍 Search Users, Videos, Hashtags...", key="main_search_box")
+    
+    # ডিভাইস ও জিমেইল ভেরিফিকেশন চেক
+    is_valid_owner = False
+    if st.session_state.user_email and st.session_state.user_email.lower() in [g.lower() for g in ALLOWED_OWNER_GMAILS]:
+        is_valid_owner = True
 
-    query_raw = search_input.strip().lower()
-
-    # --- ওনার ভ্যালিডেশন ও অটো-ব্লকিং লজিক ---
-    if query_raw in st.session_state["allowed_owner_emails"]:
-        if query_raw in st.session_state["blocked_owner_emails"]:
-            st.error(f"🚨 ALERT: Gmail '{query_raw}' is SUSPENDED/BLOCKED due to repeated wrong password attempts! Contact owner to restore.")
-        else:
-            if pass_code_input in SECRET_CODES:
-                st.session_state.is_owner_session = True
-                st.session_state["failed_attempts"][query_raw] = 0
-                st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
-            elif pass_code_input:
-                current_fails = st.session_state["failed_attempts"].get(query_raw, 0) + 1
-                st.session_state["failed_attempts"][query_raw] = current_fails
-                
-                if current_fails >= 2:
-                    st.session_state["blocked_owner_emails"].append(query_raw)
-                    st.error(f"🚨 SECURITY ALERT: Incorrect password entered twice! Gmail '{query_raw}' is AUTO-BLOCKED for security.")
-                else:
-                    st.warning(f"⚠️ Incorrect Secret Password! Attempt {current_fails}/2. Next wrong attempt will auto-block this Gmail.")
-    elif query_raw in SECRET_CODES or pass_code_input in SECRET_CODES:
+    # ওনার প্যানেল খুলবে কেবল যদি ১) সিক্রেট কোড মেলে এবং ২) আইডেন্টিটি মালিকের হয়
+    if search_input.strip() in SECRET_CODES and is_valid_owner:
         st.session_state.is_owner_session = True
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
-
-    if st.session_state.is_owner_session:
         st.markdown("---")
         
         with get_db_connection() as conn:
@@ -732,7 +710,7 @@ with tab_feed:
             "9️⃣ User Recovery & Management",
             "🔟 Sponsor Video Approvals",
             "1️⃣1️⃣ Darjeeling Master Rules & Backup",
-            "1️⃣2️⃣ Secret Code & Security Management"
+            "1️⃣2️⃣ Secret Code & Global Broadcast Notification"
         ])
         
         with o_tab1:
@@ -1051,29 +1029,31 @@ with tab_feed:
                 if st.button("🧹 Clear Temporary Cache & Optimize Media Storage"):
                     st.success("✅ Cache Cleared & Storage Optimized!")
 
-        # 12TH TAB: SECRET CODE & SECURITY MANAGEMENT
         with o_tab12:
-            st.markdown("#### 🛡️ 12th Screen: Owner Security & Gmail Management")
-            
-            st.markdown("##### 🔐 Active Master Passwords:")
-            for sc in SECRET_CODES:
-                st.code(sc)
+            st.markdown("#### 📡 12th Screen: Secret Code Connect & Worldwide Gmail Alert Broadcast")
+            st.caption("Set up your Sender Gmail and 16-Digit App Password to enable automated email/OTP notifications:")
+
+            cur_sec_key = OWNER_SECRET_KEY
+            st.write(f"🔑 **Active Secret Code:** `{cur_sec_key}`")
 
             st.markdown("---")
-            st.markdown("##### 📧 Allowed Owner Gmail List & Hacking Protection")
+            st.markdown("##### 📧 Automated Gmail Server (SMTP) Configuration")
             
-            st.write("Active Owner Gmails:")
-            for email in st.session_state["allowed_owner_emails"]:
-                if email in st.session_state["blocked_owner_emails"]:
-                    col_em1, col_em2 = st.columns([3, 1])
-                    col_em1.error(f"❌ {email} (BLOCKED / SUSPECTED HACK)")
-                    if col_em2.button("🔓 Unblock", key=f"unblk_{email}"):
-                        st.session_state["blocked_owner_emails"].remove(email)
-                        st.session_state["failed_attempts"][email] = 0
-                        st.success(f"{email} Unblocked!")
-                        st.rerun()
-                else:
-                    st.success(f"✅ {email}")
+            saved_gmail = get_setting("sender_gmail", "")
+            saved_app_pass = get_setting("smtp_app_password", "")
+
+            with st.form("smtp_config_form"):
+                sender_gmail_inp = st.text_input("Sender Gmail Address", value=saved_gmail, placeholder="e.g. yourname@gmail.com")
+                smtp_pass_inp = st.text_input("Google 16-Digit App Password", value=saved_app_pass, type="password", placeholder="xxxx xxxx xxxx xxxx")
+                
+                save_smtp_btn = st.form_submit_button("💾 Save & Connect SMTP Server")
+                
+                if save_smtp_btn:
+                    clean_app_pass = smtp_pass_inp.replace(" ", "")
+                    set_setting("sender_gmail", sender_gmail_inp.strip())
+                    set_setting("smtp_app_password", clean_app_pass)
+                    st.success("✅ Gmail Server Connected! Users will now automatically receive OTP email codes upon registration/login.")
+                    st.rerun()
 
             st.markdown("---")
             st.markdown("##### 📩 Send Worldwide Broadcast Notification")
@@ -1091,7 +1071,7 @@ with tab_feed:
                             c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'user'")
                             total_recipients = c.fetchone()["cnt"]
 
-                        st.success(f"✅ Global notification broadcast activated for {total_recipients} user(s).")
+                        st.success(f"✅ Secret Code Validated! Global notification broadcast activated for {total_recipients} user(s).")
                         st.rerun()
                     else:
                         st.warning("⚠️ Please enter a message to broadcast.")
@@ -1105,7 +1085,7 @@ with tab_feed:
     else:
         with get_db_connection() as conn:
             c = conn.cursor()
-            if search_input:
+            if search_input and search_input.strip() not in SECRET_CODES:
                 q_str = f"%{search_input}%"
                 c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
             else:
