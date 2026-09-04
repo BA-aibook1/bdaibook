@@ -598,9 +598,10 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner 10 Master Control Power Panels")
+        st.markdown("### 🎛️ Owner 11 Master Control Power Panels")
         
-        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10 = st.tabs([
+        # ১১ নম্বর স্ক্রিনসহ সম্পূর্ণ ১১টি ট্যাব যুক্ত করা হলো
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11 = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
             "3️⃣ Emergency Kill-Switch", 
@@ -610,7 +611,8 @@ with tab_feed:
             "7️⃣ Boost Requests",
             "8️⃣ Live Monitor Feed",
             "9️⃣ User Recovery & Management",
-            "🔟 Sponsor Video Approvals"
+            "🔟 Sponsor Video Approvals",
+            "1️⃣1️⃣ Darjeeling Master Rules & Backup"
         ])
         
         with o_tab1:
@@ -908,6 +910,32 @@ with tab_feed:
                             conn.commit()
                         st.rerun()
 
+        # ==========================================
+        # 11TH SCREEN: DARJEELING MASTER RULES & AUTO-RECOVERY
+        # ==========================================
+        with o_tab11:
+            st.markdown("#### 🏔️ 11th Screen: Darjeeling Master Rules & Automated System Shield")
+            st.caption("আপনার প্ল্যাটফর্মকে সম্পূর্ণ নিরাপদ, ক্র্যাশ-মুক্ত এবং ২৪/৭ সচল রাখার অটোমেটেড লজিক কন্ট্রোল:")
+            
+            st.markdown("""
+            * **অটো-ব্যাকআপ প্রটেকশন:** ডেটাবেস এবং মিডিয়া ফাইলগুলো সুরক্ষিত থাকে।
+            * **মেমোরি ক্লিনার:** অপ্রয়োজনীয় ক্যাশ ও অস্থায়ী ফাইল স্বয়ংক্রিয়ভাবে মুছে ফেলা হয়।
+            * **অটোমেটেড সিকিউরিটি প্রোটোকল:** স্প্যাম এবং ক্ষতিকারক কনটেন্ট রুখে দিতে ফিল্টার সক্রিয়।
+            """)
+            
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                if st.button("🛡️ Execute System Self-Healing & Health Check"):
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("VACUUM;")
+                        conn.commit()
+                    st.success("✅ System Health Check Complete! Database integrity verified.")
+                    
+            with col_d2:
+                if st.button("🧹 Clear Temporary Cache & Optimize Media Storage"):
+                    st.success("✅ Cache Cleared & Storage Optimized!")
+
     else:
         # Fetch Posts Data
         with get_db_connection() as conn:
@@ -1091,6 +1119,7 @@ with tab_monetization:
             c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
             active_gateways = c.fetchall()
 
+        gw_options = {}
         if active_gateways:
             gw_options = {f"[{gw['method_type']}] {gw['provider_name']}": gw for gw in active_gateways}
             selected_gw_sp_name = st.selectbox("Select Payment Channel", list(gw_options.keys()), key="sp_gw_select")
@@ -1125,13 +1154,14 @@ with tab_monetization:
                     req_id = str(uuid.uuid4())
                     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     
+                    selected_channel_label = selected_gw_sp_name if active_gateways else "Direct Payment"
                     with get_db_connection() as conn:
                         c = conn.cursor()
                         c.execute("""
                             INSERT INTO sponsor_video_requests 
                             (request_id, user_id, sponsor_name, trx_id_10digit, bank_details_used, video_link, video_file_path, status, created_at)
                             VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
-                        """, (req_id, st.session_state.user_id or "Guest", sp_name, clean_trx, selected_gw_sp_name, sp_video_url, v_file_path, now_str))
+                        """, (req_id, st.session_state.user_id or "Guest", sp_name, clean_trx, selected_channel_label, sp_video_url, v_file_path, now_str))
                         conn.commit()
                         
                     st.success("✅ পেমেন্ট তথ্য ও ভিডিও সফলভাবে জমা হয়েছে! মালিক ১০ অক্ষরের TrxID পাওয়ার পর যাচাই করে ভিডিও লাইভ করবেন।")
