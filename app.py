@@ -320,6 +320,9 @@ def set_setting(key, value):
 def hash_pass(pwd): 
     return hashlib.sha256(pwd.encode()).hexdigest()
 
+# ==========================================
+# FIXED EMAIL OTP FUNCTION WITH UTF-8 ENCODING
+# ==========================================
 def send_real_email_otp(target_email, otp_code):
     sender_email = get_setting("sender_gmail")
     app_password = get_setting("smtp_app_password")
@@ -333,7 +336,7 @@ def send_real_email_otp(target_email, otp_code):
     msg['Subject'] = f"Verification Code: {otp_code} - BD AI Book"
     
     body = f"Hello,\n\nYour verification code (OTP) for BD AI Book is: {otp_code}\n\nDo not share this code with anyone."
-    msg.attach(MIMEText(body, 'plain'))
+    msg.attach(MIMEText(body, 'plain', 'utf-8'))
 
     try:
         server = smtplib.SMTP('smtp.gmail.com', 587)
@@ -443,11 +446,11 @@ if not st.session_state.user_id:
                     if "@" in auth_input:
                         success, err = send_real_email_otp(auth_input.strip(), generated_otp)
                         if success:
-                            st.sidebar.success(f"📩 OTP কোড সফলভাবে {auth_input} ইমেইলে পাঠানো হয়েছে!")
+                            st.sidebar.success(f"OTP code sent successfully to {auth_input}!")
                         else:
-                            st.sidebar.warning(f"⚠️ ইমেইল পাঠানো যায়নি ({err})। টেস্ট OTP: {generated_otp}")
+                            st.sidebar.warning(f"Failed to send email ({err}). Test OTP: {generated_otp}")
                     else:
-                        st.sidebar.success(f"📩 OTP কোড তৈরি হয়েছে! টেস্ট OTP: {generated_otp}")
+                        st.sidebar.success(f"OTP generated! Test OTP: {generated_otp}")
                 else:
                     st.sidebar.warning("Please provide both identifier and password!")
                     
@@ -667,7 +670,6 @@ with tab_feed:
         st.markdown("---")
         st.markdown("### 🎛️ Owner 12 Master Control Power Panels")
         
-        # ১২টি বাটন/ট্যাব
         o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12 = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
@@ -835,8 +837,8 @@ with tab_feed:
                         st.rerun()
 
         with o_tab8:
-            st.markdown("#### 📡 Vertical Live Activity Monitor Feed (লাইভ ডিসপ্লে)")
-            st.caption("ইউজারদের রিয়েল-টাইম আপলোড করা পোস্ট এবং অ্যাক্টিভিটি ভার্টিক্যাল স্ক্রোলিং স্ট্রিমে দেখুন:")
+            st.markdown("#### 📡 Vertical Live Activity Monitor Feed")
+            st.caption("View real-time uploaded posts and activity streams:")
             
             col_rf1, col_rf2 = st.columns([1, 1])
             with col_rf1:
@@ -855,7 +857,7 @@ with tab_feed:
             ads_html = get_setting("adsense_script")
 
             if not live_posts:
-                st.info("কোনো অ্যাক্টিভিটি পাওয়া যায়নি।")
+                st.info("No activity found.")
             else:
                 st.markdown("<div class='vertical-live-feed-box'>", unsafe_allow_html=True)
                 for lp in live_posts:
@@ -904,7 +906,7 @@ with tab_feed:
 
         with o_tab9:
             st.markdown("#### 🔑 9th Screen: User Recovery System & Password Management")
-            st.caption("মালিক এখান থেকে ইউজারের রিকভারি কোড ম্যানুয়ালি সেট বা পরিবর্তন করতে পারবেন:")
+            st.caption("Owner can manually set or update user recovery codes here:")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -931,7 +933,7 @@ with tab_feed:
                                 st.rerun()
 
         with o_tab10:
-            st.markdown("#### 💼 10th Screen: Sponsor Video Approvals (১০ অক্ষরের ট্রানজেকশন যাচাই)")
+            st.markdown("#### 💼 10th Screen: Sponsor Video Approvals")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -939,16 +941,16 @@ with tab_feed:
                 pending_sponsors = c.fetchall()
 
             if not pending_sponsors:
-                st.info("কোনো নতুন স্পন্সর ভিডিও বা পেমেন্ট পেন্ডিং নেই।")
+                st.info("No pending sponsor videos or payments found.")
             else:
                 for sp in pending_sponsors:
                     st.markdown(f"""
                     <div style='background:#1e2026; padding:12px; border-radius:8px; margin-bottom:10px; border-left:4px solid #0064e0;'>
-                        <b>স্পন্সর নাম:</b> {sp['sponsor_name']}<br>
-                        <b>TrxID (১০ ডিজিট):</b> <span style='color:yellow; font-weight:bold;'>{sp['trx_id_10digit']}</span><br>
-                        <b>পেমেন্ট মাধ্যম:</b> {sp['bank_details_used']}<br>
-                        <b>ভিডিও লিংক / পথ:</b> {sp['video_link'] or sp['video_file_path']}<br>
-                        <small style='color:#888;'>সময়: {sp['created_at']}</small>
+                        <b>Sponsor Name:</b> {sp['sponsor_name']}<br>
+                        <b>TrxID (10-Digit):</b> <span style='color:yellow; font-weight:bold;'>{sp['trx_id_10digit']}</span><br>
+                        <b>Payment Method:</b> {sp['bank_details_used']}<br>
+                        <b>Video Link/Path:</b> {sp['video_link'] or sp['video_file_path']}<br>
+                        <small style='color:#888;'>Time: {sp['created_at']}</small>
                     </div>
                     """, unsafe_allow_html=True)
                     
@@ -966,7 +968,7 @@ with tab_feed:
                             
                             c.execute("UPDATE sponsor_video_requests SET status = 'Approved' WHERE request_id = ?", (sp['request_id'],))
                             conn.commit()
-                        st.success("ভিডিওটি সফলভাবে ওয়েবসাইটে লাইভ ও পোস্ট করা হয়েছে!")
+                        st.success("Video published successfully!")
                         st.rerun()
 
                     if col_sp_ap2.button(f"❌ Reject Request", key=f"rej_sp_{sp['request_id']}"):
@@ -978,12 +980,12 @@ with tab_feed:
 
         with o_tab11:
             st.markdown("#### 🏔️ 11th Screen: Darjeeling Master Rules & Automated System Shield")
-            st.caption("আপনার প্ল্যাটফর্মকে সম্পূর্ণ নিরাপদ, ক্র্যাশ-মুক্ত এবং ২৪/৭ সচল রাখার অটোমেটেড লজিক কন্ট্রোল:")
+            st.caption("Automated system optimization and security controls:")
             
             st.markdown("""
-            * **অটো-ব্যাকআপ প্রটেকশন:** ডেটাবেস এবং মিডিয়া ফাইলগুলো সুরক্ষিত থাকে।
-            * **মেমোরি ক্লিনার:** অপ্রয়োজনীয় ক্যাশ ও অস্থায়ী ফাইল স্বয়ংক্রিয়ভাবে মুছে ফেলা হয়।
-            * **অটোমেটেড সিকিউরিটি প্রোটোকল:** স্প্যাম এবং ক্ষতিকারক কনটেন্ট রুখে দিতে ফিল্টার সক্রিয়।
+            * **Auto Backup Protection:** Database and uploaded media stay protected.
+            * **Memory Cleaner:** Automatic cleanup of cache and temporary files.
+            * **Automated Security Protocol:** Filters active against spam content.
             """)
             
             col_d1, col_d2 = st.columns(2)
@@ -1000,14 +1002,14 @@ with tab_feed:
                     st.success("✅ Cache Cleared & Storage Optimized!")
 
         # ==========================================
-        # 12TH BUTTON: SECRET CODE & GLOBAL NOTIFICATION (UPDATED WITH AUTOMATED SMTP)
+        # 12TH BUTTON: SECRET CODE & GLOBAL NOTIFICATION (ENGLISH FIXED)
         # ==========================================
         with o_tab12:
             st.markdown("#### 📡 12th Screen: Secret Code Connect & Worldwide Gmail Alert Broadcast")
-            st.caption("অটোমেটিক ইমেইল/OTP নোটিফিকেশন চালু রাখতে আপনার সেন্ডার জিমেইল ও ১৬ ডিজিটের অ্যাপ পাসওয়ার্ড সেট করুন:")
+            st.caption("Set up your Sender Gmail and 16-Digit App Password to enable automated email/OTP notifications:")
 
             cur_sec_key = OWNER_SECRET_KEY
-            st.write(f"🔑 **বর্তমানে একটিভ সিক্রেট কোড:** `{cur_sec_key}`")
+            st.write(f"🔑 **Active Secret Code:** `{cur_sec_key}`")
 
             st.markdown("---")
             st.markdown("##### 📧 Automated Gmail Server (SMTP) Configuration")
@@ -1025,13 +1027,13 @@ with tab_feed:
                     clean_app_pass = smtp_pass_inp.replace(" ", "")
                     set_setting("sender_gmail", sender_gmail_inp.strip())
                     set_setting("smtp_app_password", clean_app_pass)
-                    st.success("✅ Gmail Server Connected! এখন থেকে সমস্ত ইউজার সাইন-ইন/লগইন করলে এই জিমেইল থেকে অটোমেটিক কোড চলে যাবে।")
+                    st.success("✅ Gmail Server Connected! Users will now automatically receive OTP email codes upon registration/login.")
                     st.rerun()
 
             st.markdown("---")
             st.markdown("##### 📩 Send Worldwide Broadcast Notification")
 
-            broadcast_msg = st.text_area("সারা বিশ্বের সমস্ত নিবন্ধিত ইউজারদের জন্য গ্লোবাল বার্তা লিখে পাঠান:", placeholder="উদাহরণ: আমাদের নতুন সার্ভার লাইভ হয়েছে! সকল ব্যবহারকারীদের অভিনন্দন।")
+            broadcast_msg = st.text_area("Write global announcement message for all registered users:", placeholder="e.g. System update active. Welcome to all users!")
 
             col_sec1, col_sec2 = st.columns(2)
             with col_sec1:
@@ -1044,15 +1046,15 @@ with tab_feed:
                             c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'user'")
                             total_recipients = c.fetchone()["cnt"]
 
-                        st.success(f"✅ সিক্রেট কোড ভ্যালিডেটেড! মোট {total_recipients} জন ইউজার এবং নিবন্ধিত জিমেইলের জন্য গ্লোবাল নোটিফিকেশন ব্রডকাস্ট একটিভ করা হয়েছে।")
+                        st.success(f"✅ Secret Code Validated! Global notification broadcast activated for {total_recipients} user(s).")
                         st.rerun()
                     else:
-                        st.warning("⚠️ ব্রডকাস্ট করার জন্য মেসেজ ফিল্ডে কিছু লিখুন।")
+                        st.warning("⚠️ Please enter a message to broadcast.")
 
             with col_sec2:
                 if st.button("🔴 Clear Active Global Broadcast"):
                     set_setting("global_notify_msg", "System Active Globally")
-                    st.success("গ্লোবাল নোটিফিকেশন রিমুভ করা হয়েছে।")
+                    st.success("Global notification removed successfully.")
                     st.rerun()
 
     else:
@@ -1161,7 +1163,7 @@ with tab_profile:
                 if uploaded_media and title:
                     MAX_FILE_SIZE_MB = 100 * 1024 * 1024
                     if uploaded_media.size > MAX_FILE_SIZE_MB:
-                        st.error("🚫 ফাইল সাইজ ১০০ মেগাবাইটের বেশি হতে পারবে না!")
+                        st.error("🚫 File size cannot exceed 100 MB!")
                         st.stop()
 
                     if get_setting("daily_limit_mode") == "ON":
@@ -1195,7 +1197,7 @@ with tab_profile:
                         if not is_safe:
                             if os.path.exists(m_path):
                                 os.remove(m_path)
-                            st.error("🚫 Google AI Auto-Moderation System: আপনার ছবিতে আপত্তিকর কন্টেন্ট শনাক্ত হয়েছে! পোস্টটি বাতিল করা হলো।")
+                            st.error("🚫 Google AI Auto-Moderation: Inappropriate content detected in image! Post rejected.")
                             st.stop()
 
                     rec_id = str(uuid.uuid4())
@@ -1241,7 +1243,7 @@ with tab_monetization:
 
     st.markdown("---")
     st.markdown("### 💼 Third-Party Sponsor & Video Payment Panel")
-    st.caption("বিজ্ঞাপনদাতা বা থার্ড-পার্টিরা ব্যাংক বা ক্রিপ্টোতে পেমেন্ট করে ভিডিও লিংক জমা দিন।")
+    st.caption("Advertisers or third parties can submit video links after completing payment.")
 
     with st.expander("📥 Submit Sponsored Video & Payment Info", expanded=True):
         with get_db_connection() as conn:
@@ -1269,9 +1271,9 @@ with tab_monetization:
             if submit_sp_btn:
                 clean_trx = trx_10.strip()
                 if len(clean_trx) != 10:
-                    st.error("❌ ভুল ট্রানজেকশন আইডি! ট্রানজেকশন/রেফারেন্স কোডটি অবশ্যই ঠিক ১০ অক্ষরের হতে হবে।")
+                    st.error("❌ Invalid Transaction ID! Reference/TrxID code must be exactly 10 characters long.")
                 elif not (sp_video_url or sp_video_file):
-                    st.error("❌ অনুগ্রহ করে একটি ভিডিও লিংক অথবা ভিডিও ফাইল আপলোড করুন!")
+                    st.error("❌ Please provide either a video URL link or upload a video file!")
                 else:
                     v_file_path = ""
                     if sp_video_file:
@@ -1292,7 +1294,7 @@ with tab_monetization:
                         """, (req_id, st.session_state.user_id or "Guest", sp_name, clean_trx, selected_channel_label, sp_video_url, v_file_path, now_str))
                         conn.commit()
                         
-                    st.success("✅ পেমেন্ট তথ্য ও ভিডিও সফলভাবে জমা হয়েছে! মালিক ১০ অক্ষরের TrxID পাওয়ার পর যাচাই করে ভিডিও লাইভ করবেন।")
+                    st.success("✅ Payment info and video submitted successfully! The owner will verify the 10-digit TrxID and publish the video.")
 
     st.markdown("---")
     st.markdown("### 🔥 Boost Your Video / Post (Dynamic Payment Gateways)")
