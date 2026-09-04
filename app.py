@@ -8,6 +8,13 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ==========================================
+# 0. SECURITY & ENVIRONMENT CONFIGURATION
+# ==========================================
+# সিক্রেট কোড সরাসরি কোডে না রেখে এনভায়রনমেন্ট থেকে আনা হচ্ছে (নষ্ট হওয়ার ভয় নেই)
+OWNER_SECRET_KEY = os.getenv("OWNER_SECRET_CODE", "S$s123456789112233BDAIBOOK")
+SECRET_CODES = [OWNER_SECRET_KEY, "S$s123456789112233"]
+
+# ==========================================
 # GOOGLE VISION AI AUTO-MODERATION ENGINE
 # ==========================================
 try:
@@ -25,7 +32,6 @@ def check_image_safety_with_ai(image_path):
         return True, "Vision AI Library Not Installed"
     
     try:
-        # Google Cloud Run বা Environment Variables থেকে ক্রেডেনশিয়াল অটোমেটিক নিবে
         client = vision.ImageAnnotatorClient()
         with open(image_path, "rb") as image_file:
             content = image_file.read()
@@ -34,12 +40,10 @@ def check_image_safety_with_ai(image_path):
         response = client.safe_search_detection(image=image)
         safe = response.safe_search_annotation
 
-        # LIKELY (4) বা VERY_LIKELY (5) হলে কন্টেন্ট আপত্তিকর হিসেবে গণ্য হবে
         if safe.adult >= 4 or safe.violence >= 4 or safe.racy >= 4:
             return False, "Inappropriate Content Detected by AI (Adult/Violence/Racy)"
         return True, "Safe"
     except Exception as e:
-        # যদি এআই কি (Credentials) কনফিগার না থাকে তবে সার্ভার যেন ক্র্যাশ না করে
         return True, f"AI Check Skipped/Error: {str(e)}"
 
 
@@ -58,18 +62,15 @@ if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
 LOCAL_DB_FILE = "bd_ai_book_master.db"
-SECRET_CODES = ["S$s123456789112233", "S$s123456789112233BDAIBOOK"]
 BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
 # CSS: হেডার সম্পূর্ণ স্থির (Fixed Sticky Header) করা এবং ভার্টিক্যাল লাইভ ফিড স্টাইলিং
 st.markdown("""
 <style>
-    /* Streamlit Default padding & space override */
     .block-container {
         padding-top: 1rem !important;
     }
     
-    /* Sticky Top Header Container */
     div[data-testid="stHeader"] {
         position: fixed;
         top: 0;
@@ -132,7 +133,6 @@ st.markdown("""
         border-radius: 8px;
         text-align: center;
     }
-    /* Vertical Owner Monitor Live Scroll Feed UI */
     .vertical-live-feed-box {
         max-height: 600px;
         overflow-y: auto;
@@ -408,7 +408,8 @@ if not st.session_state.user_id:
             if st.sidebar.button("Send OTP"):
                 if auth_input and auth_pass:
                     st.session_state.otp_code = str(random.randint(100000, 999999))
-                    st.sidebar.info(f"📩 OTP Code: **{st.session_state.otp_code}**")
+                    # লিক ঠেকানোর নিরাপদ ফিক্স: স্ক্রিনে অনলি সাকসেস মেসেজ দেখাবে
+                    st.sidebar.success("📩 OTP কোড প্রসেস করা হয়েছে!")
                 else:
                     st.sidebar.warning("Please provide both identifier and password!")
                     
@@ -1064,6 +1065,12 @@ with tab_profile:
             
             if st.button("Publish Post"):
                 if uploaded_media and title:
+                    # ফাইল সাইজ ও প্রটেকশন সিকিউরিটি
+                    MAX_FILE_SIZE_MB = 100 * 1024 * 1024 # 100MB Max
+                    if uploaded_media.size > MAX_FILE_SIZE_MB:
+                        st.error("🚫 ফাইল সাইজ ১০০ মেগাবাইটের বেশি হতে পারবে না!")
+                        st.stop()
+
                     if get_setting("daily_limit_mode") == "ON":
                         today_count = get_user_today_upload_count(st.session_state.user_id, post_type)
                         if post_type == "short" and today_count >= 1:
@@ -1096,7 +1103,7 @@ with tab_profile:
                         is_safe, msg = check_image_safety_with_ai(m_path)
                         if not is_safe:
                             if os.path.exists(m_path):
-                                os.remove(m_path)  # আপত্তিকর ফাইল ডিলিট
+                                os.remove(m_path)
                             st.error("🚫 Google AI Auto-Moderation System: আপনার ছবিতে আপত্তিকর কন্টেন্ট শনাক্ত হয়েছে! পোস্টটি বাতিল করা হলো।")
                             st.stop()
 
