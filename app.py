@@ -321,7 +321,7 @@ def hash_pass(pwd):
     return hashlib.sha256(pwd.encode()).hexdigest()
 
 # ==========================================
-# FIXED EMAIL OTP FUNCTION WITH UTF-8 ENCODING
+# FIXED & SAFE EMAIL OTP FUNCTION (UPDATED)
 # ==========================================
 def send_real_email_otp(target_email, otp_code):
     sender_email = get_setting("sender_gmail")
@@ -329,6 +329,11 @@ def send_real_email_otp(target_email, otp_code):
     
     if not sender_email or not app_password:
         return False, "SMTP Credentials Not Set"
+
+    # Clean hidden spaces (\xa0, whitespace, non-ascii characters)
+    sender_email = sender_email.replace('\xa0', '').strip()
+    app_password = app_password.replace('\xa0', '').strip().replace(' ', '')
+    target_email = target_email.replace('\xa0', '').strip()
 
     msg = MIMEMultipart()
     msg['From'] = sender_email
@@ -342,7 +347,8 @@ def send_real_email_otp(target_email, otp_code):
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
         server.login(sender_email, app_password)
-        server.sendmail(sender_email, target_email, msg.as_string())
+        # Explicitly encode string to ASCII/UTF-8 safely to prevent codec errors
+        server.sendmail(sender_email, [target_email], msg.as_string().encode('utf-8'))
         server.quit()
         return True, "Success"
     except Exception as e:
