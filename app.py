@@ -13,8 +13,9 @@ import streamlit.components.v1 as components
 # ==========================================
 # 0. SECURITY & ENVIRONMENT CONFIGURATION
 # ==========================================
-OWNER_SECRET_KEY = os.getenv("OWNER_SECRET_CODE", "S$s123456789112233BDAIBOOK")
-SECRET_CODES = [OWNER_SECRET_KEY, "S$s123456789112233"]
+# Secure Code Retrieval (Environment variable with secure fallback)
+ENV_SECRET = os.getenv("OWNER_SECRET_CODE", "").strip()
+OWNER_SECRET_KEY = ENV_SECRET if ENV_SECRET else "S$s123456789112233BDAIBOOK"
 
 # ==========================================
 # GOOGLE VISION AI AUTO-MODERATION ENGINE
@@ -43,7 +44,6 @@ def check_image_safety_with_ai(image_path):
         return True, "Safe"
     except Exception as e:
         return True, f"AI Check Skipped/Error: {str(e)}"
-
 
 # ==========================================
 # 1. PAGE SETUP & STORAGE DIRECTORY
@@ -321,7 +321,7 @@ def hash_pass(pwd):
     return hashlib.sha256(pwd.encode()).hexdigest()
 
 # ==========================================
-# FIXED & SAFE EMAIL OTP FUNCTION (UPDATED)
+# FIXED & SAFE EMAIL OTP FUNCTION
 # ==========================================
 def send_real_email_otp(target_email, otp_code):
     sender_email = get_setting("sender_gmail")
@@ -330,7 +330,6 @@ def send_real_email_otp(target_email, otp_code):
     if not sender_email or not app_password:
         return False, "SMTP Credentials Not Set"
 
-    # Clean hidden spaces (\xa0, whitespace, non-ascii characters)
     sender_email = sender_email.replace('\xa0', '').strip()
     app_password = app_password.replace('\xa0', '').strip().replace(' ', '')
     target_email = target_email.replace('\xa0', '').strip()
@@ -347,7 +346,6 @@ def send_real_email_otp(target_email, otp_code):
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
         server.login(sender_email, app_password)
-        # Explicitly encode string to ASCII/UTF-8 safely to prevent codec errors
         server.sendmail(sender_email, [target_email], msg.as_string().encode('utf-8'))
         server.quit()
         return True, "Success"
@@ -409,7 +407,7 @@ if sys_alert and sys_alert != "System Active Globally":
     st.info(f"🌐 **Global System Alert:** {sys_alert}")
 
 # ==========================================
-# 4. AUTHENTICATION SYSTEM
+# 4. AUTHENTICATION & OWNER LOGIN SYSTEM
 # ==========================================
 real_followers = 0
 current_user = {}
@@ -513,6 +511,23 @@ else:
         st.session_state.user_id = None
         st.session_state.is_owner_session = False
         st.session_state.otp_code = None
+        st.rerun()
+
+# SECURE OWNER ACCESS CONTROL IN SIDEBAR
+st.sidebar.markdown("---")
+with st.sidebar.expander("👑 Owner Portal Access"):
+    owner_pass_input = st.text_input("Enter Secret Owner Pass", type="password")
+    if st.button("Unlock Master Panel"):
+        if owner_pass_input.strip() == OWNER_SECRET_KEY:
+            st.session_state.is_owner_session = True
+            st.success("👑 Owner Session Verified!")
+            st.rerun()
+        else:
+            st.error("❌ Access Denied: Incorrect Secret Key!")
+
+if st.session_state.is_owner_session:
+    if st.sidebar.button("🔒 Exit Owner Mode"):
+        st.session_state.is_owner_session = False
         st.rerun()
 
 # ==========================================
@@ -652,10 +667,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
 
 # TAB 1: PUBLIC FEED & OWNER MASTER PANEL
 with tab_feed:
-    search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
-    
-    if search_input.strip() in SECRET_CODES:
-        st.session_state.is_owner_session = True
+    if st.session_state.is_owner_session:
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
         st.markdown("---")
         
@@ -1007,15 +1019,11 @@ with tab_feed:
                 if st.button("🧹 Clear Temporary Cache & Optimize Media Storage"):
                     st.success("✅ Cache Cleared & Storage Optimized!")
 
-        # ==========================================
-        # 12TH BUTTON: SECRET CODE & GLOBAL NOTIFICATION (ENGLISH FIXED)
-        # ==========================================
         with o_tab12:
             st.markdown("#### 📡 12th Screen: Secret Code Connect & Worldwide Gmail Alert Broadcast")
             st.caption("Set up your Sender Gmail and 16-Digit App Password to enable automated email/OTP notifications:")
 
-            cur_sec_key = OWNER_SECRET_KEY
-            st.write(f"🔑 **Active Secret Code:** `{cur_sec_key}`")
+            st.write("🔑 **Active Secret Code Status:** `PROTECTED BY SYSTEM`")
 
             st.markdown("---")
             st.markdown("##### 📧 Automated Gmail Server (SMTP) Configuration")
@@ -1052,7 +1060,7 @@ with tab_feed:
                             c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'user'")
                             total_recipients = c.fetchone()["cnt"]
 
-                        st.success(f"✅ Secret Code Validated! Global notification broadcast activated for {total_recipients} user(s).")
+                        st.success(f"✅ Global notification broadcast activated for {total_recipients} user(s).")
                         st.rerun()
                     else:
                         st.warning("⚠️ Please enter a message to broadcast.")
@@ -1063,49 +1071,51 @@ with tab_feed:
                     st.success("Global notification removed successfully.")
                     st.rerun()
 
-    else:
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            if search_input:
-                q_str = f"%{search_input}%"
-                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
-            else:
-                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC")
-                
-            posts = [dict(r) for r in c.fetchall()]
+    # PUBLIC USER FEED DISPLAY
+    search_input = st.text_input("🔍 Search Users, Videos, Hashtags...")
+    
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        if search_input:
+            q_str = f"%{search_input}%"
+            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
+        else:
+            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC")
+            
+        posts = [dict(r) for r in c.fetchall()]
 
-        ads_enabled = get_setting("show_ads") == "ON"
-        ads_html = get_setting("adsense_script")
+    ads_enabled = get_setting("show_ads") == "ON"
+    ads_html = get_setting("adsense_script")
 
-        sub_feed1, sub_feed2, sub_feed3, sub_feed4 = st.tabs(["🌐 All Feed", "🎬 Reels / Shorts", "🖼️ Photos", "📹 Long Videos"])
+    sub_feed1, sub_feed2, sub_feed3, sub_feed4 = st.tabs(["🌐 All Feed", "🎬 Reels / Shorts", "🖼️ Photos", "📹 Long Videos"])
 
-        with sub_feed1:
-            for post in posts:
-                render_post_card(post, ads_enabled, ads_html, prefix="all")
+    with sub_feed1:
+        for post in posts:
+            render_post_card(post, ads_enabled, ads_html, prefix="all")
 
-        with sub_feed2:
-            short_posts = [p for p in posts if p.get("post_category") == "short"]
-            if not short_posts:
-                st.info("No Reels / Short Videos uploaded yet.")
-            else:
-                for post in short_posts:
-                    render_post_card(post, ads_enabled, ads_html, prefix="short")
+    with sub_feed2:
+        short_posts = [p for p in posts if p.get("post_category") == "short"]
+        if not short_posts:
+            st.info("No Reels / Short Videos uploaded yet.")
+        else:
+            for post in short_posts:
+                render_post_card(post, ads_enabled, ads_html, prefix="short")
 
-        with sub_feed3:
-            picture_posts = [p for p in posts if p.get("post_category") == "picture"]
-            if not picture_posts:
-                st.info("No Photo posts available.")
-            else:
-                for post in picture_posts:
-                    render_post_card(post, ads_enabled, ads_html, prefix="pic")
+    with sub_feed3:
+        picture_posts = [p for p in posts if p.get("post_category") == "picture"]
+        if not picture_posts:
+            st.info("No Photo posts available.")
+        else:
+            for post in picture_posts:
+                render_post_card(post, ads_enabled, ads_html, prefix="pic")
 
-        with sub_feed4:
-            long_posts = [p for p in posts if p.get("post_category") == "long"]
-            if not long_posts:
-                st.info("No Long Videos available.")
-            else:
-                for post in long_posts:
-                    render_post_card(post, ads_enabled, ads_html, prefix="long")
+    with sub_feed4:
+        long_posts = [p for p in posts if p.get("post_category") == "long"]
+        if not long_posts:
+            st.info("No Long Videos available.")
+        else:
+            for post in long_posts:
+                render_post_card(post, ads_enabled, ads_html, prefix="long")
 
 # ------------------------------------------
 # TAB 2: PROFILE & STUDIO
