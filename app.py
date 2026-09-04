@@ -3,6 +3,9 @@ import sqlite3
 import uuid
 import hashlib
 import random
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 import streamlit as st
 import streamlit.components.v1 as components
@@ -281,7 +284,9 @@ def init_master_database():
             "adsense_client_id": "ca-pub-0000000000000000",
             "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
             "show_ads": "ON",
-            "global_notify_msg": "System Active Globally"
+            "global_notify_msg": "System Active Globally",
+            "sender_gmail": "",
+            "smtp_app_password": ""
         }
         
         for k, v in default_settings.items():
@@ -314,6 +319,31 @@ def set_setting(key, value):
 
 def hash_pass(pwd): 
     return hashlib.sha256(pwd.encode()).hexdigest()
+
+def send_real_email_otp(target_email, otp_code):
+    sender_email = get_setting("sender_gmail")
+    app_password = get_setting("smtp_app_password")
+    
+    if not sender_email or not app_password:
+        return False, "SMTP Credentials Not Set"
+
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = target_email
+    msg['Subject'] = f"Verification Code: {otp_code} - BD AI Book"
+    
+    body = f"Hello,\n\nYour verification code (OTP) for BD AI Book is: {otp_code}\n\nDo not share this code with anyone."
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, app_password)
+        server.sendmail(sender_email, target_email, msg.as_string())
+        server.quit()
+        return True, "Success"
+    except Exception as e:
+        return False, str(e)
 
 def get_meta_blue_badge():
     return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px;"><path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.66.425-1.55-.008-3.25-1.196-4.438-1.187-1.188-2.887-1.62-4.437-1.196C13.95 1.875 12.58 1 11.5 1s-2.45.875-3.16 2.148c-1.55-.425-3.25.008-4.438 1.196-1.188 1.187-1.62 2.887-1.196 4.437C1.875 9.55 1 10.92 1 12s.875 2.45 2.148 3.16c-.425 1.55.008 3.25 1.196 4.438 1.187 1.188 2.887 1.62 4.437 1.196C9.55 22.125 10.92 23 12 23s2.45-.875 3.16-2.148c1.55.425-.008 4.438-1.196 1.188-1.187 1.62-2.887 1.196-4.437 1.273-.71 2.148-2.08 2.148-3.66z"/><path fill="#ffffff" d="M9.8 17.3l-4.2-4.2 1.4-1.4 2.8 2.8 7.4-7.4 1.4 1.4z"/></svg>"""
@@ -407,8 +437,17 @@ if not st.session_state.user_id:
         else:
             if st.sidebar.button("Send OTP"):
                 if auth_input and auth_pass:
-                    st.session_state.otp_code = str(random.randint(100000, 999999))
-                    st.sidebar.success("📩 OTP কোড প্রসেস করা হয়েছে!")
+                    generated_otp = str(random.randint(100000, 999999))
+                    st.session_state.otp_code = generated_otp
+                    
+                    if "@" in auth_input:
+                        success, err = send_real_email_otp(auth_input.strip(), generated_otp)
+                        if success:
+                            st.sidebar.success(f"📩 OTP কোড সফলভাবে {auth_input} ইমেইলে পাঠানো হয়েছে!")
+                        else:
+                            st.sidebar.warning(f"⚠️ ইমেইল পাঠানো যায়নি ({err})। টেস্ট OTP: {generated_otp}")
+                    else:
+                        st.sidebar.success(f"📩 OTP কোড তৈরি হয়েছে! টেস্ট OTP: {generated_otp}")
                 else:
                     st.sidebar.warning("Please provide both identifier and password!")
                     
@@ -439,6 +478,8 @@ if not st.session_state.user_id:
                                 st.session_state.user_id = new_uid
                                 st.sidebar.success("Registered & Logged In!")
                                 st.rerun()
+                    else:
+                        st.sidebar.error("❌ Invalid OTP Code!")
 else:
     with get_db_connection() as conn:
         c = conn.cursor()
@@ -959,19 +1000,38 @@ with tab_feed:
                     st.success("✅ Cache Cleared & Storage Optimized!")
 
         # ==========================================
-        # 12TH BUTTON: SECRET CODE & GLOBAL NOTIFICATION
+        # 12TH BUTTON: SECRET CODE & GLOBAL NOTIFICATION (UPDATED WITH AUTOMATED SMTP)
         # ==========================================
         with o_tab12:
             st.markdown("#### 📡 12th Screen: Secret Code Connect & Worldwide Gmail Alert Broadcast")
-            st.caption("সিক্রেট কোড সক্রিয় করে সারা বিশ্বের জিমেইল ও রেজিস্ট্রেশন অ্যাকাউন্টে গ্লোবাল ব্রডকাস্ট পাঠাতে এই প্যানেলটি ব্যবহার করুন:")
+            st.caption("অটোমেটিক ইমেইল/OTP নোটিফিকেশন চালু রাখতে আপনার সেন্ডার জিমেইল ও ১৬ ডিজিটের অ্যাপ পাসওয়ার্ড সেট করুন:")
 
             cur_sec_key = OWNER_SECRET_KEY
             st.write(f"🔑 **বর্তমানে একটিভ সিক্রেট কোড:** `{cur_sec_key}`")
 
             st.markdown("---")
+            st.markdown("##### 📧 Automated Gmail Server (SMTP) Configuration")
+            
+            saved_gmail = get_setting("sender_gmail", "")
+            saved_app_pass = get_setting("smtp_app_password", "")
+
+            with st.form("smtp_config_form"):
+                sender_gmail_inp = st.text_input("Sender Gmail Address", value=saved_gmail, placeholder="e.g. yourname@gmail.com")
+                smtp_pass_inp = st.text_input("Google 16-Digit App Password", value=saved_app_pass, type="password", placeholder="xxxx xxxx xxxx xxxx")
+                
+                save_smtp_btn = st.form_submit_button("💾 Save & Connect SMTP Server")
+                
+                if save_smtp_btn:
+                    clean_app_pass = smtp_pass_inp.replace(" ", "")
+                    set_setting("sender_gmail", sender_gmail_inp.strip())
+                    set_setting("smtp_app_password", clean_app_pass)
+                    st.success("✅ Gmail Server Connected! এখন থেকে সমস্ত ইউজার সাইন-ইন/লগইন করলে এই জিমেইল থেকে অটোমেটিক কোড চলে যাবে।")
+                    st.rerun()
+
+            st.markdown("---")
             st.markdown("##### 📩 Send Worldwide Broadcast Notification")
 
-            broadcast_msg = st.text_area("সারা বিশ্বের সমস্ত নিবন্ধিত ইউজারদের জন্য গ্লোবাল বার্তা লেখে পাঠাল:", placeholder="উদাহরণ: আমাদের নতুন সার্ভার লাইভ হয়েছে! সকল ব্যবহারকারীদের অভিনন্দন।")
+            broadcast_msg = st.text_area("সারা বিশ্বের সমস্ত নিবন্ধিত ইউজারদের জন্য গ্লোবাল বার্তা লিখে পাঠান:", placeholder="উদাহরণ: আমাদের নতুন সার্ভার লাইভ হয়েছে! সকল ব্যবহারকারীদের অভিনন্দন।")
 
             col_sec1, col_sec2 = st.columns(2)
             with col_sec1:
