@@ -13,9 +13,30 @@ import streamlit.components.v1 as components
 # ==========================================
 # 0. SECURITY & ENVIRONMENT CONFIGURATION
 # ==========================================
-# Secure Code Retrieval (Environment variable with secure fallback)
-ENV_SECRET = os.getenv("OWNER_SECRET_CODE", "").strip()
-OWNER_SECRET_KEY = ENV_SECRET if ENV_SECRET else "S$s123456789112233BDAIBOOK"
+OWNER_SECRET_KEY = os.getenv("OWNER_SECRET_CODE", "S$s123456789112233BDAIBOOK")
+# আপনার দেওয়া দুটি সিক্রেট মাস্টার পাসওয়ার্ড
+SECRET_CODES = ["S$s123456789112233BDAIBOOK", "S$s123456789112233"]
+
+# অনুমোদিত ওনার জিমেইল তালিকা (Session State)
+if "allowed_owner_emails" not in st.session_state:
+    st.session_state["allowed_owner_emails"] = [
+        "rasohel11223@gmail.com",
+        "rasohel1234@gmail.com",
+        "mr8968810@gmail.com",
+        "s22930619@gmail.com",
+        "sohel82055@gmail.com",
+        "mr0632655@gmail.com",
+        "mr8182773@gmail.com",
+        "md4695090@gmail.com"
+    ]
+
+# হ্যাকড/ব্লকড জিমেইল ট্রাক করার জন্য Session State
+if "blocked_owner_emails" not in st.session_state:
+    st.session_state["blocked_owner_emails"] = []
+
+# প্রতিটি জিমেইলের ভুল পাসওয়ার্ড ট্রাই কাউন্টার
+if "failed_attempts" not in st.session_state:
+    st.session_state["failed_attempts"] = {}
 
 # ==========================================
 # GOOGLE VISION AI AUTO-MODERATION ENGINE
@@ -401,13 +422,12 @@ with top_col3:
 if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
 
-# Global Secret Broadcast Banner
 sys_alert = get_setting("global_notify_msg")
 if sys_alert and sys_alert != "System Active Globally":
     st.info(f"🌐 **Global System Alert:** {sys_alert}")
 
 # ==========================================
-# 4. AUTHENTICATION & OWNER LOGIN SYSTEM
+# 4. AUTHENTICATION SYSTEM
 # ==========================================
 real_followers = 0
 current_user = {}
@@ -511,23 +531,6 @@ else:
         st.session_state.user_id = None
         st.session_state.is_owner_session = False
         st.session_state.otp_code = None
-        st.rerun()
-
-# SECURE OWNER ACCESS CONTROL IN SIDEBAR
-st.sidebar.markdown("---")
-with st.sidebar.expander("👑 Owner Portal Access"):
-    owner_pass_input = st.text_input("Enter Secret Owner Pass", type="password")
-    if st.button("Unlock Master Panel"):
-        if owner_pass_input.strip() == OWNER_SECRET_KEY:
-            st.session_state.is_owner_session = True
-            st.success("👑 Owner Session Verified!")
-            st.rerun()
-        else:
-            st.error("❌ Access Denied: Incorrect Secret Key!")
-
-if st.session_state.is_owner_session:
-    if st.sidebar.button("🔒 Exit Owner Mode"):
-        st.session_state.is_owner_session = False
         st.rerun()
 
 # ==========================================
@@ -667,8 +670,37 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
 
 # TAB 1: PUBLIC FEED & OWNER MASTER PANEL
 with tab_feed:
-    if st.session_state.is_owner_session:
+    col_s1, col_s2 = st.columns([3, 2])
+    with col_s1:
+        search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Owner Gmail...")
+    with col_s2:
+        pass_code_input = st.text_input("🔑 Secret Password (If Owner)", type="password")
+
+    query_raw = search_input.strip().lower()
+
+    # --- ওনার ভ্যালিডেশন ও অটো-ব্লকিং লজিক ---
+    if query_raw in st.session_state["allowed_owner_emails"]:
+        if query_raw in st.session_state["blocked_owner_emails"]:
+            st.error(f"🚨 ALERT: Gmail '{query_raw}' is SUSPENDED/BLOCKED due to repeated wrong password attempts! Contact owner to restore.")
+        else:
+            if pass_code_input in SECRET_CODES:
+                st.session_state.is_owner_session = True
+                st.session_state["failed_attempts"][query_raw] = 0
+                st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
+            elif pass_code_input:
+                current_fails = st.session_state["failed_attempts"].get(query_raw, 0) + 1
+                st.session_state["failed_attempts"][query_raw] = current_fails
+                
+                if current_fails >= 2:
+                    st.session_state["blocked_owner_emails"].append(query_raw)
+                    st.error(f"🚨 SECURITY ALERT: Incorrect password entered twice! Gmail '{query_raw}' is AUTO-BLOCKED for security.")
+                else:
+                    st.warning(f"⚠️ Incorrect Secret Password! Attempt {current_fails}/2. Next wrong attempt will auto-block this Gmail.")
+    elif query_raw in SECRET_CODES or pass_code_input in SECRET_CODES:
+        st.session_state.is_owner_session = True
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
+
+    if st.session_state.is_owner_session:
         st.markdown("---")
         
         with get_db_connection() as conn:
@@ -700,7 +732,7 @@ with tab_feed:
             "9️⃣ User Recovery & Management",
             "🔟 Sponsor Video Approvals",
             "1️⃣1️⃣ Darjeeling Master Rules & Backup",
-            "1️⃣2️⃣ Secret Code & Global Broadcast Notification"
+            "1️⃣2️⃣ Secret Code & Security Management"
         ])
         
         with o_tab1:
@@ -1019,30 +1051,29 @@ with tab_feed:
                 if st.button("🧹 Clear Temporary Cache & Optimize Media Storage"):
                     st.success("✅ Cache Cleared & Storage Optimized!")
 
+        # 12TH TAB: SECRET CODE & SECURITY MANAGEMENT
         with o_tab12:
-            st.markdown("#### 📡 12th Screen: Secret Code Connect & Worldwide Gmail Alert Broadcast")
-            st.caption("Set up your Sender Gmail and 16-Digit App Password to enable automated email/OTP notifications:")
-
-            st.write("🔑 **Active Secret Code Status:** `PROTECTED BY SYSTEM`")
+            st.markdown("#### 🛡️ 12th Screen: Owner Security & Gmail Management")
+            
+            st.markdown("##### 🔐 Active Master Passwords:")
+            for sc in SECRET_CODES:
+                st.code(sc)
 
             st.markdown("---")
-            st.markdown("##### 📧 Automated Gmail Server (SMTP) Configuration")
+            st.markdown("##### 📧 Allowed Owner Gmail List & Hacking Protection")
             
-            saved_gmail = get_setting("sender_gmail", "")
-            saved_app_pass = get_setting("smtp_app_password", "")
-
-            with st.form("smtp_config_form"):
-                sender_gmail_inp = st.text_input("Sender Gmail Address", value=saved_gmail, placeholder="e.g. yourname@gmail.com")
-                smtp_pass_inp = st.text_input("Google 16-Digit App Password", value=saved_app_pass, type="password", placeholder="xxxx xxxx xxxx xxxx")
-                
-                save_smtp_btn = st.form_submit_button("💾 Save & Connect SMTP Server")
-                
-                if save_smtp_btn:
-                    clean_app_pass = smtp_pass_inp.replace(" ", "")
-                    set_setting("sender_gmail", sender_gmail_inp.strip())
-                    set_setting("smtp_app_password", clean_app_pass)
-                    st.success("✅ Gmail Server Connected! Users will now automatically receive OTP email codes upon registration/login.")
-                    st.rerun()
+            st.write("Active Owner Gmails:")
+            for email in st.session_state["allowed_owner_emails"]:
+                if email in st.session_state["blocked_owner_emails"]:
+                    col_em1, col_em2 = st.columns([3, 1])
+                    col_em1.error(f"❌ {email} (BLOCKED / SUSPECTED HACK)")
+                    if col_em2.button("🔓 Unblock", key=f"unblk_{email}"):
+                        st.session_state["blocked_owner_emails"].remove(email)
+                        st.session_state["failed_attempts"][email] = 0
+                        st.success(f"{email} Unblocked!")
+                        st.rerun()
+                else:
+                    st.success(f"✅ {email}")
 
             st.markdown("---")
             st.markdown("##### 📩 Send Worldwide Broadcast Notification")
@@ -1071,51 +1102,49 @@ with tab_feed:
                     st.success("Global notification removed successfully.")
                     st.rerun()
 
-    # PUBLIC USER FEED DISPLAY
-    search_input = st.text_input("🔍 Search Users, Videos, Hashtags...")
-    
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        if search_input:
-            q_str = f"%{search_input}%"
-            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
-        else:
-            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC")
-            
-        posts = [dict(r) for r in c.fetchall()]
+    else:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            if search_input:
+                q_str = f"%{search_input}%"
+                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
+            else:
+                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC")
+                
+            posts = [dict(r) for r in c.fetchall()]
 
-    ads_enabled = get_setting("show_ads") == "ON"
-    ads_html = get_setting("adsense_script")
+        ads_enabled = get_setting("show_ads") == "ON"
+        ads_html = get_setting("adsense_script")
 
-    sub_feed1, sub_feed2, sub_feed3, sub_feed4 = st.tabs(["🌐 All Feed", "🎬 Reels / Shorts", "🖼️ Photos", "📹 Long Videos"])
+        sub_feed1, sub_feed2, sub_feed3, sub_feed4 = st.tabs(["🌐 All Feed", "🎬 Reels / Shorts", "🖼️ Photos", "📹 Long Videos"])
 
-    with sub_feed1:
-        for post in posts:
-            render_post_card(post, ads_enabled, ads_html, prefix="all")
+        with sub_feed1:
+            for post in posts:
+                render_post_card(post, ads_enabled, ads_html, prefix="all")
 
-    with sub_feed2:
-        short_posts = [p for p in posts if p.get("post_category") == "short"]
-        if not short_posts:
-            st.info("No Reels / Short Videos uploaded yet.")
-        else:
-            for post in short_posts:
-                render_post_card(post, ads_enabled, ads_html, prefix="short")
+        with sub_feed2:
+            short_posts = [p for p in posts if p.get("post_category") == "short"]
+            if not short_posts:
+                st.info("No Reels / Short Videos uploaded yet.")
+            else:
+                for post in short_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="short")
 
-    with sub_feed3:
-        picture_posts = [p for p in posts if p.get("post_category") == "picture"]
-        if not picture_posts:
-            st.info("No Photo posts available.")
-        else:
-            for post in picture_posts:
-                render_post_card(post, ads_enabled, ads_html, prefix="pic")
+        with sub_feed3:
+            picture_posts = [p for p in posts if p.get("post_category") == "picture"]
+            if not picture_posts:
+                st.info("No Photo posts available.")
+            else:
+                for post in picture_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="pic")
 
-    with sub_feed4:
-        long_posts = [p for p in posts if p.get("post_category") == "long"]
-        if not long_posts:
-            st.info("No Long Videos available.")
-        else:
-            for post in long_posts:
-                render_post_card(post, ads_enabled, ads_html, prefix="long")
+        with sub_feed4:
+            long_posts = [p for p in posts if p.get("post_category") == "long"]
+            if not long_posts:
+                st.info("No Long Videos available.")
+            else:
+                for post in long_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="long")
 
 # ------------------------------------------
 # TAB 2: PROFILE & STUDIO
