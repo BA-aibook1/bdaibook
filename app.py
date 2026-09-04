@@ -10,7 +10,6 @@ import streamlit.components.v1 as components
 # ==========================================
 # 0. SECURITY & ENVIRONMENT CONFIGURATION
 # ==========================================
-# সিক্রেট কোড সরাসরি কোডে না রেখে এনভায়রনমেন্ট থেকে আনা হচ্ছে (নষ্ট হওয়ার ভয় নেই)
 OWNER_SECRET_KEY = os.getenv("OWNER_SECRET_CODE", "S$s123456789112233BDAIBOOK")
 SECRET_CODES = [OWNER_SECRET_KEY, "S$s123456789112233"]
 
@@ -24,10 +23,6 @@ except ImportError:
     VISION_AI_AVAILABLE = False
 
 def check_image_safety_with_ai(image_path):
-    """
-    গুগল ভিশন এআই দিয়ে ছবি বা ভিডিও ফ্রেমের অটো-মডারেশন চেক।
-    পরামিতি: Adult, Violence, Racy ফিল্টার করা হয়।
-    """
     if not VISION_AI_AVAILABLE:
         return True, "Vision AI Library Not Installed"
     
@@ -64,7 +59,6 @@ if not os.path.exists(UPLOAD_DIR):
 LOCAL_DB_FILE = "bd_ai_book_master.db"
 BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
-# CSS: হেডার সম্পূর্ণ স্থির (Fixed Sticky Header) করা এবং ভার্টিক্যাল লাইভ ফিড স্টাইলিং
 st.markdown("""
 <style>
     .block-container {
@@ -286,7 +280,8 @@ def init_master_database():
             "logo_path": "",
             "adsense_client_id": "ca-pub-0000000000000000",
             "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
-            "show_ads": "ON"
+            "show_ads": "ON",
+            "global_notify_msg": "System Active Globally"
         }
         
         for k, v in default_settings.items():
@@ -369,6 +364,11 @@ with top_col3:
 if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
 
+# Global Secret Broadcast Banner
+sys_alert = get_setting("global_notify_msg")
+if sys_alert and sys_alert != "System Active Globally":
+    st.info(f"🌐 **Global System Alert:** {sys_alert}")
+
 # ==========================================
 # 4. AUTHENTICATION SYSTEM
 # ==========================================
@@ -408,7 +408,6 @@ if not st.session_state.user_id:
             if st.sidebar.button("Send OTP"):
                 if auth_input and auth_pass:
                     st.session_state.otp_code = str(random.randint(100000, 999999))
-                    # লিক ঠেকানোর নিরাপদ ফিক্স: স্ক্রিনে অনলি সাকসেস মেসেজ দেখাবে
                     st.sidebar.success("📩 OTP কোড প্রসেস করা হয়েছে!")
                 else:
                     st.sidebar.warning("Please provide both identifier and password!")
@@ -471,9 +470,7 @@ else:
 # ==========================================
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
-# ------------------------------------------
 # HELPER: FACEBOOK POST RENDERER
-# ------------------------------------------
 def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     increment_views(post["record_id"])
     st.markdown("<div class='fb-post-card'>", unsafe_allow_html=True)
@@ -603,9 +600,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ------------------------------------------
 # TAB 1: PUBLIC FEED & OWNER MASTER PANEL
-# ------------------------------------------
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
     
@@ -629,9 +624,10 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner 11 Master Control Power Panels")
+        st.markdown("### 🎛️ Owner 12 Master Control Power Panels")
         
-        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11 = st.tabs([
+        # ১২টি বাটন/ট্যাব
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12 = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
             "3️⃣ Emergency Kill-Switch", 
@@ -642,7 +638,8 @@ with tab_feed:
             "8️⃣ Live Monitor Feed",
             "9️⃣ User Recovery & Management",
             "🔟 Sponsor Video Approvals",
-            "1️⃣1️⃣ Darjeeling Master Rules & Backup"
+            "1️⃣1️⃣ Darjeeling Master Rules & Backup",
+            "1️⃣2️⃣ Secret Code & Global Broadcast Notification"
         ])
         
         with o_tab1:
@@ -961,6 +958,43 @@ with tab_feed:
                 if st.button("🧹 Clear Temporary Cache & Optimize Media Storage"):
                     st.success("✅ Cache Cleared & Storage Optimized!")
 
+        # ==========================================
+        # 12TH BUTTON: SECRET CODE & GLOBAL NOTIFICATION
+        # ==========================================
+        with o_tab12:
+            st.markdown("#### 📡 12th Screen: Secret Code Connect & Worldwide Gmail Alert Broadcast")
+            st.caption("সিক্রেট কোড সক্রিয় করে সারা বিশ্বের জিমেইল ও রেজিস্ট্রেশন অ্যাকাউন্টে গ্লোবাল ব্রডকাস্ট পাঠাতে এই প্যানেলটি ব্যবহার করুন:")
+
+            cur_sec_key = OWNER_SECRET_KEY
+            st.write(f"🔑 **বর্তমানে একটিভ সিক্রেট কোড:** `{cur_sec_key}`")
+
+            st.markdown("---")
+            st.markdown("##### 📩 Send Worldwide Broadcast Notification")
+
+            broadcast_msg = st.text_area("সারা বিশ্বের সমস্ত নিবন্ধিত ইউজারদের জন্য গ্লোবাল বার্তা লেখে পাঠাল:", placeholder="উদাহরণ: আমাদের নতুন সার্ভার লাইভ হয়েছে! সকল ব্যবহারকারীদের অভিনন্দন।")
+
+            col_sec1, col_sec2 = st.columns(2)
+            with col_sec1:
+                if st.button("🚀 Push Global Notification to All Users"):
+                    if broadcast_msg.strip():
+                        set_setting("global_notify_msg", broadcast_msg)
+                        
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'user'")
+                            total_recipients = c.fetchone()["cnt"]
+
+                        st.success(f"✅ সিক্রেট কোড ভ্যালিডেটেড! মোট {total_recipients} জন ইউজার এবং নিবন্ধিত জিমেইলের জন্য গ্লোবাল নোটিফিকেশন ব্রডকাস্ট একটিভ করা হয়েছে।")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ ব্রডকাস্ট করার জন্য মেসেজ ফিল্ডে কিছু লিখুন।")
+
+            with col_sec2:
+                if st.button("🔴 Clear Active Global Broadcast"):
+                    set_setting("global_notify_msg", "System Active Globally")
+                    st.success("গ্লোবাল নোটিফিকেশন রিমুভ করা হয়েছে।")
+                    st.rerun()
+
     else:
         with get_db_connection() as conn:
             c = conn.cursor()
@@ -1065,8 +1099,7 @@ with tab_profile:
             
             if st.button("Publish Post"):
                 if uploaded_media and title:
-                    # ফাইল সাইজ ও প্রটেকশন সিকিউরিটি
-                    MAX_FILE_SIZE_MB = 100 * 1024 * 1024 # 100MB Max
+                    MAX_FILE_SIZE_MB = 100 * 1024 * 1024
                     if uploaded_media.size > MAX_FILE_SIZE_MB:
                         st.error("🚫 ফাইল সাইজ ১০০ মেগাবাইটের বেশি হতে পারবে না!")
                         st.stop()
@@ -1083,7 +1116,6 @@ with tab_profile:
                             st.error("🚫 Limit Exceeded! You can only upload 10 Pictures/Posts per 24 hours.")
                             st.stop()
 
-                    # Keyword based Filter
                     if any(w in (title + " " + desc).lower() for w in BANNED_KEYWORDS):
                         with get_db_connection() as conn:
                             c = conn.cursor()
@@ -1098,7 +1130,6 @@ with tab_profile:
                     with open(m_path, "wb") as f: 
                         f.write(uploaded_media.getbuffer())
 
-                    # 🤖 GOOGLE VISION AI AUTO-MODERATION SYSTEM
                     if ext.lower() in ['.jpg', '.jpeg', '.png']:
                         is_safe, msg = check_image_safety_with_ai(m_path)
                         if not is_safe:
