@@ -8,6 +8,42 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ==========================================
+# GOOGLE VISION AI AUTO-MODERATION ENGINE
+# ==========================================
+try:
+    from google.cloud import vision
+    VISION_AI_AVAILABLE = True
+except ImportError:
+    VISION_AI_AVAILABLE = False
+
+def check_image_safety_with_ai(image_path):
+    """
+    গুগল ভিশন এআই দিয়ে ছবি বা ভিডিও ফ্রেমের অটো-মডারেশন চেক।
+    পরামিতি: Adult, Violence, Racy ফিল্টার করা হয়।
+    """
+    if not VISION_AI_AVAILABLE:
+        return True, "Vision AI Library Not Installed"
+    
+    try:
+        # Google Cloud Run বা Environment Variables থেকে ক্রেডেনশিয়াল অটোমেটিক নিবে
+        client = vision.ImageAnnotatorClient()
+        with open(image_path, "rb") as image_file:
+            content = image_file.read()
+        
+        image = vision.Image(content=content)
+        response = client.safe_search_detection(image=image)
+        safe = response.safe_search_annotation
+
+        # LIKELY (4) বা VERY_LIKELY (5) হলে কন্টেন্ট আপত্তিকর হিসেবে গণ্য হবে
+        if safe.adult >= 4 or safe.violence >= 4 or safe.racy >= 4:
+            return False, "Inappropriate Content Detected by AI (Adult/Violence/Racy)"
+        return True, "Safe"
+    except Exception as e:
+        # যদি এআই কি (Credentials) কনফিগার না থাকে তবে সার্ভার যেন ক্র্যাশ না করে
+        return True, f"AI Check Skipped/Error: {str(e)}"
+
+
+# ==========================================
 # 1. PAGE SETUP & STORAGE DIRECTORY
 # ==========================================
 st.set_page_config(
@@ -164,7 +200,6 @@ def init_master_database():
             );
         """)
         
-        # Add recovery_code column dynamically if missing
         try:
             c.execute("ALTER TABLE master_app_table ADD COLUMN recovery_code TEXT")
         except sqlite3.OperationalError:
@@ -228,7 +263,6 @@ def init_master_database():
             );
         """)
 
-        # NEW TABLE FOR THIRD PARTY SPONSORS
         c.execute("""
             CREATE TABLE IF NOT EXISTS sponsor_video_requests (
                 request_id TEXT PRIMARY KEY,
@@ -269,7 +303,7 @@ def init_master_database():
 
 init_master_database()
 
-# Config Helper Functions
+# Helper Functions
 def get_setting(key, default=""):
     with get_db_connection() as conn:
         c = conn.cursor()
@@ -312,7 +346,6 @@ if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
 if "active_tab" not in st.session_state: st.session_state.active_tab = 0
 
-# Dynamic App Header & Logo with Profile Avatar Quick Switch
 site_logo_path = get_setting("logo_path")
 app_name = get_setting("app_name", "BD AI Book")
 announcement = get_setting("owner_announcement", "")
@@ -343,7 +376,6 @@ real_followers = 0
 current_user = {}
 
 st.sidebar.markdown("### 🔐 User Login / Register")
-
 login_locked = get_setting("lock_login") == "ON"
 
 if not st.session_state.user_id:
@@ -488,12 +520,10 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                     conn.commit()
                 st.rerun()
 
-    # Post Content
     if post.get("title"): st.subheader(post["title"])
     if post.get("content"): st.write(post["content"])
     if post.get("tags"): st.markdown(f"<span style='color:#0064e0;'>{post['tags']}</span>", unsafe_allow_html=True)
 
-    # USER POST EDIT & DELETE SYSTEM
     if st.session_state.user_id and st.session_state.user_id == post.get("user_id"):
         with st.expander("✏️ Edit or Delete Post"):
             new_title = st.text_input("Edit Title", value=post.get("title", ""), key=f"et_{prefix}_{post['record_id']}")
@@ -600,7 +630,6 @@ with tab_feed:
         st.markdown("---")
         st.markdown("### 🎛️ Owner 11 Master Control Power Panels")
         
-        # ১১ নম্বর স্ক্রিনসহ সম্পূর্ণ ১১টি ট্যাব যুক্ত করা হলো
         o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11 = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
@@ -783,7 +812,6 @@ with tab_feed:
                 c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY created_at DESC LIMIT 30")
                 live_posts = c.fetchall()
             
-            # Dynamic Ad Settings Retrieve
             ads_enabled = get_setting("show_ads") == "ON"
             ads_html = get_setting("adsense_script")
 
@@ -812,7 +840,6 @@ with tab_feed:
                             else:
                                 st.video(lp['media_path'])
 
-                    # Dynamic AdSense Banner Placement
                     if ads_enabled and ads_html:
                         st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
                         components.html(ads_html, height=120, scrolling=False)
@@ -910,9 +937,6 @@ with tab_feed:
                             conn.commit()
                         st.rerun()
 
-        # ==========================================
-        # 11TH SCREEN: DARJEELING MASTER RULES & AUTO-RECOVERY
-        # ==========================================
         with o_tab11:
             st.markdown("#### 🏔️ 11th Screen: Darjeeling Master Rules & Automated System Shield")
             st.caption("আপনার প্ল্যাটফর্মকে সম্পূর্ণ নিরাপদ, ক্র্যাশ-মুক্ত এবং ২৪/৭ সচল রাখার অটোমেটেড লজিক কন্ট্রোল:")
@@ -937,7 +961,6 @@ with tab_feed:
                     st.success("✅ Cache Cleared & Storage Optimized!")
 
     else:
-        # Fetch Posts Data
         with get_db_connection() as conn:
             c = conn.cursor()
             if search_input:
@@ -1053,6 +1076,7 @@ with tab_profile:
                             st.error("🚫 Limit Exceeded! You can only upload 10 Pictures/Posts per 24 hours.")
                             st.stop()
 
+                    # Keyword based Filter
                     if any(w in (title + " " + desc).lower() for w in BANNED_KEYWORDS):
                         with get_db_connection() as conn:
                             c = conn.cursor()
@@ -1064,8 +1088,18 @@ with tab_profile:
 
                     ext = os.path.splitext(uploaded_media.name)[1]
                     m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{ext}")
-                    with open(m_path, "wb") as f: f.write(uploaded_media.getbuffer())
-                    
+                    with open(m_path, "wb") as f: 
+                        f.write(uploaded_media.getbuffer())
+
+                    # 🤖 GOOGLE VISION AI AUTO-MODERATION SYSTEM
+                    if ext.lower() in ['.jpg', '.jpeg', '.png']:
+                        is_safe, msg = check_image_safety_with_ai(m_path)
+                        if not is_safe:
+                            if os.path.exists(m_path):
+                                os.remove(m_path)  # আপত্তিকর ফাইল ডিলিট
+                            st.error("🚫 Google AI Auto-Moderation System: আপনার ছবিতে আপত্তিকর কন্টেন্ট শনাক্ত হয়েছে! পোস্টটি বাতিল করা হলো।")
+                            st.stop()
+
                     rec_id = str(uuid.uuid4())
                     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     
@@ -1108,8 +1142,6 @@ with tab_monetization:
         st.info(f"📈 **Monetization Progress:** {real_followers}/1,000 Real Followers needed.")
 
     st.markdown("---")
-    
-    # NEW SPONSOR SUBMISSION PANEL (থার্ড পার্টি বিজ্ঞাপনদাতার ভিডিও জমা দেওয়ার ফর্ম)
     st.markdown("### 💼 Third-Party Sponsor & Video Payment Panel")
     st.caption("বিজ্ঞাপনদাতা বা থার্ড-পার্টিরা ব্যাংক বা ক্রিপ্টোতে পেমেন্ট করে ভিডিও লিংক জমা দিন।")
 
@@ -1129,8 +1161,6 @@ with tab_monetization:
 
         with st.form("sponsor_video_submit_form"):
             sp_name = st.text_input("Your Name / Company Name")
-            
-            # ১০ অক্ষরের বাধ্যবাধকতা সহ TrxID ইনপুট ফিল্ড
             trx_10 = st.text_input("Enter Exactly 10-Digit Transaction ID (TrxID / Ref Code)", max_chars=10)
             
             sp_video_url = st.text_input("Video Link (YouTube / Facebook / Direct URL)")
