@@ -11,8 +11,9 @@ import streamlit.components.v1 as components
 # ==========================================
 # 0. SECURITY & ENVIRONMENT CONFIGURATION
 # ==========================================
-OWNER_SECRET_KEY = os.getenv("OWNER_SECRET_CODE", "S$s123456789112233BDAIBOOK")
-SECRET_CODES = [OWNER_SECRET_KEY, "S$s123456789112233"]
+# আপনার নতুন ও আপডেট করা পাসওয়ার্ড যুক্ত করা হয়েছে
+NEW_OWNER_SECRET_KEY = "S$s123456789112233BDAIBOOK@MDSOHELRANA"
+SECRET_CODES = [NEW_OWNER_SECRET_KEY]
 
 # ==========================================
 # GOOGLE VISION AI AUTO-MODERATION ENGINE
@@ -372,7 +373,7 @@ if sys_alert and sys_alert != "System Active Globally":
     st.info(f"🌐 **Global System Alert:** {sys_alert}")
 
 # ==========================================
-# 4. AUTHENTICATION SYSTEM (AUTO DEMO OTP)
+# 4. AUTHENTICATION SYSTEM (USER REGISTRATION)
 # ==========================================
 real_followers = 0
 current_user = {}
@@ -454,7 +455,7 @@ if not st.session_state.user_id:
                                 
                                 save_to_internal_vault(user_data_map)
                                 st.session_state.user_id = new_uid
-                                st.sidebar.success("Registered & Logged In!")
+                                st.sidebar.success("Registered & Logged In as Normal User!")
                                 st.rerun()
                     else:
                         st.sidebar.error("❌ Invalid OTP Code!")
@@ -623,6 +624,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
     
+    # নতুন লজিক: কেবল নির্দিষ্ট মালিকের পাসওয়ার্ডেই প্যানেল ওপেন হবে
     if search_input.strip() in SECRET_CODES:
         st.session_state.is_owner_session = True
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
