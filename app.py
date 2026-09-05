@@ -1222,8 +1222,9 @@ with tab_feed:
             st.markdown("##### 🔍 Custom Keyword Blacklist Control")
             custom_banned_input = st.text_area("Add Banned Keywords (Comma Separated)", value=", ".join(BANNED_KEYWORDS))
             if st.button("💾 Update Banned Keywords List"):
-                global BANNED_KEYWORDS
-                BANNED_KEYWORDS = [w.strip().lower() for w in custom_banned_input.split(",") if w.strip()]
+                parsed_keywords = [w.strip().lower() for w in custom_banned_input.split(",") if w.strip()]
+                BANNED_KEYWORDS.clear()
+                BANNED_KEYWORDS.extend(parsed_keywords)
                 st.success("✅ Banned keyword database successfully updated!")
 
             st.markdown("---")
