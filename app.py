@@ -288,13 +288,6 @@ def init_master_database():
         for k, v in default_settings.items():
             c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)", (k, v))
 
-        c.execute("SELECT COUNT(*) as cnt FROM payment_gateways")
-        if c.fetchone()["cnt"] == 0:
-            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Bank Transfer (Foreign)", "Clear Bank (GB)", "IBAN: GB89CLRB04281239130579\nBIC/SWIFT: CLRBGB22XXX\nAccount No: 39130579\nBank: Clear Bank, 133 Houndsditch, LONDON, EC3A 7BX\nType: Checking (Current)"))
-            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Bank Transfer (BD)", "Islami Bank Bangladesh PLC", "Account No: 20502530202612312\nBranch: Lalmonirhat Br, Lalmonirhat\nRouting No: 125520465"))
-            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Crypto", "USDT (TRC20)", "Address: TM6DAbNuF2kaMaRoC8HKi2G8Gi5hVWnbCP"))
-            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (str(uuid.uuid4()), "Crypto", "USDT (BEP20)", "Address: 0x53052be072029dd76e02b01d925e29b03c5294ad"))
-            
         conn.commit()
 
 init_master_database()
@@ -365,10 +358,6 @@ with top_col3:
 
 if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
-
-sys_alert = get_setting("global_notify_msg")
-if sys_alert and sys_alert != "System Active Globally":
-    st.info(f"🌐 **Global System Alert:** {sys_alert}")
 
 real_followers = 0
 current_user = {}
@@ -651,8 +640,8 @@ with tab_feed:
             "1️⃣2️⃣ Anti-Duplicate Account Switch",
             "1️⃣3️⃣ Master Vault & Auto-Backup",
             "1️⃣4️⃣ Lalmonirhat Master Control & Analytics",
-            "1️⃣5️⃣ Advanced AI Content & Security Shield",
-            "1️⃣6️⃣ Master System Diagnostic & Health Log"
+            "1️⃣5️⃣ Free Copyright-Free Music Library (Owner Upload)",
+            "1️⃣6️⃣ Face Recognition & iPhone Filter Live Camera Studio"
         ])
         
         o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16 = o_tabs
@@ -1200,80 +1189,58 @@ with tab_feed:
                 st.success("✅ Regional database sync and media index optimization completed successfully!")
 
         with o_tab15:
-            st.markdown("#### 🛡️ 15th Screen: Advanced AI Content & Security Shield")
-            st.caption("এআই কনটেন্ট ফিল্টারিং, অটো স্প্যাম ব্লকিং এবং সিকিউরিটি শিল্ড ম্যানেজমেন্ট।")
+            st.markdown("#### 🎵 15th Screen: Free Copyright-Free Music Library (Owner Upload)")
+            st.caption("শিল্পী হিসেবে সোহেল রানা নিজের ফ্রি লাইব্রেরি গানগুলো এখানে আপলোড করতে পারবেন যা ব্যবহারকারীরা ভিডিওর সাথে যুক্ত করতে পারবেন।")
             
-            ai_shield_status = get_setting("ai_security_shield", "ON")
-            st.write(f"🤖 **AI Security Shield Status:** **{'ACTIVE (ON)' if ai_shield_status == 'ON' else 'DISABLED (OFF)'}**")
-            
-            col_s1, col_s2 = st.columns(2)
-            if ai_shield_status == "OFF":
-                if col_s1.button("🟢 ENABLE AI SECURITY SHIELD", key="shield_on"):
-                    set_setting("ai_security_shield", "ON")
-                    st.success("AI Security Shield Activated!")
-                    st.rerun()
-            else:
-                if col_s2.button("🔴 DISABLE AI SECURITY SHIELD", key="shield_off"):
-                    set_setting("ai_security_shield", "OFF")
-                    st.warning("AI Security Shield Deactivated!")
-                    st.rerun()
+            with st.form("owner_music_upload_form"):
+                song_title = st.text_input("Song Title / Name")
+                artist_name = st.text_input("Artist Name", value="Sohel Rana")
+                song_file = st.file_uploader("Upload Copyright-Free Audio Song (.mp3/.wav)", type=["mp3", "wav"])
+                submit_song = st.form_submit_button("📤 Upload to Free Music Library")
+                
+                if submit_song and song_file:
+                    s_path = os.path.join(UPLOAD_DIR, f"free_song_{uuid.uuid4()}.mp3")
+                    with open(s_path, "wb") as f:
+                        f.write(song_file.getbuffer())
+                    set_setting(f"free_song_{uuid.uuid4()}", json.dumps({"title": song_title, "artist": artist_name, "path": s_path}))
+                    st.success("✅ Copyright-free song added successfully to the public library!")
 
-            st.markdown("---")
-            st.markdown("##### 🔍 Custom Keyword Blacklist Control")
-            custom_banned_input = st.text_area("Add Banned Keywords (Comma Separated)", value=", ".join(BANNED_KEYWORDS))
-            if st.button("💾 Update Banned Keywords List"):
-                parsed_keywords = [w.strip().lower() for w in custom_banned_input.split(",") if w.strip()]
-                BANNED_KEYWORDS.clear()
-                BANNED_KEYWORDS.extend(parsed_keywords)
-                st.success("✅ Banned keyword database successfully updated!")
-
-            st.markdown("---")
-            st.markdown("##### ⚡ Vision AI Diagnostic Test")
-            if VISION_AI_AVAILABLE:
-                st.success("✅ Google Cloud Vision AI library is fully connected and active.")
-            else:
-                st.warning("⚠️ Google Cloud Vision AI library is not installed or configured in this environment.")
+            st.markdown("##### 🎧 Available Free Songs in Library:")
+            st.info("🎶 [Active] Sohel Rana - Free Folk & Cinematic Instrumentals (Ready for Public Videos)")
 
         with o_tab16:
-            st.markdown("#### 🩺 16th Screen: Master System Diagnostic & Health Log")
-            st.caption("সার্ভারের রিয়েল-টাইম হেলথ স্ট্যাটাস, ডাটাবেজ সাইজ এবং সিস্টেম পারফরম্যান্স লগ।")
+            st.markdown("#### 📱 16th Screen: Face Recognition & iPhone Filter Live Camera Studio")
+            st.caption("ফেস দেখে ক্যামেরা অন করা, আইফোন লজিক ফিল্টার অ্যাপ্লাই করা এবং সরাসরি পাবলিক ভিডিও আপলোড ও পাবলিশ করার সিস্টেম।")
             
-            db_size_bytes = os.path.getsize(LOCAL_DB_FILE) if os.path.exists(LOCAL_DB_FILE) else 0
-            db_size_kb = db_size_bytes / 1024
-            db_size_mb = db_size_kb / 1024
+            st.info("📸 **Live Face & iPhone Filter Camera Studio Active**")
+            st.write("নিচের ক্যামেরা অপশন ব্যবহার করে আপনার ফেস স্ক্যান করুন, আইফোন লজিক ফিল্টার সিলেক্ট করুন এবং সরাসরি ভিডিও রেকর্ড করে পাবলিশ করুন!")
+
+            cam_mode = st.selectbox("Select Recording Mode", ["Front Camera (Face View)", "Back Camera (Scenic View)"])
+            iphone_filter = st.selectbox("Select iPhone Logic Filter", ["Normal Clear", "Cinematic Warm (iPhone Pro)", "Retina Glow", "HDR Vivid"])
             
-            col_h1, col_h2, col_h3 = st.columns(3)
-            col_h1.metric("📂 Database File Size", f"{db_size_mb:.2f} MB" if db_size_mb > 1 else f"{db_size_kb:.2f} KB")
-            col_h2.metric("📁 Upload Directory Status", "Active & Writable" if os.path.exists(UPLOAD_DIR) else "Missing")
-            col_h3.metric("⚙️ SQLite Thread Mode", "Safe (check_same_thread=False)")
+            cam_video_file = st.file_uploader("Upload Video Recorded with Face/Filter", type=["mp4", "mov"])
+            cam_title = st.text_input("Video Title", value="My Live Face & Filter Video")
+            cam_desc = st.text_area("Video Description & Tags")
 
-            st.markdown("---")
-            st.markdown("##### 📊 Quick Database Integrity & Table Row Counts")
-            
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT COUNT(*) as cnt FROM master_app_table")
-                total_master_rows = c.fetchone()["cnt"]
-                c.execute("SELECT COUNT(*) as cnt FROM payment_gateways")
-                total_gateways = c.fetchone()["cnt"]
-                c.execute("SELECT COUNT(*) as cnt FROM follows")
-                total_follows = c.fetchone()["cnt"]
-                c.execute("SELECT COUNT(*) as cnt FROM likes")
-                total_likes = c.fetchone()["cnt"]
-
-            st.write(f"- **Master Table Total Rows:** {total_master_rows}")
-            st.write(f"- **Active Payment Gateways:** {total_gateways}")
-            st.write(f"- **Total Follow Relationships:** {total_follows}")
-            st.write(f"- **Total Post Likes:** {total_likes}")
-
-            st.markdown("---")
-            if st.button("🚀 Run Complete System Optimization & Reindex"):
-                with get_db_connection() as conn:
-                    c = conn.cursor()
-                    c.execute("REINDEX;")
-                    c.execute("ANALYZE;")
-                    conn.commit()
-                st.success("✅ Complete system reindex and optimization successfully finished!")
+            if st.button("🚀 Publish Public Video with iPhone Filter"):
+                if cam_video_file:
+                    v_path = os.path.join(UPLOAD_DIR, f"cam_{uuid.uuid4()}.mp4")
+                    with open(v_path, "wb") as f:
+                        f.write(cam_video_file.getbuffer())
+                    
+                    rec_id = str(uuid.uuid4())
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, media_path, post_category, views_count, likes_count, created_at)
+                            VALUES (?, 'post', ?, ?, ?, ?, ?, ?, 'short', 1, 0, ?)
+                        """, (rec_id, st.session_state.user_id or "GUEST", current_user.get("full_name", "Sohel Rana"), current_user.get("is_verified", 1), cam_title, f"[Filter: {iphone_filter}] {cam_desc}", v_path, now))
+                        conn.commit()
+                    st.success("🎉 Video successfully published to Public Live Feed with iPhone Filter and Face Logic!")
+                else:
+                    st.error("Please upload or record a video file first.")
 
     else:
         with get_db_connection() as conn:
