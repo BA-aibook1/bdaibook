@@ -1213,16 +1213,67 @@ with tab_feed:
             st.caption("ফেস দেখে ক্যামেরা অন করা, আইফোন লজিক ফিল্টার অ্যাপ্লাই করা এবং সরাসরি পাবলিক ভিডিও আপলোড ও পাবলিশ করার সিস্টেম।")
             
             st.info("📸 **Live Face & iPhone Filter Camera Studio Active**")
-            st.write("নিচের ক্যামেরা অপশন ব্যবহার করে আপনার ফেস স্ক্যান করুন, আইফোন লজিক ফিল্টার সিলেক্ট করুন এবং সরাসরি ভিডিও রেকর্ড করে পাবলিশ করুন!")
 
-            cam_mode = st.selectbox("Select Recording Mode", ["Front Camera (Face View)", "Back Camera (Scenic View)"])
-            iphone_filter = st.selectbox("Select iPhone Logic Filter", ["Normal Clear", "Cinematic Warm (iPhone Pro)", "Retina Glow", "HDR Vivid"])
+            # ফরম্যাট ও ফিল্টার কন্ট্রোল (HTML + JavaScript Streamlit Component)
+            components.html("""
+            <div style="background:#161b22; padding:15px; border-radius:10px; color:#fff; font-family:sans-serif;">
+              <div class="form-group" style="margin-bottom:10px;">
+                <label for="formatSelect" style="font-weight:bold;">Video Ratio Format:</label>
+                <select id="formatSelect" class="form-control" onchange="updateVideoRatio()" style="width:100%; padding:8px; border-radius:5px; background:#21262d; color:#fff; border:1px solid #30363d;">
+                  <option value="short">Short (9:16)</option>
+                  <option value="long">Long (16:9)</option>
+                  <option value="picture">Picture (1:1)</option>
+                </select>
+              </div>
+
+              <div class="camera-container" style="position: relative; width:100%; max-width:400px; margin:0 auto; background:#000; border-radius:10px; overflow:hidden;">
+                <video id="cameraPreview" autoplay playsinline style="width: 100%; display:block; filter: none; object-fit: cover; aspect-ratio: 9/16;"></video>
+              </div>
+              
+              <div class="filter-bar" style="margin-top: 12px; text-align:center;">
+                <button onclick="applyFilter('none')" style="padding:6px 12px; margin:3px; background:#238636; color:#fff; border:none; border-radius:4px; cursor:pointer;">Normal</button>
+                <button onclick="applyFilter('grayscale(100%)')" style="padding:6px 12px; margin:3px; background:#21262d; color:#fff; border:1px solid #30363d; border-radius:4px; cursor:pointer;">B&W</button>
+                <button onclick="applyFilter('sepia(100%)')" style="padding:6px 12px; margin:3px; background:#21262d; color:#fff; border:1px solid #30363d; border-radius:4px; cursor:pointer;">Sepia</button>
+                <button onclick="applyFilter('contrast(150%)')" style="padding:6px 12px; margin:3px; background:#21262d; color:#fff; border:1px solid #30363d; border-radius:4px; cursor:pointer;">Contrast</button>
+              </div>
+            </div>
+
+            <script>
+              // লাইভ ক্যামেরা স্ট্রিম লোড করার জাভাস্ক্রিপ্ট
+              navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+                .then(function(stream) {
+                  var video = document.getElementById('cameraPreview');
+                  video.srcObject = stream;
+                  video.play();
+                })
+                .catch(function(err0r) {
+                  console.log("Camera error: " + err0r);
+                });
+
+              function updateVideoRatio() {
+                const format = document.getElementById('formatSelect').value;
+                const preview = document.getElementById('cameraPreview');
+                
+                if (format === 'short') {
+                  preview.style.aspectRatio = "9/16"; // টিকটক/শর্টস সাইজ
+                } else if (format === 'long') {
+                  preview.style.aspectRatio = "16/9"; // ইউটিউব লং ভিডিও সাইজ
+                } else {
+                  preview.style.aspectRatio = "1/1";  // ছবির জন্য স্কয়ার সাইজ
+                }
+              }
+
+              function applyFilter(filterStyle) {
+                const preview = document.getElementById('cameraPreview');
+                preview.style.filter = filterStyle; // আইফোন স্টাইল ফিল্টার ইফেক্ট
+              }
+            </script>
+            """, height=420)
             
-            # সরাসরি লাইভ ক্যামেরা ক্যাপচার উইজেট
-            camera_video = st.camera_input("📷 Record Live Video / Take Picture directly from Camera")
-            
-            cam_title = st.text_input("Video Title", value="My Live Face & Filter Video")
+            cam_title = st.text_input("Video Title", value="My Live iPhone Filter Video")
             cam_desc = st.text_area("Video Description & Tags")
+
+            camera_video = st.camera_input("📷 Capture & Upload Final Snapshot/Video from Camera")
 
             if st.button("🚀 Publish Public Video with iPhone Filter"):
                 if camera_video:
@@ -1238,11 +1289,11 @@ with tab_feed:
                         c.execute("""
                             INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, media_path, post_category, views_count, likes_count, created_at)
                             VALUES (?, 'post', ?, ?, ?, ?, ?, ?, 'picture', 1, 0, ?)
-                        """, (rec_id, st.session_state.user_id or "GUEST", current_user.get("full_name", "Sohel Rana"), current_user.get("is_verified", 1), cam_title, f"[Filter: {iphone_filter}] {cam_desc}", v_path, now))
+                        """, (rec_id, st.session_state.user_id or "GUEST", current_user.get("full_name", "Sohel Rana"), current_user.get("is_verified", 1), cam_title, cam_desc, v_path, now))
                         conn.commit()
                     st.success("🎉 Live Camera capture successfully published to Public Feed with iPhone Filter!")
                 else:
-                    st.error("Please capture an image/video using the live camera first.")
+                    st.error("Please capture an image using the camera first.")
 
     else:
         with get_db_connection() as conn:
@@ -1342,7 +1393,6 @@ with tab_profile:
             desc = st.text_area("Description")
             p_tags = st.text_input("Hashtags")
             
-            # প্রোফাইল সেকশনেও সরাসরি লাইভ ক্যামেরা অপশন যোগ করা হলো
             use_live_camera = st.checkbox("📸 Use Live Camera Instead of File Upload")
             
             if use_live_camera:
