@@ -1199,9 +1199,6 @@ with tab_feed:
             if st.button("🚀 Run Lalmonirhat Regional Optimization & Sync"):
                 st.success("✅ Regional database sync and media index optimization completed successfully!")
 
-        # ==========================================
-        # 15 নম্বর নতুন বারান্দা/প্যানেল (Advanced AI Content & Security Shield)
-        # ==========================================
         with o_tab15:
             st.markdown("#### 🛡️ 15th Screen: Advanced AI Content & Security Shield")
             st.caption("এআই কনটেন্ট ফিল্টারিং, অটো স্প্যাম ব্লকিং এবং সিকিউরিটি শিল্ড ম্যানেজমেন্ট।")
@@ -1236,9 +1233,6 @@ with tab_feed:
             else:
                 st.warning("⚠️ Google Cloud Vision AI library is not installed or configured in this environment.")
 
-        # ==========================================
-        # 16 নম্বর নতুন বারান্দা/প্যানেল (Master System Diagnostic & Health Log)
-        # ==========================================
         with o_tab16:
             st.markdown("#### 🩺 16th Screen: Master System Diagnostic & Health Log")
             st.caption("সার্ভারের রিয়েল-টাইম হেলথ স্ট্যাটাস, ডাটাবেজ সাইজ এবং সিস্টেম পারফরম্যান্স লগ।")
