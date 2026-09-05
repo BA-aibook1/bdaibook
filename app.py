@@ -42,7 +42,6 @@ def check_image_safety_with_ai(image_path):
     except Exception as e:
         return True, f"AI Check Skipped/Error: {str(e)}"
 
-
 # ==========================================
 # 1. PAGE SETUP & STORAGE DIRECTORY
 # ==========================================
@@ -67,23 +66,36 @@ PERIOD_2_DIR = os.path.join(AUTO_VAULT_BASE, "days_16_to_30")
 os.makedirs(PERIOD_1_DIR, exist_ok=True)
 os.makedirs(PERIOD_2_DIR, exist_ok=True)
 
+LOCAL_DB_FILE = "bd_ai_book_master.db"
+BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
+
+def get_db_connection():
+    conn = sqlite3.connect(LOCAL_DB_FILE, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 def save_to_internal_vault(data_dict):
     """ফোনে ডাউনলোড না হয়ে অটোমেটিক কোড ফোল্ডারে ১-১৫ ও ১৬-৩০ দিনে ভাগ হয়ে সেভ হবে"""
-    now = datetime.now()
-    day = now.day
-    target_dir = PERIOD_1_DIR if 1 <= day <= 15 else PERIOD_2_DIR
-    
-    file_id = str(uuid.uuid4())[:8]
-    file_name = f"vault_{now.strftime('%Y%m%d_%H%M%S')}_{file_id}.json"
-    file_path = os.path.join(target_dir, file_name)
-    
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data_dict, f, ensure_ascii=False, indent=4)
+    try:
+        now = datetime.now()
+        day = now.day
+        target_dir = PERIOD_1_DIR if 1 <= day <= 15 else PERIOD_2_DIR
+        
+        file_id = str(uuid.uuid4())[:8]
+        file_name = f"vault_{now.strftime('%Y%m%d_%H%M%S')}_{file_id}.json"
+        file_path = os.path.join(target_dir, file_name)
+        
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data_dict, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        pass
 
 def auto_restore_from_internal_vault():
     """সার্ভার ডাউন হলে কোড ফোল্ডার থেকে অটোমেটিক সব ডাটা ডাটাবেজে রিস্টোর করবে"""
     restored_count = 0
     for folder in [PERIOD_1_DIR, PERIOD_2_DIR]:
+        if not os.path.exists(folder):
+            continue
         for file in os.listdir(folder):
             if file.endswith(".json"):
                 fp = os.path.join(folder, file)
@@ -92,8 +104,16 @@ def auto_restore_from_internal_vault():
                         data = json.load(f)
                         with get_db_connection() as conn:
                             c = conn.cursor()
-                            keys = list(data.keys())
-                            values = list(data.values())
+                            keys = [k for k in data.keys() if k in [
+                                'record_id', 'data_type', 'user_id', 'full_name', 'auth_identifier',
+                                'password_hash', 'address', 'bio', 'profile_pic_path', 'cover_pic_path',
+                                'fb_link', 'tiktok_link', 'yt_link', 'website_link', 'followers_count',
+                                'is_verified', 'violation_count', 'is_suspended', 'suspended_until',
+                                'title', 'content', 'tags', 'media_path', 'post_category', 'likes_count',
+                                'views_count', 'is_boosted', 'monetization_status', 'country',
+                                'is_owner_post', 'created_at', 'recovery_code'
+                            ]]
+                            values = [data[k] for k in keys]
                             placeholders = ", ".join(["?"] * len(keys))
                             cols = ", ".join(keys)
                             c.execute(f"INSERT OR REPLACE INTO master_app_table ({cols}) VALUES ({placeholders})", values)
@@ -103,116 +123,42 @@ def auto_restore_from_internal_vault():
                     pass
     return restored_count
 
-LOCAL_DB_FILE = "bd_ai_book_master.db"
-BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
-
 st.markdown("""
 <style>
-    .block-container {
-        padding-top: 1rem !important;
-    }
-    
+    .block-container { padding-top: 1rem !important; }
     div[data-testid="stHeader"] {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        background-color: #0e1117;
-        z-index: 99999;
-        border-bottom: 1px solid #222;
+        position: fixed; top: 0; left: 0; width: 100%;
+        background-color: #0e1117; z-index: 99999; border-bottom: 1px solid #222;
     }
-
     img { border-radius: 12px; }
     .stImage > img {
-        border-radius: 50% !important;
-        object-fit: cover !important;
-        border: 2px solid #0064e0 !important;
+        border-radius: 50% !important; object-fit: cover !important; border: 2px solid #0064e0 !important;
     }
     .fb-post-card {
-        background: #18191a;
-        padding: 16px;
-        border-radius: 12px;
-        margin-bottom: 20px;
-        border: 1px solid #2f3031;
+        background: #18191a; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #2f3031;
     }
     .video-watermark-wrapper { position: relative; }
     .video-watermark-badge {
-        position: absolute;
-        top: 12px;
-        right: 15px;
-        background: rgba(0, 100, 224, 0.85);
-        color: white;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: bold;
-        z-index: 99;
-        pointer-events: none;
+        position: absolute; top: 12px; right: 15px; background: rgba(0, 100, 224, 0.85);
+        color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 99; pointer-events: none;
     }
-    .tiktok-container {
-        max-width: 320px;
-        margin: 0 auto;
-        border-radius: 14px;
-        overflow: hidden;
-        border: 1px solid #333;
-    }
+    .tiktok-container { max-width: 320px; margin: 0 auto; border-radius: 14px; overflow: hidden; border: 1px solid #333; }
     .announcement-box {
-        background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
-        color: white;
-        padding: 10px;
-        border-radius: 10px;
-        text-align: center;
-        margin-bottom: 10px;
-        font-weight: bold;
-        font-size: 13px;
+        background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 10px; border-radius: 10px; text-align: center; margin-bottom: 10px; font-weight: bold; font-size: 13px;
     }
-    .ad-container {
-        margin-top: 15px;
-        margin-bottom: 15px;
-        padding: 8px;
-        background: #0e0e10;
-        border-radius: 8px;
-        text-align: center;
-    }
-    .vertical-live-feed-box {
-        max-height: 600px;
-        overflow-y: auto;
-        background: #121316;
-        padding: 15px;
-        border-radius: 12px;
-        border: 2px solid #0064e0;
-    }
-    .vertical-live-card {
-        background: #1e2026;
-        border-left: 4px solid #0064e0;
-        padding: 12px;
-        margin-bottom: 15px;
-        border-radius: 8px;
-        color: #fff;
-    }
-    .duplicate-card {
-        background: #2a1215;
-        border-left: 4px solid #ff4b4b;
-        padding: 12px;
-        margin-bottom: 10px;
-        border-radius: 8px;
-        color: #fff;
-    }
+    .ad-container { margin-top: 15px; margin-bottom: 15px; padding: 8px; background: #0e0e10; border-radius: 8px; text-align: center; }
+    .vertical-live-feed-box { max-height: 600px; overflow-y: auto; background: #121316; padding: 15px; border-radius: 12px; border: 2px solid #0064e0; }
+    .vertical-live-card { background: #1e2026; border-left: 4px solid #0064e0; padding: 12px; margin-bottom: 15px; border-radius: 8px; color: #fff; }
+    .duplicate-card { background: #2a1215; border-left: 4px solid #ff4b4b; padding: 12px; margin-bottom: 10px; border-radius: 8px; color: #fff; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
 # 2. MASTER DATABASE ENGINE & CONFIG SYSTEM
 # ==========================================
-def get_db_connection():
-    conn = sqlite3.connect(LOCAL_DB_FILE, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
-
 def init_master_database():
     with get_db_connection() as conn:
         c = conn.cursor()
-        
         c.execute("""
             CREATE TABLE IF NOT EXISTS master_app_table (
                 record_id TEXT PRIMARY KEY,
@@ -463,7 +409,6 @@ if not st.session_state.user_id:
         else:
             if st.sidebar.button("Send OTP"):
                 if auth_input and auth_pass:
-                    # অটো ৬ ডিজিটের ডেমো ভেরিফিকেশন কোড জেনারেট
                     generated_otp = str(random.randint(100000, 999999))
                     st.session_state.otp_code = generated_otp
                     st.sidebar.success(f"🔑 Auto Verification Code: **{generated_otp}**")
@@ -507,9 +452,7 @@ if not st.session_state.user_id:
                                 """, (new_uid, new_uid, f"User_{new_uid[:4]}", auth_input, hash_pass(auth_pass), now))
                                 conn.commit()
                                 
-                                # অটোমেটিক লোকাল ব্যাকআপে সেভ
                                 save_to_internal_vault(user_data_map)
-                                
                                 st.session_state.user_id = new_uid
                                 st.sidebar.success("Registered & Logged In!")
                                 st.rerun()
@@ -702,7 +645,6 @@ with tab_feed:
         st.markdown("---")
         st.markdown("### 🎛️ Owner 13 Master Control Power Panels")
         
-        # ১৩টি সম্পূর্ণ সচল ও রিয়েল ট্যাব
         o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13 = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
@@ -1017,9 +959,7 @@ with tab_feed:
                             c.execute("UPDATE sponsor_video_requests SET status = 'Approved' WHERE request_id = ?", (sp['request_id'],))
                             conn.commit()
                             
-                        # অটো সেভ
                         save_to_internal_vault(sp_post_data)
-                        
                         st.success("Video published successfully!")
                         st.rerun()
 
@@ -1053,9 +993,6 @@ with tab_feed:
                 if st.button("🧹 Clear Temporary Cache & Optimize Media Storage"):
                     st.success("✅ Cache Cleared & Storage Optimized!")
 
-        # ==========================================
-        # 12TH TAB: AUTO-DUPLICATE DETECTOR & BAN
-        # ==========================================
         with o_tab12:
             st.markdown("#### 🕵️‍♂️ 12th Screen: Auto-Duplicate Account Detector & Ban Control Switch")
             st.caption("লাইভ সিস্টেম: একই জিমেইল বা ফোন দিয়ে একাধিক অ্যাকাউন্ট তৈরি করলে ব্যাকএন্ডে অটোমেটিক ডিটেক্ট হবে।")
@@ -1130,9 +1067,6 @@ with tab_feed:
             else:
                 st.info("💡 Turn ON the detector switch above to scan duplicate accounts.")
 
-        # ==========================================
-        # 13TH TAB: MASTER VAULT & AUTO-BACKUP LOGIC SET
-        # ==========================================
         with o_tab13:
             st.markdown("#### 📦 13th Screen: Master Vault, Data Backup & One-Click Restore Engine")
             st.caption("পোস্ট, ছবি, শর্ট ভিডিও এবং লং ভিডিও—এই ৪টি ক্যাটাগরির সমস্ত তথ্য ও ডাটাবেজ নিয়ন্ত্রণ ও অটো-সেভ কেন্দ্র।")
@@ -1157,15 +1091,13 @@ with tab_feed:
             st.markdown("---")
             st.markdown("##### ⚙️ 15-Days Internal Auto-Vault Status")
             
-            # দিন ১-১৫ এবং ১৬-৩০ ব্যাকআপ ফাইল সংখ্যা চেক
-            p1_files = len(os.listdir(PERIOD_1_DIR))
-            p2_files = len(os.listdir(PERIOD_2_DIR))
+            p1_files = len(os.listdir(PERIOD_1_DIR)) if os.path.exists(PERIOD_1_DIR) else 0
+            p2_files = len(os.listdir(PERIOD_2_DIR)) if os.path.exists(PERIOD_2_DIR) else 0
             
             col_dir1, col_dir2 = st.columns(2)
             col_dir1.info(f"📂 **Days 1 to 15 Vault:** {p1_files} Backup Files Saved")
             col_dir2.info(f"📂 **Days 16 to 30 Vault:** {p2_files} Backup Files Saved")
 
-            # ওয়ান-ক্লিক অটোমেটিক ব্যাকআপ ফাইল ছাড়াই ইন্টারনাল রিস্টোর বাটন
             if st.button("⚡ One-Click Internal Auto-Restore (No File Needed)"):
                 rc = auto_restore_from_internal_vault()
                 if rc > 0:
@@ -1403,9 +1335,7 @@ with tab_profile:
                         """, (rec_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), title, desc, p_tags, m_path, post_type, now))
                         conn.commit()
                         
-                    # অটোমেটিক ইন্টারনাল ফোল্ডারে সেভ
                     save_to_internal_vault(post_data_map)
-                    
                     st.success("Published Successfully!")
                     st.rerun()
 
