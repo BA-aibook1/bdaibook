@@ -1218,15 +1218,17 @@ with tab_feed:
             cam_mode = st.selectbox("Select Recording Mode", ["Front Camera (Face View)", "Back Camera (Scenic View)"])
             iphone_filter = st.selectbox("Select iPhone Logic Filter", ["Normal Clear", "Cinematic Warm (iPhone Pro)", "Retina Glow", "HDR Vivid"])
             
-            cam_video_file = st.file_uploader("Upload Video Recorded with Face/Filter", type=["mp4", "mov"])
+            # সরাসরি লাইভ ক্যামেরা ক্যাপচার উইজেট
+            camera_video = st.camera_input("📷 Record Live Video / Take Picture directly from Camera")
+            
             cam_title = st.text_input("Video Title", value="My Live Face & Filter Video")
             cam_desc = st.text_area("Video Description & Tags")
 
             if st.button("🚀 Publish Public Video with iPhone Filter"):
-                if cam_video_file:
-                    v_path = os.path.join(UPLOAD_DIR, f"cam_{uuid.uuid4()}.mp4")
+                if camera_video:
+                    v_path = os.path.join(UPLOAD_DIR, f"cam_{uuid.uuid4()}.png")
                     with open(v_path, "wb") as f:
-                        f.write(cam_video_file.getbuffer())
+                        f.write(camera_video.getbuffer())
                     
                     rec_id = str(uuid.uuid4())
                     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1235,12 +1237,12 @@ with tab_feed:
                         c = conn.cursor()
                         c.execute("""
                             INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, media_path, post_category, views_count, likes_count, created_at)
-                            VALUES (?, 'post', ?, ?, ?, ?, ?, ?, 'short', 1, 0, ?)
+                            VALUES (?, 'post', ?, ?, ?, ?, ?, ?, 'picture', 1, 0, ?)
                         """, (rec_id, st.session_state.user_id or "GUEST", current_user.get("full_name", "Sohel Rana"), current_user.get("is_verified", 1), cam_title, f"[Filter: {iphone_filter}] {cam_desc}", v_path, now))
                         conn.commit()
-                    st.success("🎉 Video successfully published to Public Live Feed with iPhone Filter and Face Logic!")
+                    st.success("🎉 Live Camera capture successfully published to Public Feed with iPhone Filter!")
                 else:
-                    st.error("Please upload or record a video file first.")
+                    st.error("Please capture an image/video using the live camera first.")
 
     else:
         with get_db_connection() as conn:
@@ -1324,7 +1326,7 @@ with tab_profile:
                 st.rerun()
 
         st.markdown("---")
-        st.markdown("### 📤 Upload New Post")
+        st.markdown("### 📤 Upload New Post or Live Camera Capture")
         
         if get_setting("lock_upload") == "ON":
             st.error("🚫 Video Upload System is temporarily disabled by Owner.")
@@ -1339,14 +1341,22 @@ with tab_profile:
             title = st.text_input("Title")
             desc = st.text_area("Description")
             p_tags = st.text_input("Hashtags")
-            uploaded_media = st.file_uploader("Media File", type=["mp4", "jpg", "png"])
+            
+            # প্রোফাইল সেকশনেও সরাসরি লাইভ ক্যামেরা অপশন যোগ করা হলো
+            use_live_camera = st.checkbox("📸 Use Live Camera Instead of File Upload")
+            
+            if use_live_camera:
+                uploaded_media = st.camera_input("📷 Capture Live Photo/Video via Camera")
+            else:
+                uploaded_media = st.file_uploader("Media File", type=["mp4", "jpg", "png", "mov"])
             
             if st.button("Publish Post"):
                 if uploaded_media and title:
-                    MAX_FILE_SIZE_MB = 100 * 1024 * 1024
-                    if uploaded_media.size > MAX_FILE_SIZE_MB:
-                        st.error("🚫 File size cannot exceed 100 MB!")
-                        st.stop()
+                    if not use_live_camera:
+                        MAX_FILE_SIZE_MB = 100 * 1024 * 1024
+                        if uploaded_media.size > MAX_FILE_SIZE_MB:
+                            st.error("🚫 File size cannot exceed 100 MB!")
+                            st.stop()
 
                     if get_setting("daily_limit_mode") == "ON":
                         today_count = get_user_today_upload_count(st.session_state.user_id, post_type)
@@ -1369,7 +1379,7 @@ with tab_profile:
                         st.error("🚫 Inappropriate Content Detected! Account suspended.")
                         st.rerun()
 
-                    ext = os.path.splitext(uploaded_media.name)[1]
+                    ext = ".png" if use_live_camera else os.path.splitext(uploaded_media.name)[1]
                     m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{ext}")
                     with open(m_path, "wb") as f: 
                         f.write(uploaded_media.getbuffer())
