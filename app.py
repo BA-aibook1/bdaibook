@@ -57,6 +57,52 @@ UPLOAD_DIR = "uploaded_media"
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
+# ------------------------------------------
+# 15-DAY INTERNAL AUTO-VAULT DIRECTORY LOGIC
+# ------------------------------------------
+AUTO_VAULT_BASE = "app_vault_storage"
+PERIOD_1_DIR = os.path.join(AUTO_VAULT_BASE, "days_1_to_15")
+PERIOD_2_DIR = os.path.join(AUTO_VAULT_BASE, "days_16_to_30")
+
+os.makedirs(PERIOD_1_DIR, exist_ok=True)
+os.makedirs(PERIOD_2_DIR, exist_ok=True)
+
+def save_to_internal_vault(data_dict):
+    """ফোনে ডাউনলোড না হয়ে অটোমেটিক কোড ফোল্ডারে ১-১৫ ও ১৬-৩০ দিনে ভাগ হয়ে সেভ হবে"""
+    now = datetime.now()
+    day = now.day
+    target_dir = PERIOD_1_DIR if 1 <= day <= 15 else PERIOD_2_DIR
+    
+    file_id = str(uuid.uuid4())[:8]
+    file_name = f"vault_{now.strftime('%Y%m%d_%H%M%S')}_{file_id}.json"
+    file_path = os.path.join(target_dir, file_name)
+    
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data_dict, f, ensure_ascii=False, indent=4)
+
+def auto_restore_from_internal_vault():
+    """সার্ভার ডাউন হলে কোড ফোল্ডার থেকে অটোমেটিক সব ডাটা ডাটাবেজে রিস্টোর করবে"""
+    restored_count = 0
+    for folder in [PERIOD_1_DIR, PERIOD_2_DIR]:
+        for file in os.listdir(folder):
+            if file.endswith(".json"):
+                fp = os.path.join(folder, file)
+                try:
+                    with open(fp, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            keys = list(data.keys())
+                            values = list(data.values())
+                            placeholders = ", ".join(["?"] * len(keys))
+                            cols = ", ".join(keys)
+                            c.execute(f"INSERT OR REPLACE INTO master_app_table ({cols}) VALUES ({placeholders})", values)
+                            conn.commit()
+                            restored_count += 1
+                except Exception:
+                    pass
+    return restored_count
+
 LOCAL_DB_FILE = "bd_ai_book_master.db"
 BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
@@ -443,11 +489,27 @@ if not st.session_state.user_id:
                             else:
                                 new_uid = str(uuid.uuid4())
                                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                
+                                user_data_map = {
+                                    "record_id": new_uid,
+                                    "data_type": "user",
+                                    "user_id": new_uid,
+                                    "full_name": f"User_{new_uid[:4]}",
+                                    "auth_identifier": auth_input,
+                                    "password_hash": hash_pass(auth_pass),
+                                    "is_verified": 1,
+                                    "created_at": now
+                                }
+
                                 c.execute("""
                                     INSERT INTO master_app_table (record_id, data_type, user_id, full_name, auth_identifier, password_hash, is_verified, created_at)
                                     VALUES (?, 'user', ?, ?, ?, ?, 1, ?)
                                 """, (new_uid, new_uid, f"User_{new_uid[:4]}", auth_input, hash_pass(auth_pass), now))
                                 conn.commit()
+                                
+                                # অটোমেটিক লোকাল ব্যাকআপে সেভ
+                                save_to_internal_vault(user_data_map)
+                                
                                 st.session_state.user_id = new_uid
                                 st.sidebar.success("Registered & Logged In!")
                                 st.rerun()
@@ -931,6 +993,20 @@ with tab_feed:
                         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         rec_id = str(uuid.uuid4())
                         
+                        sp_post_data = {
+                            "record_id": rec_id,
+                            "data_type": "post",
+                            "user_id": "SPONSOR",
+                            "full_name": sp['sponsor_name'],
+                            "is_verified": 1,
+                            "title": f"Sponsored Video: {sp['sponsor_name']}",
+                            "content": f"TrxID: {sp['trx_id_10digit']}",
+                            "media_path": sp['video_link'] or sp['video_file_path'],
+                            "post_category": "long",
+                            "is_boosted": 1,
+                            "created_at": now_str
+                        }
+
                         with get_db_connection() as conn:
                             c = conn.cursor()
                             c.execute("""
@@ -940,6 +1016,10 @@ with tab_feed:
                             
                             c.execute("UPDATE sponsor_video_requests SET status = 'Approved' WHERE request_id = ?", (sp['request_id'],))
                             conn.commit()
+                            
+                        # অটো সেভ
+                        save_to_internal_vault(sp_post_data)
+                        
                         st.success("Video published successfully!")
                         st.rerun()
 
@@ -1001,7 +1081,6 @@ with tab_feed:
             if curr_dup_switch == "ON":
                 with get_db_connection() as conn:
                     c = conn.cursor()
-                    # ডুপ্লিকেট জিমেইল বা ফোন নম্বর খোঁজার SQL কুয়েরি
                     c.execute("""
                         SELECT auth_identifier, COUNT(*) as account_count 
                         FROM master_app_table 
@@ -1052,11 +1131,11 @@ with tab_feed:
                 st.info("💡 Turn ON the detector switch above to scan duplicate accounts.")
 
         # ==========================================
-        # 13TH TAB: MASTER VAULT & AUTO-BACKUP
+        # 13TH TAB: MASTER VAULT & AUTO-BACKUP LOGIC SET
         # ==========================================
         with o_tab13:
             st.markdown("#### 📦 13th Screen: Master Vault, Data Backup & One-Click Restore Engine")
-            st.caption("পোস্ট, ছবি, শর্ট ভিডিও এবং লং ভিডিও—এই ৪টি ক্যাটাগরির সমস্ত তথ্য ও ডাটাবেজ নিয়ন্ত্রণ ও ক্লাউড সেভ কেন্দ্র।")
+            st.caption("পোস্ট, ছবি, শর্ট ভিডিও এবং লং ভিডিও—এই ৪টি ক্যাটাগরির সমস্ত তথ্য ও ডাটাবেজ নিয়ন্ত্রণ ও অটো-সেভ কেন্দ্র।")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1076,7 +1155,27 @@ with tab_feed:
             col_v4.metric("📹 Long Videos", cnt_long)
 
             st.markdown("---")
-            st.markdown("##### 📥 Database Backup Export & Vault Generation")
+            st.markdown("##### ⚙️ 15-Days Internal Auto-Vault Status")
+            
+            # দিন ১-১৫ এবং ১৬-৩০ ব্যাকআপ ফাইল সংখ্যা চেক
+            p1_files = len(os.listdir(PERIOD_1_DIR))
+            p2_files = len(os.listdir(PERIOD_2_DIR))
+            
+            col_dir1, col_dir2 = st.columns(2)
+            col_dir1.info(f"📂 **Days 1 to 15 Vault:** {p1_files} Backup Files Saved")
+            col_dir2.info(f"📂 **Days 16 to 30 Vault:** {p2_files} Backup Files Saved")
+
+            # ওয়ান-ক্লিক অটোমেটিক ব্যাকআপ ফাইল ছাড়াই ইন্টারনাল রিস্টোর বাটন
+            if st.button("⚡ One-Click Internal Auto-Restore (No File Needed)"):
+                rc = auto_restore_from_internal_vault()
+                if rc > 0:
+                    st.success(f"🎉 AUTO RESTORE SUCCESSFUL! Restored {rc} items directly from Internal Code Vault.")
+                    st.rerun()
+                else:
+                    st.warning("⚠️ No internal backup files found to restore.")
+
+            st.markdown("---")
+            st.markdown("##### 📥 Database Backup Export & Manual Vault Generation")
             
             if st.button("⚡ Generate Complete Database Master Backup"):
                 with get_db_connection() as conn:
@@ -1100,16 +1199,16 @@ with tab_feed:
                         file_name=f"bd_ai_book_vault_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                         mime="application/json"
                     )
-                    st.success("✅ Live Master Backup Vault generated successfully! Download and keep it safe.")
+                    st.success("✅ Live Master Backup Vault generated successfully!")
 
             st.markdown("---")
-            st.markdown("##### 📤 Emergency One-Click Data Restore System")
-            st.caption("সার্ভার বন্ধ বা ডাটা মুছে গেলেও এখান থেকে ব্যাকআপ ফাইল আপলোড করে ১-ক্লিকে সব ক্যাটাগরির ডাটা পুনরুদ্ধার করতে পারবেন।")
+            st.markdown("##### 📤 Emergency File Upload Data Restore System")
+            st.caption("যদি অন্য ডিভাইস থেকে ব্যাকআপ ফাইল আপলোড করে রিস্টোর করতে চান:")
             
             uploaded_vault_file = st.file_uploader("Upload Backup JSON Vault File", type=["json"], key="vault_restore_uploader")
             
             if uploaded_vault_file:
-                if st.button("🔄 RESTORE ALL DATABASE TABLES & MEDIA LINKS NOW"):
+                if st.button("🔄 RESTORE FROM UPLOADED FILE"):
                     try:
                         vault_content = json.load(uploaded_vault_file)
                         master_rows = vault_content.get("master_app_table", [])
@@ -1117,7 +1216,6 @@ with tab_feed:
                         
                         with get_db_connection() as conn:
                             c = conn.cursor()
-                            # ডাটাবেজ নিরাপদ রেখে ডাটা রিস্টোর
                             for r in master_rows:
                                 keys = list(r.keys())
                                 values = list(r.values())
@@ -1130,7 +1228,7 @@ with tab_feed:
                                 c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", (s["key"], s["value"]))
                                 
                             conn.commit()
-                        st.success("🎉 RESTORE SUCCESSFUL! All Posts, Pictures, Shorts, and Long Videos restored smoothly.")
+                        st.success("🎉 RESTORE SUCCESSFUL!")
                         st.rerun()
                     except Exception as ex:
                         st.error(f"❌ Restore Failed: {str(ex)}")
@@ -1281,6 +1379,22 @@ with tab_profile:
                     rec_id = str(uuid.uuid4())
                     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     
+                    post_data_map = {
+                        "record_id": rec_id,
+                        "data_type": "post",
+                        "user_id": st.session_state.user_id,
+                        "full_name": current_user.get("full_name", "User"),
+                        "is_verified": current_user.get("is_verified", 1),
+                        "title": title,
+                        "content": desc,
+                        "tags": p_tags,
+                        "media_path": m_path,
+                        "post_category": post_type,
+                        "views_count": 1,
+                        "likes_count": 0,
+                        "created_at": now
+                    }
+
                     with get_db_connection() as conn:
                         c = conn.cursor()
                         c.execute("""
@@ -1288,6 +1402,10 @@ with tab_profile:
                             VALUES (?, 'post', ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?)
                         """, (rec_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), title, desc, p_tags, m_path, post_type, now))
                         conn.commit()
+                        
+                    # অটোমেটিক ইন্টারনাল ফোল্ডারে সেভ
+                    save_to_internal_vault(post_data_map)
+                    
                     st.success("Published Successfully!")
                     st.rerun()
 
