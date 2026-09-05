@@ -281,7 +281,8 @@ def init_master_database():
             "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
             "show_ads": "ON",
             "global_notify_msg": "System Active Globally",
-            "auto_duplicate_detector": "ON"
+            "auto_duplicate_detector": "ON",
+            "site_verification_code": ""
         }
         
         for k, v in default_settings.items():
@@ -310,6 +311,11 @@ def set_setting(key, value):
         c = conn.cursor()
         c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", (key, str(value)))
         conn.commit()
+
+# Inject Site Verification Code (Google Console / AdSense / etc.) dynamically into Streamlit header
+site_ver_code = get_setting("site_verification_code")
+if site_ver_code:
+    components.html(f"<head>{site_ver_code}</head>", height=0, width=0)
 
 def hash_pass(pwd): 
     return hashlib.sha256(pwd.encode()).hexdigest()
@@ -1153,11 +1159,11 @@ with tab_feed:
                         st.error(f"❌ Restore Failed: {str(ex)}")
 
         # ==========================================
-        # 14 নম্বর বাটন / প্যানেল (নতুন যোগ করা হলো)
+        # 14 নম্বর বাটন / প্যানেল (আপডেট করা সাইট ভেরিফিকেশনসহ)
         # ==========================================
         with o_tab14:
             st.markdown("#### 🌟 14th Screen: Lalmonirhat Master Control & Regional Analytics")
-            st.caption("লালমনিরহাট ও রংপুর অঞ্চলের কার্যক্রম, আঞ্চলিক স্টাইল এবং স্পেশাল ওনার কন্ট্রোল প্যানেল।")
+            st.caption("লালমনিরহাট ও রংপুর অঞ্চলের কার্যক্রম, আঞ্চলিক স্টাইল, অটো সাইট ভেরিফিকেশন এবং স্পেশাল ওনার কন্ট্রোল প্যানেল।")
             
             st.info("📍 **Base Region:** Lalmonirhat (Laalpara / Rangpur Division) - System Fully Active.")
             
@@ -1172,6 +1178,18 @@ with tab_feed:
             col_rc1, col_rc2 = st.columns(2)
             col_rc1.metric("🌍 Region Connected Users", total_region_users)
             col_rc2.metric("💼 Total Sponsor Requests Processed", total_sponsors_all)
+
+            st.markdown("---")
+            st.markdown("##### 🔍 Google Search Console & AdSense Auto-Verification Setup")
+            st.caption("এখানে গুগল কনসোল বা এডসেন্সের ভেরিফিকেশন কোড (যেমন: `<meta name='google-site-verification' content='...' />`) একবার সেভ করে রাখলে বারবার কোড জেনারেট বা পরিবর্তন করা লাগবে না; এটি অটোমেটিক সাইট ভেরিফিকেশন সম্পন্ন করবে।")
+
+            current_saved_ver_code = get_setting("site_verification_code", "")
+            input_ver_code = st.text_area("Paste Verification Meta Tag / HTML Snippet Here", value=current_saved_ver_code, height=100)
+
+            if st.button("💾 Save & Activate Site Verification Automatically"):
+                set_setting("site_verification_code", input_ver_code)
+                st.success("✅ Site verification code saved and activated globally across all pages!")
+                st.rerun()
 
             st.markdown("---")
             st.markdown("##### 🎵 Artist & Regional Configuration (Sohel Rana)")
