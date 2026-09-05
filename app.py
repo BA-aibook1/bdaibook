@@ -3,6 +3,7 @@ import sqlite3
 import uuid
 import hashlib
 import random
+import json
 from datetime import datetime, timedelta
 import streamlit as st
 import streamlit.components.v1 as components
@@ -140,6 +141,14 @@ st.markdown("""
         border-left: 4px solid #0064e0;
         padding: 12px;
         margin-bottom: 15px;
+        border-radius: 8px;
+        color: #fff;
+    }
+    .duplicate-card {
+        background: #2a1215;
+        border-left: 4px solid #ff4b4b;
+        padding: 12px;
+        margin-bottom: 10px;
         border-radius: 8px;
         color: #fff;
     }
@@ -281,7 +290,8 @@ def init_master_database():
             "adsense_client_id": "ca-pub-0000000000000000",
             "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
             "show_ads": "ON",
-            "global_notify_msg": "System Active Globally"
+            "global_notify_msg": "System Active Globally",
+            "auto_duplicate_detector": "ON"
         }
         
         for k, v in default_settings.items():
@@ -628,10 +638,10 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner 11 Master Control Power Panels")
+        st.markdown("### 🎛️ Owner 13 Master Control Power Panels")
         
-        # ১২ নম্বর অপশন বাদ দেওয়া হলো
-        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11 = st.tabs([
+        # ১৩টি সম্পূর্ণ সচল ও রিয়েল ট্যাব
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13 = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
             "3️⃣ Emergency Kill-Switch", 
@@ -642,7 +652,9 @@ with tab_feed:
             "8️⃣ Live Monitor Feed",
             "9️⃣ User Recovery & Management",
             "🔟 Sponsor Video Approvals",
-            "1️⃣1️⃣ Darjeeling Master Rules & Backup"
+            "1️⃣1️⃣ Darjeeling Master Rules",
+            "1️⃣2️⃣ Anti-Duplicate Account Switch",
+            "1️⃣3️⃣ Master Vault & Auto-Backup"
         ])
         
         with o_tab1:
@@ -960,6 +972,168 @@ with tab_feed:
             with col_d2:
                 if st.button("🧹 Clear Temporary Cache & Optimize Media Storage"):
                     st.success("✅ Cache Cleared & Storage Optimized!")
+
+        # ==========================================
+        # 12TH TAB: AUTO-DUPLICATE DETECTOR & BAN
+        # ==========================================
+        with o_tab12:
+            st.markdown("#### 🕵️‍♂️ 12th Screen: Auto-Duplicate Account Detector & Ban Control Switch")
+            st.caption("লাইভ সিস্টেম: একই জিমেইল বা ফোন দিয়ে একাধিক অ্যাকাউন্ট তৈরি করলে ব্যাকএন্ডে অটোমেটিক ডিটেক্ট হবে।")
+            
+            curr_dup_switch = get_setting("auto_duplicate_detector", "ON")
+            st.write(f"🤖 **Auto-Duplicate Detector Switch:** **{'ACTIVE (ON)' if curr_dup_switch == 'ON' else 'DISABLED (OFF)'}**")
+            
+            col_dup1, col_dup2 = st.columns(2)
+            if curr_dup_switch == "OFF":
+                if col_dup1.button("🟢 ENABLE AUTO-DUPLICATE DETECTOR", key="dup_switch_on"):
+                    set_setting("auto_duplicate_detector", "ON")
+                    st.success("Auto Detector Enabled!")
+                    st.rerun()
+            else:
+                if col_dup2.button("🔴 DISABLE AUTO-DUPLICATE DETECTOR", key="dup_switch_off"):
+                    set_setting("auto_duplicate_detector", "OFF")
+                    st.warning("Auto Detector Disabled!")
+                    st.rerun()
+                    
+            st.markdown("---")
+            st.markdown("##### 🚨 Detected Duplicate Accounts (Suspected Fake Accounts)")
+            
+            if curr_dup_switch == "ON":
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    # ডুপ্লিকেট জিমেইল বা ফোন নম্বর খোঁজার SQL কুয়েরি
+                    c.execute("""
+                        SELECT auth_identifier, COUNT(*) as account_count 
+                        FROM master_app_table 
+                        WHERE data_type = 'user' 
+                        GROUP BY auth_identifier 
+                        HAVING COUNT(*) > 1
+                    """)
+                    dup_records = c.fetchall()
+                    
+                    if not dup_records:
+                        st.success("✅ No duplicate or fake accounts detected right now! System is 100% clean.")
+                    else:
+                        for dup in dup_records:
+                            ident = dup["auth_identifier"]
+                            cnt = dup["account_count"]
+                            
+                            c.execute("SELECT user_id, full_name, is_suspended, created_at FROM master_app_table WHERE data_type = 'user' AND auth_identifier = ?", (ident,))
+                            users_under_ident = c.fetchall()
+                            
+                            st.markdown(f"""
+                            <div class='duplicate-card'>
+                                ⚠️ <b>Identifier:</b> <span style='color:yellow;'>{ident}</span> | <b>Accounts Found:</b> <span style='color:orange;'>{cnt} Accounts</span>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            for u_dup in users_under_ident:
+                                col_d_u1, col_d_u2, col_d_u3 = st.columns([3, 2, 2])
+                                is_banned = u_dup["is_suspended"] == 1
+                                ban_status = "<span style='color:red;'>[BANNED]</span>" if is_banned else "<span style='color:green;'>[ACTIVE]</span>"
+                                
+                                col_d_u1.write(f"👤 **{u_dup['full_name']}** ({u_dup['user_id'][:8]}...) {ban_status}")
+                                col_d_u2.write(f"⏱️ {u_dup['created_at']}")
+                                
+                                if not is_banned:
+                                    if col_d_u3.button("🚫 Ban This Account", key=f"ban_dup_{u_dup['user_id']}"):
+                                        sus_time = (datetime.now() + timedelta(days=3650)).strftime("%Y-%m-%d %H:%M:%S")
+                                        c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, u_dup['user_id']))
+                                        conn.commit()
+                                        st.success(f"Banned {u_dup['full_name']}!")
+                                        st.rerun()
+                                else:
+                                    if col_d_u3.button("🔓 Unban Account", key=f"unban_dup_{u_dup['user_id']}"):
+                                        c.execute("UPDATE master_app_table SET is_suspended = 0, suspended_until = NULL WHERE user_id = ?", (u_dup['user_id'],))
+                                        conn.commit()
+                                        st.success("Unbanned successfully!")
+                                        st.rerun()
+            else:
+                st.info("💡 Turn ON the detector switch above to scan duplicate accounts.")
+
+        # ==========================================
+        # 13TH TAB: MASTER VAULT & AUTO-BACKUP
+        # ==========================================
+        with o_tab13:
+            st.markdown("#### 📦 13th Screen: Master Vault, Data Backup & One-Click Restore Engine")
+            st.caption("পোস্ট, ছবি, শর্ট ভিডিও এবং লং ভিডিও—এই ৪টি ক্যাটাগরির সমস্ত তথ্য ও ডাটাবেজ নিয়ন্ত্রণ ও ক্লাউড সেভ কেন্দ্র।")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'general'")
+                cnt_post = c.fetchone()["cnt"]
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'picture'")
+                cnt_pic = c.fetchone()["cnt"]
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'short'")
+                cnt_short = c.fetchone()["cnt"]
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'long'")
+                cnt_long = c.fetchone()["cnt"]
+
+            col_v1, col_v2, col_v3, col_v4 = st.columns(4)
+            col_v1.metric("📝 Posts", cnt_post)
+            col_v2.metric("🖼️ Pictures", cnt_pic)
+            col_v3.metric("📱 Shorts", cnt_short)
+            col_v4.metric("📹 Long Videos", cnt_long)
+
+            st.markdown("---")
+            st.markdown("##### 📥 Database Backup Export & Vault Generation")
+            
+            if st.button("⚡ Generate Complete Database Master Backup"):
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("SELECT * FROM master_app_table")
+                    all_rows = [dict(r) for r in c.fetchall()]
+                    c.execute("SELECT * FROM site_settings")
+                    all_settings = [dict(r) for r in c.fetchall()]
+                    
+                    backup_data = {
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "master_app_table": all_rows,
+                        "site_settings": all_settings
+                    }
+                    
+                    json_backup = json.dumps(backup_data, indent=4)
+                    
+                    st.download_button(
+                        label="💾 Download Master Database Vault (.json)",
+                        data=json_backup,
+                        file_name=f"bd_ai_book_vault_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                        mime="application/json"
+                    )
+                    st.success("✅ Live Master Backup Vault generated successfully! Download and keep it safe.")
+
+            st.markdown("---")
+            st.markdown("##### 📤 Emergency One-Click Data Restore System")
+            st.caption("সার্ভার বন্ধ বা ডাটা মুছে গেলেও এখান থেকে ব্যাকআপ ফাইল আপলোড করে ১-ক্লিকে সব ক্যাটাগরির ডাটা পুনরুদ্ধার করতে পারবেন।")
+            
+            uploaded_vault_file = st.file_uploader("Upload Backup JSON Vault File", type=["json"], key="vault_restore_uploader")
+            
+            if uploaded_vault_file:
+                if st.button("🔄 RESTORE ALL DATABASE TABLES & MEDIA LINKS NOW"):
+                    try:
+                        vault_content = json.load(uploaded_vault_file)
+                        master_rows = vault_content.get("master_app_table", [])
+                        settings_rows = vault_content.get("site_settings", [])
+                        
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            # ডাটাবেজ নিরাপদ রেখে ডাটা রিস্টোর
+                            for r in master_rows:
+                                keys = list(r.keys())
+                                values = list(r.values())
+                                placeholders = ", ".join(["?"] * len(keys))
+                                columns = ", ".join(keys)
+                                query = f"INSERT OR REPLACE INTO master_app_table ({columns}) VALUES ({placeholders})"
+                                c.execute(query, values)
+                                
+                            for s in settings_rows:
+                                c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", (s["key"], s["value"]))
+                                
+                            conn.commit()
+                        st.success("🎉 RESTORE SUCCESSFUL! All Posts, Pictures, Shorts, and Long Videos restored smoothly.")
+                        st.rerun()
+                    except Exception as ex:
+                        st.error(f"❌ Restore Failed: {str(ex)}")
 
     else:
         with get_db_connection() as conn:
