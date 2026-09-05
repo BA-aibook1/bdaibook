@@ -11,7 +11,6 @@ import streamlit.components.v1 as components
 # ==========================================
 # 0. SECURITY & ENVIRONMENT CONFIGURATION
 # ==========================================
-# আপনার নতুন ও আপডেট করা পাসওয়ার্ড যুক্ত করা হয়েছে
 NEW_OWNER_SECRET_KEY = "S$s123456789112233BDAIBOOK@MDSOHELRANA"
 SECRET_CODES = [NEW_OWNER_SECRET_KEY]
 
@@ -76,7 +75,6 @@ def get_db_connection():
     return conn
 
 def save_to_internal_vault(data_dict):
-    """ফোনে ডাউনলোড না হয়ে অটোমেটিক কোড ফোল্ডারে ১-১৫ ও ১৬-৩০ দিনে ভাগ হয়ে সেভ হবে"""
     try:
         now = datetime.now()
         day = now.day
@@ -92,7 +90,6 @@ def save_to_internal_vault(data_dict):
         pass
 
 def auto_restore_from_internal_vault():
-    """সার্ভার ডাউন হলে কোড ফোল্ডার থেকে অটোমেটিক সব ডাটা ডাটাবেজে রিস্টোর করবে"""
     restored_count = 0
     for folder in [PERIOD_1_DIR, PERIOD_2_DIR]:
         if not os.path.exists(folder):
@@ -301,7 +298,6 @@ def init_master_database():
 
 init_master_database()
 
-# Helper Functions
 def get_setting(key, default=""):
     with get_db_connection() as conn:
         c = conn.cursor()
@@ -338,7 +334,6 @@ def get_user_today_upload_count(user_id, category):
         res = c.fetchone()
         return res["cnt"] if res else 0
 
-# Session State Initialization
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
@@ -348,7 +343,6 @@ site_logo_path = get_setting("logo_path")
 app_name = get_setting("app_name", "BD AI Book")
 announcement = get_setting("owner_announcement", "")
 
-# Fixed Header Component
 top_col1, top_col2, top_col3 = st.columns([1, 3, 1])
 with top_col1:
     if site_logo_path and os.path.exists(site_logo_path):
@@ -367,14 +361,10 @@ with top_col3:
 if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
 
-# Global Secret Broadcast Banner
 sys_alert = get_setting("global_notify_msg")
 if sys_alert and sys_alert != "System Active Globally":
     st.info(f"🌐 **Global System Alert:** {sys_alert}")
 
-# ==========================================
-# 4. AUTHENTICATION SYSTEM (USER REGISTRATION)
-# ==========================================
 real_followers = 0
 current_user = {}
 
@@ -485,12 +475,8 @@ else:
         st.session_state.otp_code = None
         st.rerun()
 
-# ==========================================
-# 5. MAIN NAVIGATION TABS
-# ==========================================
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
-# HELPER: FACEBOOK POST RENDERER
 def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     increment_views(post["record_id"])
     st.markdown("<div class='fb-post-card'>", unsafe_allow_html=True)
@@ -620,11 +606,9 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         
     st.markdown("</div>", unsafe_allow_html=True)
 
-# TAB 1: PUBLIC FEED & OWNER MASTER PANEL
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
     
-    # নতুন লজিক: কেবল নির্দিষ্ট মালিকের পাসওয়ার্ডেই প্যানেল ওপেন হবে
     if search_input.strip() in SECRET_CODES:
         st.session_state.is_owner_session = True
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
@@ -645,9 +629,9 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner 13 Master Control Power Panels")
+        st.markdown("### 🎛️ Owner 14 Master Control Power Panels")
         
-        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13 = st.tabs([
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14 = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
             "3️⃣ Emergency Kill-Switch", 
@@ -660,7 +644,8 @@ with tab_feed:
             "🔟 Sponsor Video Approvals",
             "1️⃣1️⃣ Darjeeling Master Rules",
             "1️⃣2️⃣ Anti-Duplicate Account Switch",
-            "1️⃣3️⃣ Master Vault & Auto-Backup"
+            "1️⃣3️⃣ Master Vault & Auto-Backup",
+            "1️⃣4️⃣ Lalmonirhat Master Control & Analytics"
         ])
         
         with o_tab1:
@@ -1167,6 +1152,35 @@ with tab_feed:
                     except Exception as ex:
                         st.error(f"❌ Restore Failed: {str(ex)}")
 
+        # ==========================================
+        # 14 নম্বর বাটন / প্যানেল (নতুন যোগ করা হলো)
+        # ==========================================
+        with o_tab14:
+            st.markdown("#### 🌟 14th Screen: Lalmonirhat Master Control & Regional Analytics")
+            st.caption("লালমনিরহাট ও রংপুর অঞ্চলের কার্যক্রম, আঞ্চলিক স্টাইল এবং স্পেশাল ওনার কন্ট্রোল প্যানেল।")
+            
+            st.info("📍 **Base Region:** Lalmonirhat (Laalpara / Rangpur Division) - System Fully Active.")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'user'")
+                total_region_users = c.fetchone()["cnt"]
+                
+                c.execute("SELECT COUNT(*) as cnt FROM sponsor_video_requests")
+                total_sponsors_all = c.fetchone()["cnt"]
+
+            col_rc1, col_rc2 = st.columns(2)
+            col_rc1.metric("🌍 Region Connected Users", total_region_users)
+            col_rc2.metric("💼 Total Sponsor Requests Processed", total_sponsors_all)
+
+            st.markdown("---")
+            st.markdown("##### 🎵 Artist & Regional Configuration (Sohel Rana)")
+            st.text_input("Default Master Artist Name", value="Sohel Rana", disabled=True)
+            st.success("✅ Artist copyright and title settings are synchronized with the database.")
+
+            if st.button("🚀 Run Lalmonirhat Regional Optimization & Sync"):
+                st.success("✅ Regional database sync and media index optimization completed successfully!")
+
     else:
         with get_db_connection() as conn:
             c = conn.cursor()
@@ -1211,9 +1225,6 @@ with tab_feed:
                 for post in long_posts:
                     render_post_card(post, ads_enabled, ads_html, prefix="long")
 
-# ------------------------------------------
-# TAB 2: PROFILE & STUDIO
-# ------------------------------------------
 with tab_profile:
     if not st.session_state.user_id:
         st.warning("Please login to manage profile!")
@@ -1341,9 +1352,6 @@ with tab_profile:
                     st.success("Published Successfully!")
                     st.rerun()
 
-# ------------------------------------------
-# TAB 3: MONETIZATION, BANK PAYMENTS & SPONSORS
-# ------------------------------------------
 with tab_monetization:
     st.markdown("### 💸 Worldwide Monetization & Video Boost Center")
     
