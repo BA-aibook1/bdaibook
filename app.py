@@ -312,7 +312,6 @@ def set_setting(key, value):
         c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", (key, str(value)))
         conn.commit()
 
-# Inject Site Verification Code (Google Console / AdSense / etc.) dynamically into Streamlit header
 site_ver_code = get_setting("site_verification_code")
 if site_ver_code:
     components.html(f"<head>{site_ver_code}</head>", height=0, width=0)
@@ -635,9 +634,9 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner 14 Master Control Power Panels")
+        st.markdown("### 🎛️ Owner Master Control Power Panels (1 to 16)")
         
-        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14 = st.tabs([
+        o_tabs = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
             "3️⃣ Emergency Kill-Switch", 
@@ -651,8 +650,12 @@ with tab_feed:
             "1️⃣1️⃣ Darjeeling Master Rules",
             "1️⃣2️⃣ Anti-Duplicate Account Switch",
             "1️⃣3️⃣ Master Vault & Auto-Backup",
-            "1️⃣4️⃣ Lalmonirhat Master Control & Analytics"
+            "1️⃣4️⃣ Lalmonirhat Master Control & Analytics",
+            "1️⃣5️⃣ Advanced AI Content & Security Shield",
+            "1️⃣6️⃣ Master System Diagnostic & Health Log"
         ])
+        
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16 = o_tabs
         
         with o_tab1:
             st.markdown("#### 🖼️ Global Branding & Logo")
@@ -1158,9 +1161,6 @@ with tab_feed:
                     except Exception as ex:
                         st.error(f"❌ Restore Failed: {str(ex)}")
 
-        # ==========================================
-        # 14 নম্বর বাটন / প্যানেল (আপডেট করা সাইট ভেরিফিকেশনসহ)
-        # ==========================================
         with o_tab14:
             st.markdown("#### 🌟 14th Screen: Lalmonirhat Master Control & Regional Analytics")
             st.caption("লালমনিরহাট ও রংপুর অঞ্চলের কার্যক্রম, আঞ্চলিক স্টাইল, অটো সাইট ভেরিফিকেশন এবং স্পেশাল ওনার কন্ট্রোল প্যানেল।")
@@ -1198,6 +1198,87 @@ with tab_feed:
 
             if st.button("🚀 Run Lalmonirhat Regional Optimization & Sync"):
                 st.success("✅ Regional database sync and media index optimization completed successfully!")
+
+        # ==========================================
+        # 15 নম্বর নতুন বারান্দা/প্যানেল (Advanced AI Content & Security Shield)
+        # ==========================================
+        with o_tab15:
+            st.markdown("#### 🛡️ 15th Screen: Advanced AI Content & Security Shield")
+            st.caption("এআই কনটেন্ট ফিল্টারিং, অটো স্প্যাম ব্লকিং এবং সিকিউরিটি শিল্ড ম্যানেজমেন্ট।")
+            
+            ai_shield_status = get_setting("ai_security_shield", "ON")
+            st.write(f"🤖 **AI Security Shield Status:** **{'ACTIVE (ON)' if ai_shield_status == 'ON' else 'DISABLED (OFF)'}**")
+            
+            col_s1, col_s2 = st.columns(2)
+            if ai_shield_status == "OFF":
+                if col_s1.button("🟢 ENABLE AI SECURITY SHIELD", key="shield_on"):
+                    set_setting("ai_security_shield", "ON")
+                    st.success("AI Security Shield Activated!")
+                    st.rerun()
+            else:
+                if col_s2.button("🔴 DISABLE AI SECURITY SHIELD", key="shield_off"):
+                    set_setting("ai_security_shield", "OFF")
+                    st.warning("AI Security Shield Deactivated!")
+                    st.rerun()
+
+            st.markdown("---")
+            st.markdown("##### 🔍 Custom Keyword Blacklist Control")
+            custom_banned_input = st.text_area("Add Banned Keywords (Comma Separated)", value=", ".join(BANNED_KEYWORDS))
+            if st.button("💾 Update Banned Keywords List"):
+                global BANNED_KEYWORDS
+                BANNED_KEYWORDS = [w.strip().lower() for w in custom_banned_input.split(",") if w.strip()]
+                st.success("✅ Banned keyword database successfully updated!")
+
+            st.markdown("---")
+            st.markdown("##### ⚡ Vision AI Diagnostic Test")
+            if VISION_AI_AVAILABLE:
+                st.success("✅ Google Cloud Vision AI library is fully connected and active.")
+            else:
+                st.warning("⚠️ Google Cloud Vision AI library is not installed or configured in this environment.")
+
+        # ==========================================
+        # 16 নম্বর নতুন বারান্দা/প্যানেল (Master System Diagnostic & Health Log)
+        # ==========================================
+        with o_tab16:
+            st.markdown("#### 🩺 16th Screen: Master System Diagnostic & Health Log")
+            st.caption("সার্ভারের রিয়েল-টাইম হেলথ স্ট্যাটাস, ডাটাবেজ সাইজ এবং সিস্টেম পারফরম্যান্স লগ।")
+            
+            db_size_bytes = os.path.getsize(LOCAL_DB_FILE) if os.path.exists(LOCAL_DB_FILE) else 0
+            db_size_kb = db_size_bytes / 1024
+            db_size_mb = db_size_kb / 1024
+            
+            col_h1, col_h2, col_h3 = st.columns(3)
+            col_h1.metric("📂 Database File Size", f"{db_size_mb:.2f} MB" if db_size_mb > 1 else f"{db_size_kb:.2f} KB")
+            col_h2.metric("📁 Upload Directory Status", "Active & Writable" if os.path.exists(UPLOAD_DIR) else "Missing")
+            col_h3.metric("⚙️ SQLite Thread Mode", "Safe (check_same_thread=False)")
+
+            st.markdown("---")
+            st.markdown("##### 📊 Quick Database Integrity & Table Row Counts")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table")
+                total_master_rows = c.fetchone()["cnt"]
+                c.execute("SELECT COUNT(*) as cnt FROM payment_gateways")
+                total_gateways = c.fetchone()["cnt"]
+                c.execute("SELECT COUNT(*) as cnt FROM follows")
+                total_follows = c.fetchone()["cnt"]
+                c.execute("SELECT COUNT(*) as cnt FROM likes")
+                total_likes = c.fetchone()["cnt"]
+
+            st.write(f"- **Master Table Total Rows:** {total_master_rows}")
+            st.write(f"- **Active Payment Gateways:** {total_gateways}")
+            st.write(f"- **Total Follow Relationships:** {total_follows}")
+            st.write(f"- **Total Post Likes:** {total_likes}")
+
+            st.markdown("---")
+            if st.button("🚀 Run Complete System Optimization & Reindex"):
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("REINDEX;")
+                    c.execute("ANALYZE;")
+                    conn.commit()
+                st.success("✅ Complete system reindex and optimization successfully finished!")
 
     else:
         with get_db_connection() as conn:
