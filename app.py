@@ -348,7 +348,9 @@ if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
 if "active_tab" not in st.session_state: st.session_state.active_tab = 0
 
-# Check Direct JS Upload from Camera Studio
+# ==========================================
+# FIX: DIRECT JS CAMERA AUTO-PUBLISH LOGIC
+# ==========================================
 if "direct_cam_data" in st.query_params:
     try:
         raw_b64 = st.query_params["direct_cam_data"]
@@ -359,15 +361,34 @@ if "direct_cam_data" in st.query_params:
             f.write(v_bytes)
         
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        post_data_map = {
+            "record_id": rec_id,
+            "data_type": "post",
+            "user_id": st.session_state.user_id or "GUEST",
+            "full_name": "Public User",
+            "is_verified": 1,
+            "title": "Live Camera Short Video",
+            "content": "#LiveCamera #TikTok #BDAIBook",
+            "media_path": v_path,
+            "post_category": "short",
+            "views_count": 1,
+            "likes_count": 0,
+            "created_at": now
+        }
+
         with get_db_connection() as conn:
             c = conn.cursor()
             c.execute("""
                 INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, media_path, post_category, views_count, likes_count, created_at)
-                VALUES (?, 'post', ?, 'Public User', 1, 'Live Camera Short', '#LiveCamera #TikTok', ?, 'short', 1, 0, ?)
+                VALUES (?, 'post', ?, 'Public User', 1, 'Live Camera Short Video', '#LiveCamera #TikTok #BDAIBook', ?, 'short', 1, 0, ?)
             """, (rec_id, st.session_state.user_id or "GUEST", v_path, now))
             conn.commit()
+            
+        save_to_internal_vault(post_data_map)
         st.query_params.clear()
-        st.toast("🎉 Live Recorded Video Successfully Published!")
+        st.toast("🎉 Live Camera Video Successfully Published!")
+        st.rerun()
     except Exception as ex:
         st.error(f"Error Direct Uploading: {ex}")
 
@@ -634,11 +655,11 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         
     st.markdown("</div>", unsafe_allow_html=True)
 
-# TikTok Camera Studio with Direct One-Click Publish & On-Screen Music Library
+# TikTok Camera Studio with Direct One-Click Publish & On-Screen Music Library (Connected to Tab 15)
 def render_tiktok_camera_studio():
     st.info("📱 **Public TikTok Live Camera, Audio Library & Filter Studio**")
 
-    # Fetch Music Songs
+    # Fetch Music Songs from 15th Screen Library
     music_options_html = "<option value=''>🎵 None (Original Mic)</option>"
     with get_db_connection() as conn:
         c = conn.cursor()
@@ -646,9 +667,12 @@ def render_tiktok_camera_studio():
         songs = c.fetchall()
         for s in songs:
             if os.path.exists(s['file_path']):
-                with open(s['file_path'], "rb") as f:
-                    b64 = base64.b64encode(f.read()).decode()
-                    music_options_html += f"<option value='data:audio/mp3;base64,{b64}'>🎵 {s['title']} ({s['artist']})</option>"
+                try:
+                    with open(s['file_path'], "rb") as f:
+                        b64 = base64.b64encode(f.read()).decode()
+                        music_options_html += f"<option value='data:audio/mp3;base64,{b64}'>🎵 {s['title']} ({s['artist']})</option>"
+                except Exception:
+                    pass
 
     components.html(f"""
     <style>
@@ -887,7 +911,7 @@ def render_tiktok_camera_studio():
     st.markdown("---")
     st.markdown("### 📤 রেকর্ড করা ভিডিও অথবা ফাইল আপলোড করে পাবলিশ করুন")
     cam_title = st.text_input("TikTok Video Title", value="My TikTok Reel", key="public_tiktok_title")
-    cam_desc = st.text_area("Description & Hashtags (#TikTok #Viral)", key="public_tiktok_desc")
+    cam_desc = st.text_area("Description & Hashtags (#TikTok #Viral)", value="#TikTok #Viral #BDAIBook", key="public_tiktok_desc")
     
     video_file = st.file_uploader("📁 আপলোড করতে এখানে রেকর্ড করা বা যেকোনো ভিডিও নির্বাচন করুন (.webm/.mp4)", type=["mp4", "webm", "mov"], key="public_video_file")
 
@@ -900,6 +924,21 @@ def render_tiktok_camera_studio():
             rec_id = str(uuid.uuid4())
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
+            post_data_map = {
+                "record_id": rec_id,
+                "data_type": "post",
+                "user_id": st.session_state.user_id or "GUEST",
+                "full_name": current_user.get("full_name", "Public User"),
+                "is_verified": current_user.get("is_verified", 1),
+                "title": cam_title,
+                "content": cam_desc,
+                "media_path": v_path,
+                "post_category": "short",
+                "views_count": 1,
+                "likes_count": 0,
+                "created_at": now
+            }
+
             with get_db_connection() as conn:
                 c = conn.cursor()
                 c.execute("""
@@ -907,6 +946,8 @@ def render_tiktok_camera_studio():
                     VALUES (?, 'post', ?, ?, ?, ?, ?, ?, 'short', 1, 0, ?)
                 """, (rec_id, st.session_state.user_id or "GUEST", current_user.get("full_name", "Public User"), current_user.get("is_verified", 1), cam_title, cam_desc, v_path, now))
                 conn.commit()
+                
+            save_to_internal_vault(post_data_map)
             st.success("🎉 Video successfully published to Public TikTok Feed!")
             st.rerun()
         else:
@@ -1500,7 +1541,7 @@ with tab_feed:
 
         with o_tab15:
             st.markdown("#### 🎵 15th Screen: Free Copyright-Free Music Library (Owner Upload)")
-            st.caption("অ্যাডমিন এখানে ফ্রি ব্যাকগ্রাউন্ড মিউজিক আপলোড করতে পারবেন যা ব্যবহারকারীরা ক্যামেরা ইন্টারফেসেই পাবেন।")
+            st.caption("অ্যাডমিন এখানে ফ্রি ব্যাকগ্রাউন্ড মিউজিক আপলোড করতে পারবেন যা ক্যামেরা ইন্টারফেসের ড্রপডাউনে পাওয়া যাবে।")
             
             with st.form("owner_music_upload_form"):
                 song_title = st.text_input("Song Title / Name")
@@ -1508,7 +1549,7 @@ with tab_feed:
                 song_file = st.file_uploader("Upload Copyright-Free Audio Song (.mp3/.wav)", type=["mp3", "wav"])
                 submit_song = st.form_submit_button("📤 Upload to Free Music Library")
                 
-                if submit_song and song_file:
+                if submit_song and song_file and song_title:
                     song_id = str(uuid.uuid4())
                     s_path = os.path.join(UPLOAD_DIR, f"free_song_{song_id}.mp3")
                     with open(s_path, "wb") as f:
