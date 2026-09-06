@@ -1214,7 +1214,6 @@ with tab_feed:
             
             st.info("📸 **Live Face & iPhone Filter Camera Studio Active**")
 
-            # ফেস রিকগনিশন ও আইফোন ফিল্টার ক্যামেরা স্টুডিও কম্পোনেন্ট
             components.html("""
             <div style="background:#161b22; padding:15px; border-radius:10px; color:#fff; font-family:sans-serif;">
               <div class="form-group" style="margin-bottom:10px;">
