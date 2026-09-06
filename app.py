@@ -12,7 +12,8 @@ import streamlit.components.v1 as components
 # ==========================================
 # 0. SECURITY & ENVIRONMENT CONFIGURATION
 # ==========================================
-NEW_OWNER_SECRET_KEY = "S$s123456789112233BDAIBOOK@MDSOHELRANA"
+# সিকিউরিটির জন্য Secret Key পরিবেশ থেকে পড়া ভালো
+NEW_OWNER_SECRET_KEY = os.getenv("OWNER_SECRET", "S$s123456789112233BDAIBOOK@MDSOHELRANA")
 SECRET_CODES = [NEW_OWNER_SECRET_KEY]
 
 # ==========================================
@@ -71,7 +72,7 @@ LOCAL_DB_FILE = "bd_ai_book_master.db"
 BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
 def get_db_connection():
-    conn = sqlite3.connect(LOCAL_DB_FILE, check_same_thread=False)
+    conn = sqlite3.connect(LOCAL_DB_FILE, check_same_thread=False, timeout=10)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -351,10 +352,11 @@ if "active_tab" not in st.session_state: st.session_state.active_tab = 0
 # ==========================================
 # AUTO-PUBLISH LOGIC DIRECT FROM CAMERA
 # ==========================================
-if "direct_cam_data" in st.query_params:
+query_params = st.query_params
+if "direct_cam_data" in query_params:
     try:
-        raw_b64 = st.query_params["direct_cam_data"]
-        custom_title = st.query_params.get("video_title", "Live Short Video")
+        raw_b64 = query_params["direct_cam_data"]
+        custom_title = query_params.get("video_title", "Live Short Video")
         v_bytes = base64.b64decode(raw_b64)
         rec_id = str(uuid.uuid4())
         v_path = os.path.join(UPLOAD_DIR, f"live_rec_{rec_id}.webm")
@@ -379,7 +381,7 @@ if "direct_cam_data" in st.query_params:
             "full_name": user_name,
             "is_verified": 1,
             "title": custom_title,
-            "content": "",  # ডেসক্রিপশন ফাকা
+            "content": "",
             "media_path": v_path,
             "post_category": "short",
             "views_count": 1,
@@ -665,11 +667,9 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         
     st.markdown("</div>", unsafe_allow_html=True)
 
-# TikTok Camera Studio with Direct One-Click Title-Only Auto Publish
 def render_tiktok_camera_studio():
     st.info("📱 **Public Live Camera, Filters & Quick Direct Publish Studio**")
 
-    # Fetch Music Songs from 15th Screen Library
     music_options_html = "<option value=''>🎵 None (Original Mic)</option>"
     with get_db_connection() as conn:
         c = conn.cursor()
