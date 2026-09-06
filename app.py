@@ -600,6 +600,160 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         
     st.markdown("</div>", unsafe_allow_html=True)
 
+# Helper for TikTok Live Camera Interface
+def render_tiktok_camera_studio():
+    st.info("📱 **Public TikTok Live Camera & Filter Studio (Everyone Can Use)**")
+    
+    components.html("""
+    <div style="background:#111216; padding:15px; border-radius:12px; color:#fff; font-family:sans-serif; text-align:center;">
+      <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+        <label style="font-weight:bold; font-size:13px; color:#0064e0;">Ratio Aspect:</label>
+        <select id="formatSelect" onchange="updateVideoRatio()" style="padding:6px; border-radius:5px; background:#21262d; color:#fff; border:1px solid #30363d;">
+          <option value="short">TikTok Short (9:16)</option>
+          <option value="long">Wide Screen (16:9)</option>
+          <option value="picture">Square (1:1)</option>
+        </select>
+      </div>
+
+      <div id="cameraBox" style="position: relative; width:100%; max-width:320px; margin:0 auto; background:#000; border-radius:14px; overflow:hidden; border:2px solid #0064e0;">
+        <video id="cameraPreview" autoplay playsinline muted style="width: 100%; display:block; filter: none; object-fit: cover; aspect-ratio: 9/16;"></video>
+        <div id="recordingBadge" style="display:none; position:absolute; top:10px; left:10px; background:red; color:#fff; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">● REC <span id="timer">0s</span></div>
+      </div>
+      
+      <div style="margin-top: 10px; display:flex; flex-wrap:wrap; justify-content:center; gap:5px;">
+        <button onclick="switchCamera()" style="padding:6px 12px; background:#0064e0; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">🔄 Switch Cam</button>
+        <button onclick="applyFilter('none')" style="padding:6px 10px; background:#238636; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">Normal</button>
+        <button onclick="applyFilter('contrast(120%) brightness(110%) saturate(130%)')" style="padding:6px 10px; background:#e0007b; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">✨ iPhone Glow</button>
+        <button onclick="applyFilter('grayscale(100%)')" style="padding:6px 10px; background:#30363d; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">B&W</button>
+        <button onclick="applyFilter('sepia(80%)')" style="padding:6px 10px; background:#8a6300; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">Vintage</button>
+      </div>
+
+      <div style="margin-top:12px;">
+        <button id="startRecBtn" onclick="toggleRecording()" style="padding:10px 20px; background:#ff0050; color:#fff; font-weight:bold; border:none; border-radius:25px; cursor:pointer; font-size:14px;">🔴 Start Live Recording</button>
+      </div>
+    </div>
+
+    <script>
+      let useFrontCamera = true;
+      let currentStream = null;
+      let mediaRecorder = null;
+      let recordedChunks = [];
+      let isRecording = false;
+      let timerInterval = null;
+      let seconds = 0;
+
+      function startCamera() {
+        if (currentStream) {
+          currentStream.getTracks().forEach(track => track.stop());
+        }
+        
+        const constraints = {
+          video: { facingMode: useFrontCamera ? "user" : "environment", width: { ideal: 720 }, height: { ideal: 1280 } },
+          audio: true
+        };
+
+        navigator.mediaDevices.getUserMedia(constraints)
+          .then(function(stream) {
+            currentStream = stream;
+            var video = document.getElementById('cameraPreview');
+            video.srcObject = stream;
+            video.play();
+          })
+          .catch(function(error) {
+            console.log("Camera error: " + error);
+          });
+      }
+
+      function switchCamera() {
+        useFrontCamera = !useFrontCamera;
+        startCamera();
+      }
+
+      function updateVideoRatio() {
+        const format = document.getElementById('formatSelect').value;
+        const preview = document.getElementById('cameraPreview');
+        if (format === 'short') {
+          preview.style.aspectRatio = "9/16";
+        } else if (format === 'long') {
+          preview.style.aspectRatio = "16/9";
+        } else {
+          preview.style.aspectRatio = "1/1";
+        }
+      }
+
+      function applyFilter(filterStyle) {
+        const preview = document.getElementById('cameraPreview');
+        preview.style.filter = filterStyle;
+      }
+
+      function toggleRecording() {
+        const btn = document.getElementById('startRecBtn');
+        const badge = document.getElementById('recordingBadge');
+        
+        if (!isRecording) {
+          recordedChunks = [];
+          try {
+            mediaRecorder = new MediaRecorder(currentStream, { mimeType: 'video/webm' });
+          } catch (e) {
+            mediaRecorder = new MediaRecorder(currentStream);
+          }
+          
+          mediaRecorder.ondataavailable = function(e) {
+            if (e.data.size > 0) recordedChunks.push(e.data);
+          };
+
+          mediaRecorder.start(100);
+          isRecording = true;
+          btn.innerHTML = "⏹️ Stop Recording";
+          btn.style.background = "#30363d";
+          badge.style.display = "block";
+          
+          seconds = 0;
+          timerInterval = setInterval(() => {
+            seconds++;
+            document.getElementById('timer').innerText = seconds + "s";
+          }, 1000);
+
+        } else {
+          mediaRecorder.stop();
+          isRecording = false;
+          btn.innerHTML = "🔴 Start Live Recording";
+          btn.style.background = "#ff0050";
+          badge.style.display = "none";
+          clearInterval(timerInterval);
+        }
+      }
+
+      startCamera();
+    </script>
+    """, height=480)
+
+    cam_title = st.text_input("TikTok Video Title", value="My TikTok Reel", key="public_tiktok_title")
+    cam_desc = st.text_area("Description & Hashtags (#TikTok #Viral)", key="public_tiktok_desc")
+
+    camera_video = st.camera_input("📷 Capture Snapshot or Video Clip", key="public_camera_input")
+
+    if st.button("🚀 Publish Public Video to Feed", key="public_publish_btn"):
+        if camera_video:
+            v_path = os.path.join(UPLOAD_DIR, f"tiktok_{uuid.uuid4()}.png")
+            with open(v_path, "wb") as f:
+                f.write(camera_video.getbuffer())
+            
+            rec_id = str(uuid.uuid4())
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("""
+                    INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, media_path, post_category, views_count, likes_count, created_at)
+                    VALUES (?, 'post', ?, ?, ?, ?, ?, ?, 'short', 1, 0, ?)
+                """, (rec_id, st.session_state.user_id or "GUEST", current_user.get("full_name", "Public User"), current_user.get("is_verified", 1), cam_title, cam_desc, v_path, now))
+                conn.commit()
+            st.success("🎉 Video successfully published to Public TikTok Feed!")
+            st.rerun()
+        else:
+            st.error("Please capture a clip/photo using camera first.")
+
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
     
@@ -1211,109 +1365,7 @@ with tab_feed:
         with o_tab16:
             st.markdown("#### 📱 16th Screen: Face Recognition & iPhone Filter Live Camera Studio")
             st.caption("ফেস দেখে ক্যামেরা অন করা, আইফোন লজিক ফিল্টার অ্যাপ্লাই করা এবং সরাসরি পাবলিক ভিডিও আপলোড ও পাবলিশ করার সিস্টেম।")
-            
-            st.info("📸 **Live Face & iPhone Filter Camera Studio Active**")
-
-            components.html("""
-            <div style="background:#161b22; padding:15px; border-radius:10px; color:#fff; font-family:sans-serif;">
-              <div class="form-group" style="margin-bottom:10px;">
-                <label for="formatSelect" style="font-weight:bold;">Video Ratio Format:</label>
-                <select id="formatSelect" class="form-control" onchange="updateVideoRatio()" style="width:100%; padding:8px; border-radius:5px; background:#21262d; color:#fff; border:1px solid #30363d;">
-                  <option value="short">Short (9:16)</option>
-                  <option value="long">Long (16:9)</option>
-                  <option value="picture">Picture (1:1)</option>
-                </select>
-              </div>
-
-              <div class="camera-container" style="position: relative; width:100%; max-width:400px; margin:0 auto; background:#000; border-radius:10px; overflow:hidden;">
-                <video id="cameraPreview" autoplay playsinline style="width: 100%; display:block; filter: none; object-fit: cover; aspect-ratio: 9/16;"></video>
-              </div>
-              
-              <div class="filter-bar" style="margin-top: 12px; text-align:center;">
-                <button onclick="switchCamera()" style="padding:6px 12px; margin:3px; background:#0064e0; color:#fff; border:none; border-radius:4px; cursor:pointer;">🔄 Switch Camera</button>
-                <button onclick="applyFilter('none')" style="padding:6px 12px; margin:3px; background:#238636; color:#fff; border:none; border-radius:4px; cursor:pointer;">Normal</button>
-                <button onclick="applyFilter('grayscale(100%)')" style="padding:6px 12px; margin:3px; background:#21262d; color:#fff; border:1px solid #30363d; border-radius:4px; cursor:pointer;">B&W</button>
-                <button onclick="applyFilter('sepia(100%)')" style="padding:6px 12px; margin:3px; background:#21262d; color:#fff; border:1px solid #30363d; border-radius:4px; cursor:pointer;">Sepia</button>
-              </div>
-            </div>
-
-            <script>
-              let useFrontCamera = true;
-              let currentStream = null;
-
-              function startCamera() {
-                if (currentStream) {
-                  currentStream.getTracks().forEach(track => track.stop());
-                }
-                
-                const constraints = {
-                  video: { facingMode: useFrontCamera ? "user" : "environment" },
-                  audio: true
-                };
-
-                navigator.mediaDevices.getUserMedia(constraints)
-                  .then(function(stream) {
-                    currentStream = stream;
-                    var video = document.getElementById('cameraPreview');
-                    video.srcObject = stream;
-                    video.play();
-                  })
-                  .catch(function(error) {
-                    console.log("Camera error: " + error);
-                  });
-              }
-
-              function switchCamera() {
-                useFrontCamera = !useFrontCamera;
-                startCamera();
-              }
-
-              function updateVideoRatio() {
-                const format = document.getElementById('formatSelect').value;
-                const preview = document.getElementById('cameraPreview');
-                
-                if (format === 'short') {
-                  preview.style.aspectRatio = "9/16";
-                } else if (format === 'long') {
-                  preview.style.aspectRatio = "16/9";
-                } else {
-                  preview.style.aspectRatio = "1/1";
-                }
-              }
-
-              function applyFilter(filterStyle) {
-                const preview = document.getElementById('cameraPreview');
-                preview.style.filter = filterStyle;
-              }
-
-              startCamera();
-            </script>
-            """, height=450)
-            
-            cam_title = st.text_input("Video Title", value="My Live iPhone Filter Video")
-            cam_desc = st.text_area("Video Description & Tags")
-
-            camera_video = st.camera_input("📷 Capture & Upload Final Snapshot/Video from Camera")
-
-            if st.button("🚀 Publish Public Video with iPhone Filter"):
-                if camera_video:
-                    v_path = os.path.join(UPLOAD_DIR, f"cam_{uuid.uuid4()}.png")
-                    with open(v_path, "wb") as f:
-                        f.write(camera_video.getbuffer())
-                    
-                    rec_id = str(uuid.uuid4())
-                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    
-                    with get_db_connection() as conn:
-                        c = conn.cursor()
-                        c.execute("""
-                            INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, media_path, post_category, views_count, likes_count, created_at)
-                            VALUES (?, 'post', ?, ?, ?, ?, ?, ?, 'picture', 1, 0, ?)
-                        """, (rec_id, st.session_state.user_id or "GUEST", current_user.get("full_name", "Sohel Rana"), current_user.get("is_verified", 1), cam_title, cam_desc, v_path, now))
-                        conn.commit()
-                    st.success("🎉 Live Camera capture successfully published to Public Feed with iPhone Filter!")
-                else:
-                    st.error("Please capture an image using the camera first.")
+            render_tiktok_camera_studio()
 
     else:
         with get_db_connection() as conn:
@@ -1329,13 +1381,17 @@ with tab_feed:
         ads_enabled = get_setting("show_ads") == "ON"
         ads_html = get_setting("adsense_script")
 
-        sub_feed1, sub_feed2, sub_feed3, sub_feed4 = st.tabs(["🌐 All Feed", "🎬 Reels / Shorts", "🖼️ Photos", "📹 Long Videos"])
+        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5 = st.tabs(["🌐 All Feed", "📹 TikTok Camera Studio", "🎬 Reels / Shorts", "🖼️ Photos", "📹 Long Videos"])
 
         with sub_feed1:
             for post in posts:
                 render_post_card(post, ads_enabled, ads_html, prefix="all")
 
         with sub_feed2:
+            st.markdown("### 📱 Public TikTok Studio & Live Camera Filters")
+            render_tiktok_camera_studio()
+
+        with sub_feed3:
             short_posts = [p for p in posts if p.get("post_category") == "short"]
             if not short_posts:
                 st.info("No Reels / Short Videos uploaded yet.")
@@ -1343,7 +1399,7 @@ with tab_feed:
                 for post in short_posts:
                     render_post_card(post, ads_enabled, ads_html, prefix="short")
 
-        with sub_feed3:
+        with sub_feed4:
             picture_posts = [p for p in posts if p.get("post_category") == "picture"]
             if not picture_posts:
                 st.info("No Photo posts available.")
@@ -1351,7 +1407,7 @@ with tab_feed:
                 for post in picture_posts:
                     render_post_card(post, ads_enabled, ads_html, prefix="pic")
 
-        with sub_feed4:
+        with sub_feed5:
             long_posts = [p for p in posts if p.get("post_category") == "long"]
             if not long_posts:
                 st.info("No Long Videos available.")
