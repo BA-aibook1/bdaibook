@@ -140,7 +140,7 @@ st.markdown("""
         position: absolute; top: 12px; right: 15px; background: rgba(0, 100, 224, 0.85);
         color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 99; pointer-events: none;
     }
-    .tiktok-container { max-width: 320px; margin: 0 auto; border-radius: 14px; overflow: hidden; border: 1px solid #333; }
+    .tiktok-container { max-width: 380px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 2px solid #222; background: #000; }
     .announcement-box {
         background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 10px; border-radius: 10px; text-align: center; margin-bottom: 10px; font-weight: bold; font-size: 13px;
     }
@@ -609,19 +609,19 @@ def render_tiktok_camera_studio():
       <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
         <label style="font-weight:bold; font-size:13px; color:#0064e0;">Ratio Aspect:</label>
         <select id="formatSelect" onchange="updateVideoRatio()" style="padding:6px; border-radius:5px; background:#21262d; color:#fff; border:1px solid #30363d;">
-          <option value="short">TikTok Short (9:16)</option>
+          <option value="short">TikTok Short (9:16 Vertical)</option>
           <option value="long">Wide Screen (16:9)</option>
           <option value="picture">Square (1:1)</option>
         </select>
       </div>
 
       <div id="cameraBox" style="position: relative; width:100%; max-width:320px; margin:0 auto; background:#000; border-radius:14px; overflow:hidden; border:2px solid #0064e0;">
-        <video id="cameraPreview" autoplay playsinline muted style="width: 100%; display:block; filter: none; object-fit: cover; aspect-ratio: 9/16;"></video>
+        <video id="cameraPreview" autoplay playsinline muted style="width: 100%; display:block; filter: none; object-fit: cover; aspect-ratio: 9/16; transform: scaleX(1);"></video>
         <div id="recordingBadge" style="display:none; position:absolute; top:10px; left:10px; background:red; color:#fff; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">● REC <span id="timer">0s</span></div>
       </div>
       
       <div style="margin-top: 10px; display:flex; flex-wrap:wrap; justify-content:center; gap:5px;">
-        <button onclick="switchCamera()" style="padding:6px 12px; background:#0064e0; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">🔄 Switch Cam</button>
+        <button onclick="switchCamera()" style="padding:6px 12px; background:#0064e0; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">🔄 Switch Cam (Back/Front)</button>
         <button onclick="applyFilter('none')" style="padding:6px 10px; background:#238636; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">Normal</button>
         <button onclick="applyFilter('contrast(120%) brightness(110%) saturate(130%)')" style="padding:6px 10px; background:#e0007b; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">✨ iPhone Glow</button>
         <button onclick="applyFilter('grayscale(100%)')" style="padding:6px 10px; background:#30363d; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">B&W</button>
@@ -634,7 +634,7 @@ def render_tiktok_camera_studio():
     </div>
 
     <script>
-      let useFrontCamera = true;
+      let useFrontCamera = false; // Default to Back Camera for standard recording
       let currentStream = null;
       let mediaRecorder = null;
       let recordedChunks = [];
@@ -657,10 +657,11 @@ def render_tiktok_camera_studio():
             currentStream = stream;
             var video = document.getElementById('cameraPreview');
             video.srcObject = stream;
+            video.style.transform = useFrontCamera ? "scaleX(-1)" : "scaleX(1)"; // Mirror front camera, keep back camera normal
             video.play();
           })
           .catch(function(error) {
-            console.log("Camera error: " + error);
+            console.log("Camera access error: " + error);
           });
       }
 
@@ -726,12 +727,12 @@ def render_tiktok_camera_studio():
 
       startCamera();
     </script>
-    """, height=480)
+    """, height=500)
 
     cam_title = st.text_input("TikTok Video Title", value="My TikTok Reel", key="public_tiktok_title")
     cam_desc = st.text_area("Description & Hashtags (#TikTok #Viral)", key="public_tiktok_desc")
 
-    camera_video = st.camera_input("📷 Capture Snapshot or Video Clip", key="public_camera_input")
+    camera_video = st.camera_input("📷 Capture Snapshot or Short Clip", key="public_camera_input")
 
     if st.button("🚀 Publish Public Video to Feed", key="public_publish_btn"):
         if camera_video:
@@ -1110,7 +1111,7 @@ with tab_feed:
                         st.rerun()
 
         with o_tab11:
-            st.markdown("#### 🏔️ 11th Screen: Darjeeling Master Rules & Automated System Shield")
+            st.markdown("#### 🏔️ 11th Screen: System Optimization & Security Shield")
             st.caption("Automated system optimization and security controls:")
             
             st.markdown("""
@@ -1305,10 +1306,8 @@ with tab_feed:
                         st.error(f"❌ Restore Failed: {str(ex)}")
 
         with o_tab14:
-            st.markdown("#### 🌟 14th Screen: Lalmonirhat Master Control & Regional Analytics")
-            st.caption("লালমনিরহাট ও রংপুর অঞ্চলের কার্যক্রম, আঞ্চলিক স্টাইল, অটো সাইট ভেরিফিকেশন এবং স্পেশাল ওনার কন্ট্রোল প্যানেল।")
-            
-            st.info("📍 **Base Region:** Lalmonirhat (Laalpara / Rangpur Division) - System Fully Active.")
+            st.markdown("#### 🌟 14th Screen: Master Control & Regional Analytics")
+            st.caption("আঞ্চলিক কার্যক্রম, অটো সাইট ভেরিফিকেশন এবং স্পেশাল ওনার কন্ট্রোল প্যানেল।")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1324,7 +1323,7 @@ with tab_feed:
 
             st.markdown("---")
             st.markdown("##### 🔍 Google Search Console & AdSense Auto-Verification Setup")
-            st.caption("এখানে গুগল কনসোল বা এডসেন্সের ভেরিফিকেশন কোড (যেমন: `<meta name='google-site-verification' content='...' />`) একবার সেভ করে রাখলে বারবার কোড জেনারেট বা পরিবর্তন করা লাগবে না; এটি অটোমেটিক সাইট ভেরিফিকেশন সম্পন্ন করবে।")
+            st.caption("এখানে গুগল কনসোল বা এডসেন্সের ভেরিফিকেশন কোড (যেমন: `<meta name='google-site-verification' content='...' />`) একবার সেভ করে রাখলে এটি অটোমেটিক সাইট ভেরিফিকেশন সম্পন্ন করবে।")
 
             current_saved_ver_code = get_setting("site_verification_code", "")
             input_ver_code = st.text_area("Paste Verification Meta Tag / HTML Snippet Here", value=current_saved_ver_code, height=100)
@@ -1335,20 +1334,20 @@ with tab_feed:
                 st.rerun()
 
             st.markdown("---")
-            st.markdown("##### 🎵 Artist & Regional Configuration (Sohel Rana)")
-            st.text_input("Default Master Artist Name", value="Sohel Rana", disabled=True)
-            st.success("✅ Artist copyright and title settings are synchronized with the database.")
+            st.markdown("##### 🎵 Master Configuration")
+            st.text_input("Default Master Admin Name", value="Admin Owner", disabled=True)
+            st.success("✅ Copyright and title settings are synchronized with the database.")
 
-            if st.button("🚀 Run Lalmonirhat Regional Optimization & Sync"):
-                st.success("✅ Regional database sync and media index optimization completed successfully!")
+            if st.button("🚀 Run System Optimization & Sync"):
+                st.success("✅ Database sync and media index optimization completed successfully!")
 
         with o_tab15:
             st.markdown("#### 🎵 15th Screen: Free Copyright-Free Music Library (Owner Upload)")
-            st.caption("শিল্পী হিসেবে সোহেল রানা নিজের ফ্রি লাইব্রেরি গানগুলো এখানে আপলোড করতে পারবেন যা ব্যবহারকারীরা ভিডিওর সাথে যুক্ত করতে পারবেন।")
+            st.caption("অ্যাডমিন এখানে ফ্রি ব্যাকগ্রাউন্ড মিউজিক আপলোড করতে পারবেন যা ব্যবহারকারীরা ভিডিওর সাথে যুক্ত করতে পারবেন।")
             
             with st.form("owner_music_upload_form"):
                 song_title = st.text_input("Song Title / Name")
-                artist_name = st.text_input("Artist Name", value="Sohel Rana")
+                artist_name = st.text_input("Artist Name", value="Master Studio")
                 song_file = st.file_uploader("Upload Copyright-Free Audio Song (.mp3/.wav)", type=["mp3", "wav"])
                 submit_song = st.form_submit_button("📤 Upload to Free Music Library")
                 
@@ -1360,11 +1359,11 @@ with tab_feed:
                     st.success("✅ Copyright-free song added successfully to the public library!")
 
             st.markdown("##### 🎧 Available Free Songs in Library:")
-            st.info("🎶 [Active] Sohel Rana - Free Folk & Cinematic Instrumentals (Ready for Public Videos)")
+            st.info("🎶 [Active] Free Folk & Cinematic Instrumentals (Ready for Public Videos)")
 
         with o_tab16:
             st.markdown("#### 📱 16th Screen: Face Recognition & iPhone Filter Live Camera Studio")
-            st.caption("ফেস দেখে ক্যামেরা অন করা, আইফোন লজিক ফিল্টার অ্যাপ্লাই করা এবং সরাসরি পাবলিক ভিডিও আপলোড ও পাবলিশ করার সিস্টেম।")
+            st.caption("লাইভ ক্যামেরা ফিল্টার ও সরাসরি ভিডিও আপলোড সিস্টেম।")
             render_tiktok_camera_studio()
 
     else:
@@ -1560,7 +1559,7 @@ with tab_monetization:
     elif real_followers >= 1000:
         st.success(f"🎉 **You are eligible for Monetization!**")
         with st.expander("📝 Apply for Monetization Payout"):
-            bank_info_input = st.text_area("Enter Your Bank Account / bKash / Nagad Details for Payouts")
+            bank_info_input = st.text_area("Enter Your Bank Account / Mobile Banking Details for Payouts")
             if st.button("Submit Monetization Application"):
                 if bank_info_input:
                     with get_db_connection() as conn:
@@ -1650,9 +1649,9 @@ with tab_monetization:
             selected_post_id = post_options[selected_title]
             
             boost_plan = st.selectbox("Select Boost Package", [
-                "Basic - 5,000 Views ($5 / 550 BDT)",
-                "Pro - 20,000 Views ($15 / 1650 BDT)",
-                "VIP Unlimited - 100,000 Views ($50 / 5500 BDT)"
+                "Basic - 5,000 Views ($5)",
+                "Pro - 20,000 Views ($15)",
+                "VIP Unlimited - 100,000 Views ($50)"
             ])
             
             selected_gw_name = st.selectbox("Select Payment Method for Boost", list(gw_options.keys()), key="boost_gw_select")
