@@ -86,7 +86,7 @@ def save_to_internal_vault(data_dict):
         
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data_dict, f, ensure_ascii=False, indent=4)
-    except Exception as e:
+    except Exception:
         pass
 
 def auto_restore_from_internal_vault():
@@ -1214,7 +1214,7 @@ with tab_feed:
             
             st.info("📸 **Live Face & iPhone Filter Camera Studio Active**")
 
-            # ফরম্যাট ও ফিল্টার কন্ট্রোল (HTML + JavaScript Streamlit Component)
+            # ফেস রিকগনিশন ও আইফোন ফিল্টার ক্যামেরা স্টুডিও কম্পোনেন্ট
             components.html("""
             <div style="background:#161b22; padding:15px; border-radius:10px; color:#fff; font-family:sans-serif;">
               <div class="form-group" style="margin-bottom:10px;">
@@ -1231,44 +1231,65 @@ with tab_feed:
               </div>
               
               <div class="filter-bar" style="margin-top: 12px; text-align:center;">
+                <button onclick="switchCamera()" style="padding:6px 12px; margin:3px; background:#0064e0; color:#fff; border:none; border-radius:4px; cursor:pointer;">🔄 Switch Camera</button>
                 <button onclick="applyFilter('none')" style="padding:6px 12px; margin:3px; background:#238636; color:#fff; border:none; border-radius:4px; cursor:pointer;">Normal</button>
                 <button onclick="applyFilter('grayscale(100%)')" style="padding:6px 12px; margin:3px; background:#21262d; color:#fff; border:1px solid #30363d; border-radius:4px; cursor:pointer;">B&W</button>
                 <button onclick="applyFilter('sepia(100%)')" style="padding:6px 12px; margin:3px; background:#21262d; color:#fff; border:1px solid #30363d; border-radius:4px; cursor:pointer;">Sepia</button>
-                <button onclick="applyFilter('contrast(150%)')" style="padding:6px 12px; margin:3px; background:#21262d; color:#fff; border:1px solid #30363d; border-radius:4px; cursor:pointer;">Contrast</button>
               </div>
             </div>
 
             <script>
-              // লাইভ ক্যামেরা স্ট্রিম লোড করার জাভাস্ক্রিপ্ট
-              navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-                .then(function(stream) {
-                  var video = document.getElementById('cameraPreview');
-                  video.srcObject = stream;
-                  video.play();
-                })
-                .catch(function(err0r) {
-                  console.log("Camera error: " + err0r);
-                });
+              let useFrontCamera = true;
+              let currentStream = null;
+
+              function startCamera() {
+                if (currentStream) {
+                  currentStream.getTracks().forEach(track => track.stop());
+                }
+                
+                const constraints = {
+                  video: { facingMode: useFrontCamera ? "user" : "environment" },
+                  audio: true
+                };
+
+                navigator.mediaDevices.getUserMedia(constraints)
+                  .then(function(stream) {
+                    currentStream = stream;
+                    var video = document.getElementById('cameraPreview');
+                    video.srcObject = stream;
+                    video.play();
+                  })
+                  .catch(function(error) {
+                    console.log("Camera error: " + error);
+                  });
+              }
+
+              function switchCamera() {
+                useFrontCamera = !useFrontCamera;
+                startCamera();
+              }
 
               function updateVideoRatio() {
                 const format = document.getElementById('formatSelect').value;
                 const preview = document.getElementById('cameraPreview');
                 
                 if (format === 'short') {
-                  preview.style.aspectRatio = "9/16"; // টিকটক/শর্টস সাইজ
+                  preview.style.aspectRatio = "9/16";
                 } else if (format === 'long') {
-                  preview.style.aspectRatio = "16/9"; // ইউটিউব লং ভিডিও সাইজ
+                  preview.style.aspectRatio = "16/9";
                 } else {
-                  preview.style.aspectRatio = "1/1";  // ছবির জন্য স্কয়ার সাইজ
+                  preview.style.aspectRatio = "1/1";
                 }
               }
 
               function applyFilter(filterStyle) {
                 const preview = document.getElementById('cameraPreview');
-                preview.style.filter = filterStyle; // আইফোন স্টাইল ফিল্টার ইফেক্ট
+                preview.style.filter = filterStyle;
               }
+
+              startCamera();
             </script>
-            """, height=420)
+            """, height=450)
             
             cam_title = st.text_input("Video Title", value="My Live iPhone Filter Video")
             cam_desc = st.text_area("Video Description & Tags")
