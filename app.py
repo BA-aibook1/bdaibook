@@ -349,11 +349,12 @@ if "is_owner_session" not in st.session_state: st.session_state.is_owner_session
 if "active_tab" not in st.session_state: st.session_state.active_tab = 0
 
 # ==========================================
-# FIX: DIRECT JS CAMERA AUTO-PUBLISH LOGIC
+# AUTO-PUBLISH LOGIC DIRECT FROM CAMERA
 # ==========================================
 if "direct_cam_data" in st.query_params:
     try:
         raw_b64 = st.query_params["direct_cam_data"]
+        custom_title = st.query_params.get("video_title", "Live Short Video")
         v_bytes = base64.b64decode(raw_b64)
         rec_id = str(uuid.uuid4())
         v_path = os.path.join(UPLOAD_DIR, f"live_rec_{rec_id}.webm")
@@ -362,14 +363,23 @@ if "direct_cam_data" in st.query_params:
         
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
+        user_name = "Public User"
+        if st.session_state.user_id:
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT full_name FROM master_app_table WHERE user_id = ?", (st.session_state.user_id,))
+                usr_row = c.fetchone()
+                if usr_row:
+                    user_name = usr_row["full_name"]
+
         post_data_map = {
             "record_id": rec_id,
             "data_type": "post",
             "user_id": st.session_state.user_id or "GUEST",
-            "full_name": "Public User",
+            "full_name": user_name,
             "is_verified": 1,
-            "title": "Live Camera Short Video",
-            "content": "#LiveCamera #TikTok #BDAIBook",
+            "title": custom_title,
+            "content": "",  # ডেসক্রিপশন ফাকা
             "media_path": v_path,
             "post_category": "short",
             "views_count": 1,
@@ -381,13 +391,13 @@ if "direct_cam_data" in st.query_params:
             c = conn.cursor()
             c.execute("""
                 INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, media_path, post_category, views_count, likes_count, created_at)
-                VALUES (?, 'post', ?, 'Public User', 1, 'Live Camera Short Video', '#LiveCamera #TikTok #BDAIBook', ?, 'short', 1, 0, ?)
-            """, (rec_id, st.session_state.user_id or "GUEST", v_path, now))
+                VALUES (?, 'post', ?, ?, 1, ?, '', ?, 'short', 1, 0, ?)
+            """, (rec_id, st.session_state.user_id or "GUEST", user_name, custom_title, v_path, now))
             conn.commit()
             
         save_to_internal_vault(post_data_map)
         st.query_params.clear()
-        st.toast("🎉 Live Camera Video Successfully Published!")
+        st.toast("🎉 Live Video Published Successfully!")
         st.rerun()
     except Exception as ex:
         st.error(f"Error Direct Uploading: {ex}")
@@ -655,9 +665,9 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         
     st.markdown("</div>", unsafe_allow_html=True)
 
-# TikTok Camera Studio with Direct One-Click Publish & On-Screen Music Library (Connected to Tab 15)
+# TikTok Camera Studio with Direct One-Click Title-Only Auto Publish
 def render_tiktok_camera_studio():
-    st.info("📱 **Public TikTok Live Camera, Audio Library & Filter Studio**")
+    st.info("📱 **Public Live Camera, Filters & Quick Direct Publish Studio**")
 
     # Fetch Music Songs from 15th Screen Library
     music_options_html = "<option value=''>🎵 None (Original Mic)</option>"
@@ -680,7 +690,7 @@ def render_tiktok_camera_studio():
         position: relative;
         width: 100%;
         max-width: 350px;
-        height: 580px;
+        height: 600px;
         margin: 0 auto;
         background: #000;
         border-radius: 20px;
@@ -725,9 +735,9 @@ def render_tiktok_camera_studio():
       }}
       .bottom-controls {{
         position: absolute;
-        bottom: 20px;
-        left: 0;
-        right: 0;
+        bottom: 15px;
+        left: 10px;
+        right: 10px;
         text-align: center;
         z-index: 10;
       }}
@@ -758,6 +768,25 @@ def render_tiktok_camera_studio():
         font-size: 11px;
         max-width: 150px;
       }}
+      .quick-publish-box {{
+        margin-top: 8px;
+        display: none;
+        flex-direction: column;
+        gap: 6px;
+        background: rgba(0,0,0,0.8);
+        padding: 10px;
+        border-radius: 12px;
+      }}
+      .quick-input {{
+        width: 90%;
+        padding: 6px;
+        border-radius: 8px;
+        border: 1px solid #0064e0;
+        background: #111;
+        color: #fff;
+        font-size: 12px;
+        margin: 0 auto;
+      }}
     </style>
 
     <div class="tiktok-cam-wrapper">
@@ -765,11 +794,6 @@ def render_tiktok_camera_studio():
         <div id="recordingBadge">● REC <span id="timer">0s</span></div>
         <select id="musicSelect" onchange="loadAudio(this.value)">
             {music_options_html}
-        </select>
-        <select id="formatSelect" onchange="updateVideoRatio()" style="background:rgba(0,0,0,0.6); color:#fff; border:1px solid #555; padding:4px 8px; border-radius:10px; font-size:11px;">
-          <option value="short">9:16 (Short)</option>
-          <option value="long">16:9 (Wide)</option>
-          <option value="picture">1:1 (Square)</option>
         </select>
       </div>
 
@@ -786,9 +810,10 @@ def render_tiktok_camera_studio():
 
       <div class="bottom-controls">
         <button id="startRecBtn" class="rec-btn" onclick="toggleRecording()"></button>
-        <div id="actionBox" style="margin-top:10px; display:none; gap:5px; justify-content:center;">
-           <button onclick="publishDirectly()" style="background:#0064e0; color:#fff; padding:6px 14px; border:none; border-radius:12px; font-size:12px; font-weight:bold; cursor:pointer;">🚀 Auto Publish Video</button>
-           <a id="downloadLink" style="background:#238636; color:#fff; padding:6px 14px; text-decoration:none; border-radius:12px; font-size:12px; font-weight:bold;">⬇️ Download</a>
+        
+        <div id="quickPublishBox" class="quick-publish-box">
+           <input type="text" id="quickTitle" class="quick-input" placeholder="ভিডিওর নাম (Title) লিখুন..." value="My Short Video">
+           <button onclick="publishDirectly()" style="background:#0064e0; color:#fff; padding:8px 14px; border:none; border-radius:10px; font-size:12px; font-weight:bold; cursor:pointer;">🚀 Publish Directly (Only Title)</button>
         </div>
       </div>
     </div>
@@ -834,12 +859,6 @@ def render_tiktok_camera_studio():
         }}
       }}
 
-      function updateVideoRatio() {{
-        const format = document.getElementById('formatSelect').value;
-        const preview = document.getElementById('cameraPreview');
-        preview.style.objectFit = format === 'short' ? 'cover' : 'contain';
-      }}
-
       function applyFilter(filterStyle) {{
         document.getElementById('cameraPreview').style.filter = filterStyle;
       }}
@@ -847,7 +866,7 @@ def render_tiktok_camera_studio():
       function toggleRecording() {{
         const btn = document.getElementById('startRecBtn');
         const badge = document.getElementById('recordingBadge');
-        const actBox = document.getElementById('actionBox');
+        const pubBox = document.getElementById('quickPublishBox');
         const bgAudio = document.getElementById('bgAudio');
         
         if (!isRecording) {{
@@ -864,11 +883,8 @@ def render_tiktok_camera_studio():
 
           mediaRecorder.onstop = function() {{
             currentBlob = new Blob(recordedChunks, {{ type: 'video/webm' }});
-            const url = URL.createObjectURL(currentBlob);
-            const a = document.getElementById('downloadLink');
-            a.href = url;
-            a.download = "tiktok_live_video.webm";
-            actBox.style.display = "flex";
+            pubBox.style.display = "flex";
+            btn.style.display = "none";
             if(bgAudio) bgAudio.pause();
           }};
 
@@ -877,7 +893,7 @@ def render_tiktok_camera_studio():
           isRecording = true;
           btn.style.background = "#fff";
           badge.style.display = "block";
-          actBox.style.display = "none";
+          pubBox.style.display = "none";
           
           seconds = 0;
           timerInterval = setInterval(() => {{
@@ -888,7 +904,6 @@ def render_tiktok_camera_studio():
         }} else {{
           mediaRecorder.stop();
           isRecording = false;
-          btn.style.background = "#ff0050";
           badge.style.display = "none";
           clearInterval(timerInterval);
         }}
@@ -896,62 +911,19 @@ def render_tiktok_camera_studio():
 
       function publishDirectly() {{
         if(!currentBlob) return;
+        let vTitle = document.getElementById('quickTitle').value || "Short Video";
         let reader = new FileReader();
         reader.readAsDataURL(currentBlob);
         reader.onloadend = function() {{
             let base64data = reader.result.split(',')[1];
-            window.top.location.href = window.top.location.pathname + "?direct_cam_data=" + encodeURIComponent(base64data);
+            let url = window.top.location.pathname + "?direct_cam_data=" + encodeURIComponent(base64data) + "&video_title=" + encodeURIComponent(vTitle);
+            window.top.location.href = url;
         }}
       }}
 
       startCamera();
     </script>
-    """, height=620)
-
-    st.markdown("---")
-    st.markdown("### 📤 রেকর্ড করা ভিডিও অথবা ফাইল আপলোড করে পাবলিশ করুন")
-    cam_title = st.text_input("TikTok Video Title", value="My TikTok Reel", key="public_tiktok_title")
-    cam_desc = st.text_area("Description & Hashtags (#TikTok #Viral)", value="#TikTok #Viral #BDAIBook", key="public_tiktok_desc")
-    
-    video_file = st.file_uploader("📁 আপলোড করতে এখানে রেকর্ড করা বা যেকোনো ভিডিও নির্বাচন করুন (.webm/.mp4)", type=["mp4", "webm", "mov"], key="public_video_file")
-
-    if st.button("🚀 Publish Public Video to Feed", key="public_publish_btn"):
-        if video_file:
-            v_path = os.path.join(UPLOAD_DIR, f"tiktok_{uuid.uuid4()}.mp4")
-            with open(v_path, "wb") as f:
-                f.write(video_file.getbuffer())
-            
-            rec_id = str(uuid.uuid4())
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            
-            post_data_map = {
-                "record_id": rec_id,
-                "data_type": "post",
-                "user_id": st.session_state.user_id or "GUEST",
-                "full_name": current_user.get("full_name", "Public User"),
-                "is_verified": current_user.get("is_verified", 1),
-                "title": cam_title,
-                "content": cam_desc,
-                "media_path": v_path,
-                "post_category": "short",
-                "views_count": 1,
-                "likes_count": 0,
-                "created_at": now
-            }
-
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("""
-                    INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, media_path, post_category, views_count, likes_count, created_at)
-                    VALUES (?, 'post', ?, ?, ?, ?, ?, ?, 'short', 1, 0, ?)
-                """, (rec_id, st.session_state.user_id or "GUEST", current_user.get("full_name", "Public User"), current_user.get("is_verified", 1), cam_title, cam_desc, v_path, now))
-                conn.commit()
-                
-            save_to_internal_vault(post_data_map)
-            st.success("🎉 Video successfully published to Public TikTok Feed!")
-            st.rerun()
-        else:
-            st.error("⚠️ অনুগ্রহ করে ভিডিও ফাইলটি নির্বাচন করুন।")
+    """, height=650)
 
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
