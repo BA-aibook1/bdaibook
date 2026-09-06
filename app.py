@@ -600,41 +600,117 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Helper for TikTok Live Camera Interface
+# Helper for TikTok Live Camera Interface (Refactored & Restored)
 def render_tiktok_camera_studio():
-    st.info("📱 **Public TikTok Live Camera & Filter Studio (Everyone Can Use)**")
-    
+    st.info("📱 **Public TikTok Live Camera & Filter Studio**")
+
     components.html("""
-    <div style="background:#111216; padding:15px; border-radius:12px; color:#fff; font-family:sans-serif; text-align:center;">
-      <div style="margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-        <label style="font-weight:bold; font-size:13px; color:#0064e0;">Ratio Aspect:</label>
-        <select id="formatSelect" onchange="updateVideoRatio()" style="padding:6px; border-radius:5px; background:#21262d; color:#fff; border:1px solid #30363d;">
-          <option value="short">TikTok Short (9:16 Vertical)</option>
-          <option value="long">Wide Screen (16:9)</option>
+    <style>
+      .tiktok-cam-wrapper {
+        position: relative;
+        width: 100%;
+        max-width: 350px;
+        height: 580px;
+        margin: 0 auto;
+        background: #000;
+        border-radius: 20px;
+        overflow: hidden;
+        border: 3px solid #0064e0;
+        box-shadow: 0px 8px 20px rgba(0,100,224,0.4);
+      }
+      #cameraPreview {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .top-controls {
+        position: absolute;
+        top: 12px;
+        left: 10px;
+        right: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 10;
+      }
+      .side-controls {
+        position: absolute;
+        right: 10px;
+        top: 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        z-index: 10;
+      }
+      .side-btn {
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+        padding: 8px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        backdrop-filter: blur(5px);
+        cursor: pointer;
+      }
+      .bottom-controls {
+        position: absolute;
+        bottom: 20px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        z-index: 10;
+      }
+      .rec-btn {
+        width: 65px;
+        height: 65px;
+        border-radius: 50%;
+        background: #ff0050;
+        border: 4px solid #fff;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(255,0,80,0.8);
+      }
+      #recordingBadge {
+        display: none;
+        background: rgba(255,0,0,0.85);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+    </style>
+
+    <div class="tiktok-cam-wrapper">
+      <div class="top-controls">
+        <div id="recordingBadge">● REC <span id="timer">0s</span></div>
+        <select id="formatSelect" onchange="updateVideoRatio()" style="background:rgba(0,0,0,0.6); color:#fff; border:1px solid #555; padding:4px 8px; border-radius:10px; font-size:11px;">
+          <option value="short">TikTok (9:16)</option>
+          <option value="long">Wide (16:9)</option>
           <option value="picture">Square (1:1)</option>
         </select>
       </div>
 
-      <div id="cameraBox" style="position: relative; width:100%; max-width:320px; margin:0 auto; background:#000; border-radius:14px; overflow:hidden; border:2px solid #0064e0;">
-        <video id="cameraPreview" autoplay playsinline muted style="width: 100%; display:block; filter: none; object-fit: cover; aspect-ratio: 9/16; transform: scaleX(1);"></video>
-        <div id="recordingBadge" style="display:none; position:absolute; top:10px; left:10px; background:red; color:#fff; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">● REC <span id="timer">0s</span></div>
-      </div>
-      
-      <div style="margin-top: 10px; display:flex; flex-wrap:wrap; justify-content:center; gap:5px;">
-        <button onclick="switchCamera()" style="padding:6px 12px; background:#0064e0; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">🔄 Switch Cam (Back/Front)</button>
-        <button onclick="applyFilter('none')" style="padding:6px 10px; background:#238636; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">Normal</button>
-        <button onclick="applyFilter('contrast(120%) brightness(110%) saturate(130%)')" style="padding:6px 10px; background:#e0007b; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">✨ iPhone Glow</button>
-        <button onclick="applyFilter('grayscale(100%)')" style="padding:6px 10px; background:#30363d; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">B&W</button>
-        <button onclick="applyFilter('sepia(80%)')" style="padding:6px 10px; background:#8a6300; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:12px;">Vintage</button>
+      <video id="cameraPreview" autoplay playsinline muted></video>
+
+      <div class="side-controls">
+        <button class="side-btn" onclick="switchCamera()">🔄 Cam</button>
+        <button class="side-btn" onclick="applyFilter('none')">Normal</button>
+        <button class="side-btn" onclick="applyFilter('contrast(120%) brightness(110%) saturate(130%)')">✨ Glow</button>
+        <button class="side-btn" onclick="applyFilter('grayscale(100%)')">B&W</button>
+        <button class="side-btn" onclick="applyFilter('sepia(80%)')">Vintage</button>
       </div>
 
-      <div style="margin-top:12px;">
-        <button id="startRecBtn" onclick="toggleRecording()" style="padding:10px 20px; background:#ff0050; color:#fff; font-weight:bold; border:none; border-radius:25px; cursor:pointer; font-size:14px;">🔴 Start Live Recording</button>
+      <div class="bottom-controls">
+        <button id="startRecBtn" class="rec-btn" onclick="toggleRecording()"></button>
+        <div id="downloadBox" style="margin-top:10px; display:none;">
+           <a id="downloadLink" style="background:#238636; color:#fff; padding:6px 14px; text-decoration:none; border-radius:12px; font-size:12px; font-weight:bold;">⬇️ Download Recorded Video</a>
+        </div>
       </div>
     </div>
 
     <script>
-      let useFrontCamera = false; // Default to Back Camera for standard recording
+      let useFrontCamera = false;
       let currentStream = null;
       let mediaRecorder = null;
       let recordedChunks = [];
@@ -646,23 +722,17 @@ def render_tiktok_camera_studio():
         if (currentStream) {
           currentStream.getTracks().forEach(track => track.stop());
         }
-        
         const constraints = {
           video: { facingMode: useFrontCamera ? "user" : "environment", width: { ideal: 720 }, height: { ideal: 1280 } },
           audio: true
         };
-
-        navigator.mediaDevices.getUserMedia(constraints)
-          .then(function(stream) {
+        navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
             currentStream = stream;
-            var video = document.getElementById('cameraPreview');
+            let video = document.getElementById('cameraPreview');
             video.srcObject = stream;
-            video.style.transform = useFrontCamera ? "scaleX(-1)" : "scaleX(1)"; // Mirror front camera, keep back camera normal
+            video.style.transform = useFrontCamera ? "scaleX(-1)" : "scaleX(1)";
             video.play();
-          })
-          .catch(function(error) {
-            console.log("Camera access error: " + error);
-          });
+        }).catch(function(err){ console.log(err); });
       }
 
       function switchCamera() {
@@ -673,23 +743,17 @@ def render_tiktok_camera_studio():
       function updateVideoRatio() {
         const format = document.getElementById('formatSelect').value;
         const preview = document.getElementById('cameraPreview');
-        if (format === 'short') {
-          preview.style.aspectRatio = "9/16";
-        } else if (format === 'long') {
-          preview.style.aspectRatio = "16/9";
-        } else {
-          preview.style.aspectRatio = "1/1";
-        }
+        preview.style.objectFit = format === 'short' ? 'cover' : 'contain';
       }
 
       function applyFilter(filterStyle) {
-        const preview = document.getElementById('cameraPreview');
-        preview.style.filter = filterStyle;
+        document.getElementById('cameraPreview').style.filter = filterStyle;
       }
 
       function toggleRecording() {
         const btn = document.getElementById('startRecBtn');
         const badge = document.getElementById('recordingBadge');
+        const dlBox = document.getElementById('downloadBox');
         
         if (!isRecording) {
           recordedChunks = [];
@@ -703,10 +767,18 @@ def render_tiktok_camera_studio():
             if (e.data.size > 0) recordedChunks.push(e.data);
           };
 
+          mediaRecorder.onstop = function() {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.getElementById('downloadLink');
+            a.href = url;
+            a.download = "tiktok_live_video.webm";
+            dlBox.style.display = "block";
+          };
+
           mediaRecorder.start(100);
           isRecording = true;
-          btn.innerHTML = "⏹️ Stop Recording";
-          btn.style.background = "#30363d";
+          btn.style.background = "#fff";
           badge.style.display = "block";
           
           seconds = 0;
@@ -718,7 +790,6 @@ def render_tiktok_camera_studio():
         } else {
           mediaRecorder.stop();
           isRecording = false;
-          btn.innerHTML = "🔴 Start Live Recording";
           btn.style.background = "#ff0050";
           badge.style.display = "none";
           clearInterval(timerInterval);
@@ -727,18 +798,20 @@ def render_tiktok_camera_studio():
 
       startCamera();
     </script>
-    """, height=500)
+    """, height=620)
 
+    st.markdown("---")
+    st.markdown("### 📤 রেকর্ড করা ভিডিও অথবা ফাইল আপলোড করে পাবলিশ করুন")
     cam_title = st.text_input("TikTok Video Title", value="My TikTok Reel", key="public_tiktok_title")
     cam_desc = st.text_area("Description & Hashtags (#TikTok #Viral)", key="public_tiktok_desc")
-
-    camera_video = st.camera_input("📷 Capture Snapshot or Short Clip", key="public_camera_input")
+    
+    video_file = st.file_uploader("📁 আপলোড করতে এখানে রেকর্ড করা বা যেকোনো ভিডিও নির্বাচন করুন (.webm/.mp4)", type=["mp4", "webm", "mov"], key="public_video_file")
 
     if st.button("🚀 Publish Public Video to Feed", key="public_publish_btn"):
-        if camera_video:
-            v_path = os.path.join(UPLOAD_DIR, f"tiktok_{uuid.uuid4()}.png")
+        if video_file:
+            v_path = os.path.join(UPLOAD_DIR, f"tiktok_{uuid.uuid4()}.mp4")
             with open(v_path, "wb") as f:
-                f.write(camera_video.getbuffer())
+                f.write(video_file.getbuffer())
             
             rec_id = str(uuid.uuid4())
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -753,7 +826,7 @@ def render_tiktok_camera_studio():
             st.success("🎉 Video successfully published to Public TikTok Feed!")
             st.rerun()
         else:
-            st.error("Please capture a clip/photo using camera first.")
+            st.error("⚠️ অনুগ্রহ করে ভিডিও ফাইলটি নির্বাচন করুন।")
 
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
