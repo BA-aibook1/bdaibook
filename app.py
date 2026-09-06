@@ -107,7 +107,7 @@ def auto_restore_from_internal_vault():
                                 'is_verified', 'violation_count', 'is_suspended', 'suspended_until',
                                 'title', 'content', 'tags', 'media_path', 'post_category', 'likes_count',
                                 'views_count', 'is_boosted', 'monetization_status', 'country',
-                                'is_owner_post', 'created_at', 'recovery_code'
+                                'is_owner_post', 'created_at', 'recovery_code', 'user_status', 'meta_bluetooth_permission'
                             ]]
                             values = [data[k] for k in keys]
                             placeholders = ", ".join(["?"] * len(keys))
@@ -147,6 +147,7 @@ st.markdown("""
     .vertical-live-card { background: #1e2026; border-left: 4px solid #0064e0; padding: 12px; margin-bottom: 15px; border-radius: 8px; color: #fff; }
     .duplicate-card { background: #2a1215; border-left: 4px solid #ff4b4b; padding: 12px; margin-bottom: 10px; border-radius: 8px; color: #fff; }
     .amazon-product-card { background: #1e2026; border: 1px solid #ff9900; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+    .meta-control-box { background: #111a2e; border: 2px solid #0064e0; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -194,6 +195,16 @@ def init_master_database():
         
         try:
             c.execute("ALTER TABLE master_app_table ADD COLUMN recovery_code TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            c.execute("ALTER TABLE master_app_table ADD COLUMN user_status TEXT DEFAULT 'REAL'")
+        except sqlite3.OperationalError:
+            pass
+
+        try:
+            c.execute("ALTER TABLE master_app_table ADD COLUMN meta_bluetooth_permission INTEGER DEFAULT 0")
         except sqlite3.OperationalError:
             pass
 
@@ -303,11 +314,13 @@ def init_master_database():
             "show_ads": "ON",
             "global_notify_msg": "System Active Globally",
             "auto_duplicate_detector": "ON",
-            "site_verification_code": ""
+            "site_verification_code": "",
+            "is_global_meta_active": "true",
+            "meta_mode": "SELECTED_USERS"
         }
         
         for k, v in default_settings.items():
-            c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)", (k, v))
+            c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)", (k, str(v)))
 
         conn.commit()
 
@@ -352,6 +365,25 @@ def get_user_today_upload_count(user_id, category):
         """, (user_id, category, twenty_four_hours_ago))
         res = c.fetchone()
         return res["cnt"] if res else 0
+
+def check_user_meta_bluetooth_permission(user_id):
+    is_global_active = get_setting("is_global_meta_active", "true") == "true"
+    if not is_global_active:
+        return False
+    
+    meta_mode = get_setting("meta_mode", "SELECTED_USERS")
+    if meta_mode == "DISABLED":
+        return False
+    elif meta_mode == "ALL":
+        return True
+    elif meta_mode == "SELECTED_USERS":
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT meta_bluetooth_permission FROM master_app_table WHERE user_id = ? AND data_type = 'user'", (user_id,))
+            res = c.fetchone()
+            if res and res["meta_bluetooth_permission"] == 1:
+                return True
+    return False
 
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
@@ -449,12 +481,14 @@ if not st.session_state.user_id:
                                     "auth_identifier": auth_input,
                                     "password_hash": hash_pass(auth_pass),
                                     "is_verified": 1,
+                                    "user_status": "REAL",
+                                    "meta_bluetooth_permission": 0,
                                     "created_at": now
                                 }
 
                                 c.execute("""
-                                    INSERT INTO master_app_table (record_id, data_type, user_id, full_name, auth_identifier, password_hash, is_verified, created_at)
-                                    VALUES (?, 'user', ?, ?, ?, ?, 1, ?)
+                                    INSERT INTO master_app_table (record_id, data_type, user_id, full_name, auth_identifier, password_hash, is_verified, user_status, meta_bluetooth_permission, created_at)
+                                    VALUES (?, 'user', ?, ?, ?, ?, 1, 'REAL', 0, ?)
                                 """, (new_uid, new_uid, f"User_{new_uid[:4]}", auth_input, hash_pass(auth_pass), now))
                                 conn.commit()
                                 
@@ -484,6 +518,13 @@ else:
 
     st.sidebar.markdown(f"User: **{current_user.get('full_name', 'User')}**")
     st.sidebar.markdown(f"👥 Real Followers: **{real_followers:,}**")
+    
+    user_bt_permission = check_user_meta_bluetooth_permission(st.session_state.user_id)
+    if user_bt_permission:
+        st.sidebar.success("🔵 Meta Bluetooth Access: ACTIVE")
+    else:
+        st.sidebar.info("🔴 Meta Bluetooth Access: DISABLED")
+
     if st.sidebar.button("Logout"):
         st.session_state.user_id = None
         st.session_state.is_owner_session = False
@@ -662,7 +703,7 @@ with tab_feed:
             "1️⃣3️⃣ Master Vault & Auto-Backup",
             "1️⃣4️⃣ Lalmonirhat Master Control & Analytics",
             "1️⃣5️⃣ Free Copyright-Free Music Library (Owner Upload)",
-            "1️⃣6️⃣ Amazon E-Commerce Marketplace Hub"
+            "1️⃣6️⃣ Amazon E-Commerce & Meta Target Hub"
         ])
         
         o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16 = o_tabs
@@ -1245,9 +1286,95 @@ with tab_feed:
                         st.rerun()
 
         with o_tab16:
-            st.markdown("#### 🛒 16th Screen: Amazon E-Commerce Marketplace Control Hub")
-            st.caption("ক্যামেরা সুবিধা সম্পূর্ণ তুলে দিয়ে এখানে আমাজন অ্যাফিলিয়েট ও অনলাইন ই-কমার্স স্টোর যুক্ত করা হয়েছে।")
+            st.markdown("#### 🛒 16th Screen: Amazon E-Commerce & Owner Master Permission Target Hub")
             
+            # --- META & BLUETOOTH OWNER CONTROL PANEL ---
+            st.markdown("<div class='meta-control-box'>", unsafe_allow_html=True)
+            st.markdown("### ⚡ Owner Master Control Switch (Meta & Bluetooth Permission)")
+            
+            curr_global_meta = get_setting("is_global_meta_active", "true") == "true"
+            curr_meta_mode = get_setting("meta_mode", "SELECTED_USERS")
+
+            col_sw1, col_sw2 = st.columns([2, 2])
+            with col_sw1:
+                st.write(f"🌐 **Global Meta Control Switch Status:** **{'ENABLED (ON)' if curr_global_meta else 'DISABLED (OFF)'}**")
+                if curr_global_meta:
+                    if st.button("🔴 Turn Master Meta Switch OFF"):
+                        set_setting("is_global_meta_active", "false")
+                        st.warning("Master Meta Switch Turned OFF Globally!")
+                        st.rerun()
+                else:
+                    if st.button("🟢 Turn Master Meta Switch ON"):
+                        set_setting("is_global_meta_active", "true")
+                        st.success("Master Meta Switch Turned ON Globally!")
+                        st.rerun()
+
+            with col_sw2:
+                st.write(f"🎯 **Active Target Mode:** **{curr_meta_mode}**")
+
+            st.markdown("---")
+            st.markdown("##### 🔘 Select Meta & Bluetooth Mode (3 Target Buttons)")
+            
+            b_col1, b_col2, b_col3 = b_cols = st.columns(3)
+            
+            if b_col1.button("🌐 1. Meta All (সবার জন্য)", use_container_width=True):
+                set_setting("meta_mode", "ALL")
+                set_setting("is_global_meta_active", "true")
+                st.success("Mode Set: Meta & Bluetooth feature activated for ALL users automatically!")
+                st.rerun()
+
+            if b_col2.button("🎯 2. Meta Select Target (নির্দিষ্ট ইউজার)", use_container_width=True):
+                set_setting("meta_mode", "SELECTED_USERS")
+                set_setting("is_global_meta_active", "true")
+                st.info("Mode Set: Only TARGETED / APPROVED real users will get access.")
+                st.rerun()
+
+            if b_col3.button("🚫 3. Meta Block/Off (সম্পূর্ণ বন্ধ)", use_container_width=True):
+                set_setting("meta_mode", "DISABLED")
+                set_setting("is_global_meta_active", "false")
+                st.error("Mode Set: Meta & Bluetooth feature BLOCKED globally.")
+                st.rerun()
+
+            st.markdown("---")
+            st.markdown("##### 👥 Real vs Fake User Targeting & Bluetooth Permission Control")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT user_id, full_name, auth_identifier, user_status, meta_bluetooth_permission FROM master_app_table WHERE data_type = 'user'")
+                all_app_users = c.fetchall()
+
+            if not all_app_users:
+                st.info("No registered users found for permission targeting.")
+            else:
+                for u_target in all_app_users:
+                    u_id = u_target["user_id"]
+                    u_status = u_target["user_status"] or "REAL"
+                    u_bt = u_target["meta_bluetooth_permission"] == 1
+                    
+                    with st.expander(f"👤 {u_target['full_name']} ({u_target['auth_identifier']}) - Status: [{u_status}]"):
+                        col_usr_t1, col_usr_t2, col_usr_t3 = st.columns([2, 2, 2])
+                        
+                        # User Status Selection (Real vs Fake)
+                        new_usr_status = col_usr_t1.selectbox("User Authenticity", ["REAL", "FAKE"], index=0 if u_status == "REAL" else 1, key=f"st_sel_{u_id}")
+                        
+                        # Bluetooth Switch
+                        bt_grant = col_usr_t2.checkbox("Allow Meta Bluetooth Permission", value=u_bt, key=f"bt_cb_{u_id}")
+                        
+                        if col_usr_t3.button("💾 Save User Permission", key=f"save_perm_{u_id}"):
+                            with get_db_connection() as conn:
+                                c = conn.cursor()
+                                c.execute("""
+                                    UPDATE master_app_table 
+                                    SET user_status = ?, meta_bluetooth_permission = ? 
+                                    WHERE user_id = ?
+                                """, (new_usr_status, 1 if bt_grant else 0, u_id))
+                                conn.commit()
+                            st.success(f"Permissions updated for {u_target['full_name']}!")
+                            st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            # --- AMAZON E-COMMERCE SECTION ---
+            st.markdown("---")
             st.markdown("##### ➕ Add New Amazon Product")
             with st.form("add_amazon_product_form"):
                 p_title = st.text_input("Product Title", placeholder="e.g. Wireless Bluetooth Headphones")
