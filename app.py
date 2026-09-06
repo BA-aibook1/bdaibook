@@ -347,7 +347,8 @@ def hash_pass(pwd):
     return hashlib.sha256(pwd.encode()).hexdigest()
 
 def get_meta_blue_badge():
-    return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px;"><path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.66.425-1.55-.008-3.25-1.196-4.438-1.187-1.188-2.887-1.62-4.437-1.196C13.95 1.875 12.58 1 11.5 1s-2.45.875-3.16 2.148c-1.55-.425-3.25.008-4.438 1.196-1.188 1.187-1.62 2.887-1.196 4.437C1.875 9.55 1 10.92 1 12s.875 2.45 2.148 3.16c-.425 1.55.008 3.25 1.196 4.438 1.187 1.188 2.887 1.62 4.437 1.196C9.55 22.125 10.92 23 12 23s2.45-.875 3.16-2.148c1.55.425-.008 4.438-1.196 1.188-1.187 1.62-2.887 1.196-4.437 1.273-.71 2.148-2.08 2.148-3.66z"/><path fill="#ffffff" d="M9.8 17.3l-4.2-4.2 1.4-1.4 2.8 2.8 7.4-7.4 1.4 1.4z"/></svg>"""
+    # সংশোধিত নিখুঁত ভেরিফাইড ব্লু টিক আইকন
+    return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block; flex-shrink: 0;"><path fill="#0064e0" d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-1.9 14.7l-3.8-3.8 1.4-1.4 2.4 2.4 6.4-6.4 1.4 1.4-7.8 7.8z"/></svg>"""
 
 def increment_views(post_id):
     with get_db_connection() as conn:
@@ -564,7 +565,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         with col_info:
             tick = get_meta_blue_badge() if post.get("is_verified") else ""
             boost_badge = "🔥 [BOOSTED]" if post.get("is_boosted") else ""
-            st.markdown(f"**{post.get('full_name')}** {tick} <span style='color:orange;'>{boost_badge}</span>", unsafe_allow_html=True)
+            st.markdown(f"<div style='display: flex; align-items: center; flex-wrap: wrap;'><b>{post.get('full_name')}</b>{tick} <span style='color:orange; margin-left: 6px;'>{boost_badge}</span></div>", unsafe_allow_html=True)
             st.caption(f"👥 Followers: {author_followers:,} | Category: {post.get('post_category')}")
         
     with col_h2:
@@ -1505,7 +1506,7 @@ with tab_profile:
         st.warning("Please login to manage profile!")
     else:
         tick = get_meta_blue_badge() if current_user.get("is_verified") else ""
-        st.markdown(f"## Profile Studio: {current_user.get('full_name', 'User')} {tick}", unsafe_allow_html=True)
+        st.markdown(f"<div style='display: flex; align-items: center;'><h2>Profile Studio: {current_user.get('full_name', 'User')}</h2>{tick}</div>", unsafe_allow_html=True)
         
         profile_path = current_user.get("profile_pic_path")
         
