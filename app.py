@@ -4,6 +4,7 @@ import uuid
 import hashlib
 import random
 import json
+import base64
 from datetime import datetime, timedelta
 import streamlit as st
 import streamlit.components.v1 as components
@@ -269,6 +270,16 @@ def init_master_database():
                 created_at TEXT
             );
         """)
+
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS music_library (
+                song_id TEXT PRIMARY KEY,
+                title TEXT,
+                artist TEXT,
+                file_path TEXT,
+                created_at TEXT
+            );
+        """)
         
         default_settings = {
             "app_name": "BD AI Book",
@@ -336,6 +347,29 @@ if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
 if "active_tab" not in st.session_state: st.session_state.active_tab = 0
+
+# Check Direct JS Upload from Camera Studio
+if "direct_cam_data" in st.query_params:
+    try:
+        raw_b64 = st.query_params["direct_cam_data"]
+        v_bytes = base64.b64decode(raw_b64)
+        rec_id = str(uuid.uuid4())
+        v_path = os.path.join(UPLOAD_DIR, f"live_rec_{rec_id}.webm")
+        with open(v_path, "wb") as f:
+            f.write(v_bytes)
+        
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("""
+                INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, media_path, post_category, views_count, likes_count, created_at)
+                VALUES (?, 'post', ?, 'Public User', 1, 'Live Camera Short', '#LiveCamera #TikTok', ?, 'short', 1, 0, ?)
+            """, (rec_id, st.session_state.user_id or "GUEST", v_path, now))
+            conn.commit()
+        st.query_params.clear()
+        st.toast("🎉 Live Recorded Video Successfully Published!")
+    except Exception as ex:
+        st.error(f"Error Direct Uploading: {ex}")
 
 site_logo_path = get_setting("logo_path")
 app_name = get_setting("app_name", "BD AI Book")
@@ -600,13 +634,25 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         
     st.markdown("</div>", unsafe_allow_html=True)
 
-# Helper for TikTok Live Camera Interface (Refactored & Restored)
+# TikTok Camera Studio with Direct One-Click Publish & On-Screen Music Library
 def render_tiktok_camera_studio():
-    st.info("📱 **Public TikTok Live Camera & Filter Studio**")
+    st.info("📱 **Public TikTok Live Camera, Audio Library & Filter Studio**")
 
-    components.html("""
+    # Fetch Music Songs
+    music_options_html = "<option value=''>🎵 None (Original Mic)</option>"
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT * FROM music_library ORDER BY created_at DESC")
+        songs = c.fetchall()
+        for s in songs:
+            if os.path.exists(s['file_path']):
+                with open(s['file_path'], "rb") as f:
+                    b64 = base64.b64encode(f.read()).decode()
+                    music_options_html += f"<option value='data:audio/mp3;base64,{b64}'>🎵 {s['title']} ({s['artist']})</option>"
+
+    components.html(f"""
     <style>
-      .tiktok-cam-wrapper {
+      .tiktok-cam-wrapper {{
         position: relative;
         width: 100%;
         max-width: 350px;
@@ -617,14 +663,14 @@ def render_tiktok_camera_studio():
         overflow: hidden;
         border: 3px solid #0064e0;
         box-shadow: 0px 8px 20px rgba(0,100,224,0.4);
-      }
-      #cameraPreview {
+      }}
+      #cameraPreview {{
         width: 100%;
         height: 100%;
         object-fit: cover;
         display: block;
-      }
-      .top-controls {
+      }}
+      .top-controls {{
         position: absolute;
         top: 12px;
         left: 10px;
@@ -633,35 +679,35 @@ def render_tiktok_camera_studio():
         justify-content: space-between;
         align-items: center;
         z-index: 10;
-      }
-      .side-controls {
+      }}
+      .side-controls {{
         position: absolute;
         right: 10px;
-        top: 80px;
+        top: 70px;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 10px;
         z-index: 10;
-      }
-      .side-btn {
-        background: rgba(0, 0, 0, 0.5);
+      }}
+      .side-btn {{
+        background: rgba(0, 0, 0, 0.6);
         color: white;
-        border: 1px solid rgba(255,255,255,0.2);
-        padding: 8px 12px;
+        border: 1px solid rgba(255,255,255,0.3);
+        padding: 6px 10px;
         border-radius: 20px;
         font-size: 11px;
         backdrop-filter: blur(5px);
         cursor: pointer;
-      }
-      .bottom-controls {
+      }}
+      .bottom-controls {{
         position: absolute;
         bottom: 20px;
         left: 0;
         right: 0;
         text-align: center;
         z-index: 10;
-      }
-      .rec-btn {
+      }}
+      .rec-btn {{
         width: 65px;
         height: 65px;
         border-radius: 50%;
@@ -669,8 +715,8 @@ def render_tiktok_camera_studio():
         border: 4px solid #fff;
         cursor: pointer;
         box-shadow: 0 0 10px rgba(255,0,80,0.8);
-      }
-      #recordingBadge {
+      }}
+      #recordingBadge {{
         display: none;
         background: rgba(255,0,0,0.85);
         color: white;
@@ -678,20 +724,33 @@ def render_tiktok_camera_studio():
         border-radius: 12px;
         font-size: 12px;
         font-weight: bold;
-      }
+      }}
+      #musicSelect {{
+        background: rgba(0,0,0,0.7);
+        color: #fff;
+        border: 1px solid #0064e0;
+        padding: 5px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        max-width: 150px;
+      }}
     </style>
 
     <div class="tiktok-cam-wrapper">
       <div class="top-controls">
         <div id="recordingBadge">● REC <span id="timer">0s</span></div>
+        <select id="musicSelect" onchange="loadAudio(this.value)">
+            {music_options_html}
+        </select>
         <select id="formatSelect" onchange="updateVideoRatio()" style="background:rgba(0,0,0,0.6); color:#fff; border:1px solid #555; padding:4px 8px; border-radius:10px; font-size:11px;">
-          <option value="short">TikTok (9:16)</option>
-          <option value="long">Wide (16:9)</option>
-          <option value="picture">Square (1:1)</option>
+          <option value="short">9:16 (Short)</option>
+          <option value="long">16:9 (Wide)</option>
+          <option value="picture">1:1 (Square)</option>
         </select>
       </div>
 
       <video id="cameraPreview" autoplay playsinline muted></video>
+      <audio id="bgAudio" loop></audio>
 
       <div class="side-controls">
         <button class="side-btn" onclick="switchCamera()">🔄 Cam</button>
@@ -703,8 +762,9 @@ def render_tiktok_camera_studio():
 
       <div class="bottom-controls">
         <button id="startRecBtn" class="rec-btn" onclick="toggleRecording()"></button>
-        <div id="downloadBox" style="margin-top:10px; display:none;">
-           <a id="downloadLink" style="background:#238636; color:#fff; padding:6px 14px; text-decoration:none; border-radius:12px; font-size:12px; font-weight:bold;">⬇️ Download Recorded Video</a>
+        <div id="actionBox" style="margin-top:10px; display:none; gap:5px; justify-content:center;">
+           <button onclick="publishDirectly()" style="background:#0064e0; color:#fff; padding:6px 14px; border:none; border-radius:12px; font-size:12px; font-weight:bold; cursor:pointer;">🚀 Auto Publish Video</button>
+           <a id="downloadLink" style="background:#238636; color:#fff; padding:6px 14px; text-decoration:none; border-radius:12px; font-size:12px; font-weight:bold;">⬇️ Download</a>
         </div>
       </div>
     </div>
@@ -717,84 +777,108 @@ def render_tiktok_camera_studio():
       let isRecording = false;
       let timerInterval = null;
       let seconds = 0;
+      let currentBlob = null;
 
-      function startCamera() {
-        if (currentStream) {
+      function startCamera() {{
+        if (currentStream) {{
           currentStream.getTracks().forEach(track => track.stop());
-        }
-        const constraints = {
-          video: { facingMode: useFrontCamera ? "user" : "environment", width: { ideal: 720 }, height: { ideal: 1280 } },
+        }}
+        const constraints = {{
+          video: {{ facingMode: useFrontCamera ? "user" : "environment", width: {{ ideal: 720 }}, height: {{ ideal: 1280 }} }},
           audio: true
-        };
-        navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+        }};
+        navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {{
             currentStream = stream;
             let video = document.getElementById('cameraPreview');
             video.srcObject = stream;
             video.style.transform = useFrontCamera ? "scaleX(-1)" : "scaleX(1)";
             video.play();
-        }).catch(function(err){ console.log(err); });
-      }
+        }}).catch(function(err){{ console.log(err); }});
+      }}
 
-      function switchCamera() {
+      function switchCamera() {{
         useFrontCamera = !useFrontCamera;
         startCamera();
-      }
+      }}
 
-      function updateVideoRatio() {
+      function loadAudio(src) {{
+        let audio = document.getElementById('bgAudio');
+        if(src) {{
+            audio.src = src;
+        }} else {{
+            audio.src = "";
+        }}
+      }}
+
+      function updateVideoRatio() {{
         const format = document.getElementById('formatSelect').value;
         const preview = document.getElementById('cameraPreview');
         preview.style.objectFit = format === 'short' ? 'cover' : 'contain';
-      }
+      }}
 
-      function applyFilter(filterStyle) {
+      function applyFilter(filterStyle) {{
         document.getElementById('cameraPreview').style.filter = filterStyle;
-      }
+      }}
 
-      function toggleRecording() {
+      function toggleRecording() {{
         const btn = document.getElementById('startRecBtn');
         const badge = document.getElementById('recordingBadge');
-        const dlBox = document.getElementById('downloadBox');
+        const actBox = document.getElementById('actionBox');
+        const bgAudio = document.getElementById('bgAudio');
         
-        if (!isRecording) {
+        if (!isRecording) {{
           recordedChunks = [];
-          try {
-            mediaRecorder = new MediaRecorder(currentStream, { mimeType: 'video/webm' });
-          } catch (e) {
+          try {{
+            mediaRecorder = new MediaRecorder(currentStream, {{ mimeType: 'video/webm' }});
+          }} catch (e) {{
             mediaRecorder = new MediaRecorder(currentStream);
-          }
+          }}
           
-          mediaRecorder.ondataavailable = function(e) {
+          mediaRecorder.ondataavailable = function(e) {{
             if (e.data.size > 0) recordedChunks.push(e.data);
-          };
+          }};
 
-          mediaRecorder.onstop = function() {
-            const blob = new Blob(recordedChunks, { type: 'video/webm' });
-            const url = URL.createObjectURL(blob);
+          mediaRecorder.onstop = function() {{
+            currentBlob = new Blob(recordedChunks, {{ type: 'video/webm' }});
+            const url = URL.createObjectURL(currentBlob);
             const a = document.getElementById('downloadLink');
             a.href = url;
             a.download = "tiktok_live_video.webm";
-            dlBox.style.display = "block";
-          };
+            actBox.style.display = "flex";
+            if(bgAudio) bgAudio.pause();
+          }};
 
           mediaRecorder.start(100);
+          if(bgAudio.src) bgAudio.play();
           isRecording = true;
           btn.style.background = "#fff";
           badge.style.display = "block";
+          actBox.style.display = "none";
           
           seconds = 0;
-          timerInterval = setInterval(() => {
+          timerInterval = setInterval(() => {{
             seconds++;
             document.getElementById('timer').innerText = seconds + "s";
-          }, 1000);
+          }}, 1000);
 
-        } else {
+        }} else {{
           mediaRecorder.stop();
           isRecording = false;
           btn.style.background = "#ff0050";
           badge.style.display = "none";
           clearInterval(timerInterval);
-        }
-      }
+        }}
+      }}
+
+      function publishDirectly() {{
+        if(!currentBlob) return;
+        let reader = new FileReader();
+        reader.readAsDataURL(currentBlob);
+        reader.onloadend = function() {{
+            let base64data = reader.result.split(',')[1];
+            window.top.location.href = window.top.location.pathname + "?direct_cam_data=" + encodeURIComponent(base64data);
+        }}
+      }}
 
       startCamera();
     </script>
@@ -1416,7 +1500,7 @@ with tab_feed:
 
         with o_tab15:
             st.markdown("#### 🎵 15th Screen: Free Copyright-Free Music Library (Owner Upload)")
-            st.caption("অ্যাডমিন এখানে ফ্রি ব্যাকগ্রাউন্ড মিউজিক আপলোড করতে পারবেন যা ব্যবহারকারীরা ভিডিওর সাথে যুক্ত করতে পারবেন।")
+            st.caption("অ্যাডমিন এখানে ফ্রি ব্যাকগ্রাউন্ড মিউজিক আপলোড করতে পারবেন যা ব্যবহারকারীরা ক্যামেরা ইন্টারফেসেই পাবেন।")
             
             with st.form("owner_music_upload_form"):
                 song_title = st.text_input("Song Title / Name")
@@ -1425,18 +1509,35 @@ with tab_feed:
                 submit_song = st.form_submit_button("📤 Upload to Free Music Library")
                 
                 if submit_song and song_file:
-                    s_path = os.path.join(UPLOAD_DIR, f"free_song_{uuid.uuid4()}.mp3")
+                    song_id = str(uuid.uuid4())
+                    s_path = os.path.join(UPLOAD_DIR, f"free_song_{song_id}.mp3")
                     with open(s_path, "wb") as f:
                         f.write(song_file.getbuffer())
-                    set_setting(f"free_song_{uuid.uuid4()}", json.dumps({"title": song_title, "artist": artist_name, "path": s_path}))
+                    
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("INSERT INTO music_library VALUES (?, ?, ?, ?, ?)", (song_id, song_title, artist_name, s_path, now))
+                        conn.commit()
                     st.success("✅ Copyright-free song added successfully to the public library!")
+                    st.rerun()
 
             st.markdown("##### 🎧 Available Free Songs in Library:")
-            st.info("🎶 [Active] Free Folk & Cinematic Instrumentals (Ready for Public Videos)")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM music_library ORDER BY created_at DESC")
+                m_songs = c.fetchall()
+                for ms in m_songs:
+                    col_m1, col_m2 = st.columns([3, 1])
+                    col_m1.write(f"🎵 **{ms['title']}** - {ms['artist']}")
+                    if col_m2.button("🗑️ Delete", key=f"del_song_{ms['song_id']}"):
+                        c.execute("DELETE FROM music_library WHERE song_id = ?", (ms['song_id'],))
+                        conn.commit()
+                        st.rerun()
 
         with o_tab16:
-            st.markdown("#### 📱 16th Screen: Face Recognition & iPhone Filter Live Camera Studio")
-            st.caption("লাইভ ক্যামেরা ফিল্টার ও সরাসরি ভিডিও আপলোড সিস্টেম।")
+            st.markdown("#### 📱 16th Screen: Face Recognition & Live Camera Studio")
+            st.caption("লাইভ ক্যামেরা ফিল্টার, অন-ডিসপ্লে মিউজিক ও অটো পাবলিশ সিস্টেম।")
             render_tiktok_camera_studio()
 
     else:
