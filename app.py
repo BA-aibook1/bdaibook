@@ -12,7 +12,6 @@ import streamlit.components.v1 as components
 # ==========================================
 # 0. SECURITY & ENVIRONMENT CONFIGURATION
 # ==========================================
-# সিকিউরিটির জন্য Secret Key পরিবেশ থেকে পড়া ভালো
 NEW_OWNER_SECRET_KEY = os.getenv("OWNER_SECRET", "S$s123456789112233BDAIBOOK@MDSOHELRANA")
 SECRET_CODES = [NEW_OWNER_SECRET_KEY]
 
@@ -58,9 +57,6 @@ UPLOAD_DIR = "uploaded_media"
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
-# ------------------------------------------
-# 15-DAY INTERNAL AUTO-VAULT DIRECTORY LOGIC
-# ------------------------------------------
 AUTO_VAULT_BASE = "app_vault_storage"
 PERIOD_1_DIR = os.path.join(AUTO_VAULT_BASE, "days_1_to_15")
 PERIOD_2_DIR = os.path.join(AUTO_VAULT_BASE, "days_16_to_30")
@@ -150,6 +146,7 @@ st.markdown("""
     .vertical-live-feed-box { max-height: 600px; overflow-y: auto; background: #121316; padding: 15px; border-radius: 12px; border: 2px solid #0064e0; }
     .vertical-live-card { background: #1e2026; border-left: 4px solid #0064e0; padding: 12px; margin-bottom: 15px; border-radius: 8px; color: #fff; }
     .duplicate-card { background: #2a1215; border-left: 4px solid #ff4b4b; padding: 12px; margin-bottom: 10px; border-radius: 8px; color: #fff; }
+    .amazon-product-card { background: #1e2026; border: 1px solid #ff9900; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -281,6 +278,18 @@ def init_master_database():
                 created_at TEXT
             );
         """)
+
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS amazon_products (
+                product_id TEXT PRIMARY KEY,
+                title TEXT,
+                price TEXT,
+                affiliate_link TEXT,
+                image_url TEXT,
+                category TEXT,
+                created_at TEXT
+            );
+        """)
         
         default_settings = {
             "app_name": "BD AI Book",
@@ -348,61 +357,6 @@ if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
 if "active_tab" not in st.session_state: st.session_state.active_tab = 0
-
-# ==========================================
-# AUTO-PUBLISH LOGIC DIRECT FROM CAMERA
-# ==========================================
-query_params = st.query_params
-if "direct_cam_data" in query_params:
-    try:
-        raw_b64 = query_params["direct_cam_data"]
-        custom_title = query_params.get("video_title", "Live Short Video")
-        v_bytes = base64.b64decode(raw_b64)
-        rec_id = str(uuid.uuid4())
-        v_path = os.path.join(UPLOAD_DIR, f"live_rec_{rec_id}.webm")
-        with open(v_path, "wb") as f:
-            f.write(v_bytes)
-        
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        user_name = "Public User"
-        if st.session_state.user_id:
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT full_name FROM master_app_table WHERE user_id = ?", (st.session_state.user_id,))
-                usr_row = c.fetchone()
-                if usr_row:
-                    user_name = usr_row["full_name"]
-
-        post_data_map = {
-            "record_id": rec_id,
-            "data_type": "post",
-            "user_id": st.session_state.user_id or "GUEST",
-            "full_name": user_name,
-            "is_verified": 1,
-            "title": custom_title,
-            "content": "",
-            "media_path": v_path,
-            "post_category": "short",
-            "views_count": 1,
-            "likes_count": 0,
-            "created_at": now
-        }
-
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute("""
-                INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, media_path, post_category, views_count, likes_count, created_at)
-                VALUES (?, 'post', ?, ?, 1, ?, '', ?, 'short', 1, 0, ?)
-            """, (rec_id, st.session_state.user_id or "GUEST", user_name, custom_title, v_path, now))
-            conn.commit()
-            
-        save_to_internal_vault(post_data_map)
-        st.query_params.clear()
-        st.toast("🎉 Live Video Published Successfully!")
-        st.rerun()
-    except Exception as ex:
-        st.error(f"Error Direct Uploading: {ex}")
 
 site_logo_path = get_setting("logo_path")
 app_name = get_setting("app_name", "BD AI Book")
@@ -667,264 +621,6 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         
     st.markdown("</div>", unsafe_allow_html=True)
 
-def render_tiktok_camera_studio():
-    st.info("📱 **Public Live Camera, Filters & Quick Direct Publish Studio**")
-
-    music_options_html = "<option value=''>🎵 None (Original Mic)</option>"
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT * FROM music_library ORDER BY created_at DESC")
-        songs = c.fetchall()
-        for s in songs:
-            if os.path.exists(s['file_path']):
-                try:
-                    with open(s['file_path'], "rb") as f:
-                        b64 = base64.b64encode(f.read()).decode()
-                        music_options_html += f"<option value='data:audio/mp3;base64,{b64}'>🎵 {s['title']} ({s['artist']})</option>"
-                except Exception:
-                    pass
-
-    components.html(f"""
-    <style>
-      .tiktok-cam-wrapper {{
-        position: relative;
-        width: 100%;
-        max-width: 350px;
-        height: 600px;
-        margin: 0 auto;
-        background: #000;
-        border-radius: 20px;
-        overflow: hidden;
-        border: 3px solid #0064e0;
-        box-shadow: 0px 8px 20px rgba(0,100,224,0.4);
-      }}
-      #cameraPreview {{
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }}
-      .top-controls {{
-        position: absolute;
-        top: 12px;
-        left: 10px;
-        right: 10px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        z-index: 10;
-      }}
-      .side-controls {{
-        position: absolute;
-        right: 10px;
-        top: 70px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        z-index: 10;
-      }}
-      .side-btn {{
-        background: rgba(0, 0, 0, 0.6);
-        color: white;
-        border: 1px solid rgba(255,255,255,0.3);
-        padding: 6px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        backdrop-filter: blur(5px);
-        cursor: pointer;
-      }}
-      .bottom-controls {{
-        position: absolute;
-        bottom: 15px;
-        left: 10px;
-        right: 10px;
-        text-align: center;
-        z-index: 10;
-      }}
-      .rec-btn {{
-        width: 65px;
-        height: 65px;
-        border-radius: 50%;
-        background: #ff0050;
-        border: 4px solid #fff;
-        cursor: pointer;
-        box-shadow: 0 0 10px rgba(255,0,80,0.8);
-      }}
-      #recordingBadge {{
-        display: none;
-        background: rgba(255,0,0,0.85);
-        color: white;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 12px;
-        font-weight: bold;
-      }}
-      #musicSelect {{
-        background: rgba(0,0,0,0.7);
-        color: #fff;
-        border: 1px solid #0064e0;
-        padding: 5px 8px;
-        border-radius: 12px;
-        font-size: 11px;
-        max-width: 150px;
-      }}
-      .quick-publish-box {{
-        margin-top: 8px;
-        display: none;
-        flex-direction: column;
-        gap: 6px;
-        background: rgba(0,0,0,0.8);
-        padding: 10px;
-        border-radius: 12px;
-      }}
-      .quick-input {{
-        width: 90%;
-        padding: 6px;
-        border-radius: 8px;
-        border: 1px solid #0064e0;
-        background: #111;
-        color: #fff;
-        font-size: 12px;
-        margin: 0 auto;
-      }}
-    </style>
-
-    <div class="tiktok-cam-wrapper">
-      <div class="top-controls">
-        <div id="recordingBadge">● REC <span id="timer">0s</span></div>
-        <select id="musicSelect" onchange="loadAudio(this.value)">
-            {music_options_html}
-        </select>
-      </div>
-
-      <video id="cameraPreview" autoplay playsinline muted></video>
-      <audio id="bgAudio" loop></audio>
-
-      <div class="side-controls">
-        <button class="side-btn" onclick="switchCamera()">🔄 Cam</button>
-        <button class="side-btn" onclick="applyFilter('none')">Normal</button>
-        <button class="side-btn" onclick="applyFilter('contrast(120%) brightness(110%) saturate(130%)')">✨ Glow</button>
-        <button class="side-btn" onclick="applyFilter('grayscale(100%)')">B&W</button>
-        <button class="side-btn" onclick="applyFilter('sepia(80%)')">Vintage</button>
-      </div>
-
-      <div class="bottom-controls">
-        <button id="startRecBtn" class="rec-btn" onclick="toggleRecording()"></button>
-        
-        <div id="quickPublishBox" class="quick-publish-box">
-           <input type="text" id="quickTitle" class="quick-input" placeholder="ভিডিওর নাম (Title) লিখুন..." value="My Short Video">
-           <button onclick="publishDirectly()" style="background:#0064e0; color:#fff; padding:8px 14px; border:none; border-radius:10px; font-size:12px; font-weight:bold; cursor:pointer;">🚀 Publish Directly (Only Title)</button>
-        </div>
-      </div>
-    </div>
-
-    <script>
-      let useFrontCamera = false;
-      let currentStream = null;
-      let mediaRecorder = null;
-      let recordedChunks = [];
-      let isRecording = false;
-      let timerInterval = null;
-      let seconds = 0;
-      let currentBlob = null;
-
-      function startCamera() {{
-        if (currentStream) {{
-          currentStream.getTracks().forEach(track => track.stop());
-        }}
-        const constraints = {{
-          video: {{ facingMode: useFrontCamera ? "user" : "environment", width: {{ ideal: 720 }}, height: {{ ideal: 1280 }} }},
-          audio: true
-        }};
-        navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {{
-            currentStream = stream;
-            let video = document.getElementById('cameraPreview');
-            video.srcObject = stream;
-            video.style.transform = useFrontCamera ? "scaleX(-1)" : "scaleX(1)";
-            video.play();
-        }}).catch(function(err){{ console.log(err); }});
-      }}
-
-      function switchCamera() {{
-        useFrontCamera = !useFrontCamera;
-        startCamera();
-      }}
-
-      function loadAudio(src) {{
-        let audio = document.getElementById('bgAudio');
-        if(src) {{
-            audio.src = src;
-        }} else {{
-            audio.src = "";
-        }}
-      }}
-
-      function applyFilter(filterStyle) {{
-        document.getElementById('cameraPreview').style.filter = filterStyle;
-      }}
-
-      function toggleRecording() {{
-        const btn = document.getElementById('startRecBtn');
-        const badge = document.getElementById('recordingBadge');
-        const pubBox = document.getElementById('quickPublishBox');
-        const bgAudio = document.getElementById('bgAudio');
-        
-        if (!isRecording) {{
-          recordedChunks = [];
-          try {{
-            mediaRecorder = new MediaRecorder(currentStream, {{ mimeType: 'video/webm' }});
-          }} catch (e) {{
-            mediaRecorder = new MediaRecorder(currentStream);
-          }}
-          
-          mediaRecorder.ondataavailable = function(e) {{
-            if (e.data.size > 0) recordedChunks.push(e.data);
-          }};
-
-          mediaRecorder.onstop = function() {{
-            currentBlob = new Blob(recordedChunks, {{ type: 'video/webm' }});
-            pubBox.style.display = "flex";
-            btn.style.display = "none";
-            if(bgAudio) bgAudio.pause();
-          }};
-
-          mediaRecorder.start(100);
-          if(bgAudio.src) bgAudio.play();
-          isRecording = true;
-          btn.style.background = "#fff";
-          badge.style.display = "block";
-          pubBox.style.display = "none";
-          
-          seconds = 0;
-          timerInterval = setInterval(() => {{
-            seconds++;
-            document.getElementById('timer').innerText = seconds + "s";
-          }}, 1000);
-
-        }} else {{
-          mediaRecorder.stop();
-          isRecording = false;
-          badge.style.display = "none";
-          clearInterval(timerInterval);
-        }}
-      }}
-
-      function publishDirectly() {{
-        if(!currentBlob) return;
-        let vTitle = document.getElementById('quickTitle').value || "Short Video";
-        let reader = new FileReader();
-        reader.readAsDataURL(currentBlob);
-        reader.onloadend = function() {{
-            let base64data = reader.result.split(',')[1];
-            let url = window.top.location.pathname + "?direct_cam_data=" + encodeURIComponent(base64data) + "&video_title=" + encodeURIComponent(vTitle);
-            window.top.location.href = url;
-        }}
-      }}
-
-      startCamera();
-    </script>
-    """, height=650)
-
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
     
@@ -966,7 +662,7 @@ with tab_feed:
             "1️⃣3️⃣ Master Vault & Auto-Backup",
             "1️⃣4️⃣ Lalmonirhat Master Control & Analytics",
             "1️⃣5️⃣ Free Copyright-Free Music Library (Owner Upload)",
-            "1️⃣6️⃣ Face Recognition & iPhone Filter Live Camera Studio"
+            "1️⃣6️⃣ Amazon E-Commerce Marketplace Hub"
         ])
         
         o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16 = o_tabs
@@ -1513,7 +1209,7 @@ with tab_feed:
 
         with o_tab15:
             st.markdown("#### 🎵 15th Screen: Free Copyright-Free Music Library (Owner Upload)")
-            st.caption("অ্যাডমিন এখানে ফ্রি ব্যাকগ্রাউন্ড মিউজিক আপলোড করতে পারবেন যা ক্যামেরা ইন্টারফেসের ড্রপডাউনে পাওয়া যাবে।")
+            st.caption("অ্যাডমিন এখানে ফ্রি ব্যাকগ্রাউন্ড মিউজিক আপলোড করতে পারবেন।")
             
             with st.form("owner_music_upload_form"):
                 song_title = st.text_input("Song Title / Name")
@@ -1549,9 +1245,65 @@ with tab_feed:
                         st.rerun()
 
         with o_tab16:
-            st.markdown("#### 📱 16th Screen: Face Recognition & Live Camera Studio")
-            st.caption("লাইভ ক্যামেরা ফিল্টার, অন-ডিসপ্লে মিউজিক ও অটো পাবলিশ সিস্টেম।")
-            render_tiktok_camera_studio()
+            st.markdown("#### 🛒 16th Screen: Amazon E-Commerce Marketplace Control Hub")
+            st.caption("ক্যামেরা সুবিধা সম্পূর্ণ তুলে দিয়ে এখানে আমাজন অ্যাফিলিয়েট ও অনলাইন ই-কমার্স স্টোর যুক্ত করা হয়েছে।")
+            
+            st.markdown("##### ➕ Add New Amazon Product")
+            with st.form("add_amazon_product_form"):
+                p_title = st.text_input("Product Title", placeholder="e.g. Wireless Bluetooth Headphones")
+                p_price = st.text_input("Product Price", placeholder="e.g. $29.99")
+                p_link = st.text_input("Amazon Affiliate Direct Link", placeholder="https://amazon.com/dp/...")
+                p_image = st.text_input("Product Image URL", placeholder="https://m.media-amazon.com/images/...")
+                p_category = st.selectbox("Category", ["Electronics", "Fashion", "Gadgets", "Home & Kitchen", "Books"])
+                
+                submit_p = st.form_submit_button("🛒 Save Product to Marketplace")
+                if submit_p and p_title and p_link:
+                    prod_id = str(uuid.uuid4())
+                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO amazon_products (product_id, title, price, affiliate_link, image_url, category, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (prod_id, p_title, p_price, p_link, p_image, p_category, now_str))
+                        conn.commit()
+                    st.success("✅ Amazon product added to store!")
+                    st.rerun()
+
+            st.markdown("---")
+            st.markdown("##### 📦 Active Amazon Products Listing")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM amazon_products ORDER BY created_at DESC")
+                amz_products = c.fetchall()
+
+            if not amz_products:
+                st.info("No Amazon products added yet.")
+            else:
+                for ap in amz_products:
+                    st.markdown(f"""
+                    <div class='amazon-product-card'>
+                        <div style='display:flex; justify-content:space-between; align-items:center;'>
+                            <div>
+                                <h4 style='margin:0; color:#ff9900;'>🛒 {ap['title']}</h4>
+                                <p style='margin:5px 0 0 0; color:#fff;'>Price: <b>{ap['price']}</b> | Category: <i>{ap['category']}</i></p>
+                            </div>
+                            <a href='{ap['affiliate_link']}' target='_blank' style='background:#ff9900; color:#000; padding:8px 12px; text-decoration:none; border-radius:6px; font-weight:bold;'>Buy / View on Amazon</a>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if ap['image_url']:
+                        st.image(ap['image_url'], width=150)
+                        
+                    if st.button("🗑️ Remove Product", key=f"del_amz_{ap['product_id']}"):
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("DELETE FROM amazon_products WHERE product_id = ?", (ap['product_id'],))
+                            conn.commit()
+                        st.rerun()
+                    st.markdown("---")
 
     else:
         with get_db_connection() as conn:
@@ -1567,15 +1319,35 @@ with tab_feed:
         ads_enabled = get_setting("show_ads") == "ON"
         ads_html = get_setting("adsense_script")
 
-        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5 = st.tabs(["🌐 All Feed", "📹 TikTok Camera Studio", "🎬 Reels / Shorts", "🖼️ Photos", "📹 Long Videos"])
+        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5 = st.tabs(["🌐 All Feed", "🛒 Amazon Store", "🎬 Reels / Shorts", "🖼️ Photos", "📹 Long Videos"])
 
         with sub_feed1:
             for post in posts:
                 render_post_card(post, ads_enabled, ads_html, prefix="all")
 
         with sub_feed2:
-            st.markdown("### 📱 Public TikTok Studio & Live Camera Filters")
-            render_tiktok_camera_studio()
+            st.markdown("### 🛒 Amazon Marketplace & Featured Products")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM amazon_products ORDER BY created_at DESC")
+                public_amz_products = c.fetchall()
+
+            if not public_amz_products:
+                st.info("No featured Amazon products available right now.")
+            else:
+                grid_cols = st.columns(2)
+                for idx, ap in enumerate(public_amz_products):
+                    with grid_cols[idx % 2]:
+                        st.markdown(f"""
+                        <div class='amazon-product-card'>
+                            <h4 style='color:#ff9900; margin-bottom:5px;'>{ap['title']}</h4>
+                            <p style='margin:0 0 10px 0;'>Price: <span style='color:#00ff66; font-weight:bold;'>{ap['price']}</span></p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if ap['image_url']:
+                            st.image(ap['image_url'], use_container_width=True)
+                        st.markdown(f"<a href='{ap['affiliate_link']}' target='_blank'><button style='width:100%; background:#ff9900; color:#000; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;'>🛒 Buy Now on Amazon</button></a>", unsafe_allow_html=True)
+                        st.markdown("<br>", unsafe_allow_html=True)
 
         with sub_feed3:
             short_posts = [p for p in posts if p.get("post_category") == "short"]
@@ -1658,7 +1430,7 @@ with tab_profile:
             use_live_camera = st.checkbox("📸 Use Live Camera Instead of File Upload")
             
             if use_live_camera:
-                uploaded_media = st.camera_input("📷 Capture Live Photo/Video via Camera")
+                uploaded_media = st.camera_input("📷 Capture Live Photo via Camera")
             else:
                 uploaded_media = st.file_uploader("Media File", type=["mp4", "jpg", "png", "mov"])
             
