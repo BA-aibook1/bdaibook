@@ -347,7 +347,6 @@ def hash_pass(pwd):
     return hashlib.sha256(pwd.encode()).hexdigest()
 
 def get_meta_blue_badge():
-    # অরিজিনাল ও নিখুঁত মেটা/ফেসবুক ভেরিফাইড ব্লু ব্যাজ (Scalloped SVG Shape)
     return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block; flex-shrink: 0;">
         <path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.05 1.273 2.42 2.148 4 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-1.05 2.148-2.42 2.148-4z"/>
         <path fill="#ffffff" d="M10.2 16.2l-3.5-3.5 1.4-1.4 2.1 2.1 5.7-5.7 1.4 1.4-7.1 7.1z"/>
@@ -1258,7 +1257,7 @@ with tab_feed:
             
             with st.form("owner_music_upload_form"):
                 song_title = st.text_input("Song Title / Name")
-                artist_name = st.text_input("Artist Name", value="Master Studio")
+                artist_name = st.text_input("Artist Name", value="Sohel Rana")
                 song_file = st.file_uploader("Upload Copyright-Free Audio Song (.mp3/.wav)", type=["mp3", "wav"])
                 submit_song = st.form_submit_button("📤 Upload to Free Music Library")
                 
@@ -1358,10 +1357,7 @@ with tab_feed:
                     with st.expander(f"👤 {u_target['full_name']} ({u_target['auth_identifier']}) - Status: [{u_status}]"):
                         col_usr_t1, col_usr_t2, col_usr_t3 = st.columns([2, 2, 2])
                         
-                        # User Status Selection (Real vs Fake)
                         new_usr_status = col_usr_t1.selectbox("User Authenticity", ["REAL", "FAKE"], index=0 if u_status == "REAL" else 1, key=f"st_sel_{u_id}")
-                        
-                        # Bluetooth Switch
                         bt_grant = col_usr_t2.checkbox("Allow Meta Bluetooth Permission", value=u_bt, key=f"bt_cb_{u_id}")
                         
                         if col_usr_t3.button("💾 Save User Permission", key=f"save_perm_{u_id}"):
