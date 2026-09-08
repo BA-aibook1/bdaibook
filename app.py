@@ -12,10 +12,15 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ==========================================
-# 0. SECURITY & ENVIRONMENT CONFIGURATION
+# 0. SECURITY, OWNER & CONTACT CONFIGURATION
 # ==========================================
 NEW_OWNER_SECRET_KEY = os.getenv("OWNER_SECRET", "S$s123456789112233BDAIBOOK@MDSOHELRANA")
 SECRET_CODES = [NEW_OWNER_SECRET_KEY]
+
+# Owner Contact Details (WhatsApp Number Updated)
+OWNER_NAME = "Sohel Rana"
+OWNER_WHATSAPP_NUMBER = "+8801722003172"
+OWNER_WHATSAPP_LINK = "https://wa.me/8801722003172"
 
 # ==========================================
 # GOOGLE VISION AI AUTO-MODERATION ENGINE
@@ -195,6 +200,9 @@ st.markdown("""
     .announcement-box {
         background: linear-gradient(90deg, #16222f 0%, #0064e0 100%); color: white; padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 15px; font-weight: bold; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
     }
+    .whatsapp-support-btn {
+        background-color: #25D366; color: white !important; font-weight: bold; padding: 10px 18px; border-radius: 8px; text-decoration: none; display: inline-block; margin-top: 5px; box-shadow: 0 4px 10px rgba(37,211,102,0.3);
+    }
     .ad-container { margin-top: 15px; margin-bottom: 15px; padding: 10px; background: #121212; border-radius: 10px; text-align: center; border: 1px dashed #333; }
     .vertical-live-feed-box { max-height: 600px; overflow-y: auto; background: #121316; padding: 15px; border-radius: 12px; border: 2px solid #0064e0; }
     .vertical-live-card { background: #1e2026; border-left: 4px solid #0064e0; padding: 12px; margin-bottom: 15px; border-radius: 8px; color: #fff; }
@@ -370,11 +378,22 @@ def init_master_database():
             "auto_duplicate_detector": "ON",
             "site_verification_code": "",
             "is_global_meta_active": "true",
-            "meta_mode": "SELECTED_USERS"
+            "meta_mode": "SELECTED_USERS",
+            "owner_whatsapp": OWNER_WHATSAPP_NUMBER
         }
         
         for k, v in default_settings.items():
             c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)", (k, str(v)))
+
+        # Default WhatsApp Gateway Add (if empty)
+        c.execute("SELECT COUNT(*) FROM payment_gateways WHERE provider_name LIKE '%WhatsApp%'")
+        if c.fetchone()[0] == 0:
+            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (
+                str(uuid.uuid4()),
+                "Mobile Banking / Support",
+                "WhatsApp Payment & Helpline",
+                f"WhatsApp No: {OWNER_WHATSAPP_NUMBER}\nArtist / Admin: {OWNER_NAME}"
+            ))
 
         conn.commit()
 
@@ -465,6 +484,14 @@ with top_col3:
 
 if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
+
+# WhatsApp Direct Support Floating Banner / Sidebar Info
+st.sidebar.markdown(f"""
+<a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='whatsapp-support-btn'>
+    💬 WhatsApp Support: {OWNER_WHATSAPP_NUMBER}
+</a>
+""", unsafe_allow_html=True)
+st.sidebar.markdown("---")
 
 real_followers = 0
 current_user = {}
@@ -840,9 +867,9 @@ with tab_feed:
         with o_tab4:
             st.markdown("#### 🏦 Dynamic Payment Gateway Control")
             with st.form("add_new_payment_method"):
-                m_type = st.selectbox("Method Type", ["Mobile Banking", "Bank Transfer (Foreign)", "Bank Transfer (Local)", "Crypto / International"])
-                p_name = st.text_input("Provider / Bank Name", placeholder="e.g. Clear Bank / Islami Bank / USDT TRC20")
-                p_details = st.text_area("Account Details / Number", placeholder="e.g. Account No / IBAN / Crypto Address")
+                m_type = st.selectbox("Method Type", ["WhatsApp Support / Direct", "Mobile Banking", "Bank Transfer (Foreign)", "Bank Transfer (Local)", "Crypto / International"])
+                p_name = st.text_input("Provider / Bank Name", value="WhatsApp / Direct Contact")
+                p_details = st.text_area("Account Details / WhatsApp Info", value=f"WhatsApp No: {OWNER_WHATSAPP_NUMBER}\nArtist Name: {OWNER_NAME}")
                 submit_gw = st.form_submit_button("➕ Add New Payment Method")
                 
                 if submit_gw and p_name and p_details:
@@ -1317,7 +1344,8 @@ with tab_feed:
 
             st.markdown("---")
             st.markdown("##### 🎵 Master Configuration")
-            st.text_input("Default Master Admin Name", value="Sohel Rana", disabled=True)
+            st.text_input("Default Master Admin Name", value=OWNER_NAME, disabled=True)
+            st.text_input("Saved WhatsApp Number", value=OWNER_WHATSAPP_NUMBER, disabled=True)
             st.success("✅ Copyright and title settings are synchronized with artist Sohel Rana in the database.")
 
             if st.button("🚀 Run System Optimization & Sync"):
@@ -1329,7 +1357,7 @@ with tab_feed:
             
             with st.form("owner_music_upload_form"):
                 song_title = st.text_input("Song Title / Name")
-                artist_name = st.text_input("Artist Name", value="Sohel Rana")
+                artist_name = st.text_input("Artist Name", value=OWNER_NAME)
                 song_file = st.file_uploader("Upload Copyright-Free Audio Song (.mp3/.wav)", type=["mp3", "wav"])
                 submit_song = st.form_submit_button("📤 Upload to Free Music Library")
                 
