@@ -760,11 +760,16 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
     
-    if search_input.strip() in SECRET_CODES:
+    # Secret Code Check via Search Box
+    if search_input and search_input.strip() in SECRET_CODES:
         st.session_state.is_owner_session = True
+        st.toast("✅ Master Owner Access Granted via Search Box!", icon="🔓")
+
+    # 👑 OWNER MASTER CONTROL PANEL
+    st.markdown("---")
+    if st.session_state.is_owner_session:
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
-        st.markdown("---")
-        
+    
         with get_db_connection() as conn:
             c = conn.cursor()
             c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'user'")
@@ -780,7 +785,7 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner Master Control Power Panels (1 to 16)")
+        st.markdown("### 🎛️ Owner Master Control Power Panels (1 to 17)")
         
         o_tabs = st.tabs([
             "1️⃣ Global Branding", 
@@ -798,10 +803,11 @@ with tab_feed:
             "1️⃣3️⃣ Master Vault & Auto-Backup",
             "1️⃣4️⃣ Master Control & Analytics",
             "1️⃣5️⃣ Free Copyright-Free Music Library (Owner Upload)",
-            "1️⃣6️⃣ Amazon E-Commerce & Meta Target Hub"
+            "1️⃣6️⃣ Amazon E-Commerce & Meta Target Hub",
+            "1️⃣7️⃣ WhatsApp Live Chat & Secret Switch"
         ])
         
-        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16 = o_tabs
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16, o_tab17 = o_tabs
         
         with o_tab1:
             st.markdown("#### 🖼️ Global Branding & Logo")
@@ -1530,91 +1536,137 @@ with tab_feed:
                         st.rerun()
                     st.markdown("---")
 
+        with o_tab17:
+            st.markdown("#### 💬 ১৭ নম্বর বাটন: হোয়াটসঅ্যাপ লাইভ চ্যাট ও সিক্রেট অ্যাক্সেস")
+            st.caption("লাইভ স্ক্রিনে ইউজারদের সাথে সরাসরি হোয়াটসঅ্যাপে মেসেজে চ্যাট করার ব্যবস্থা:")
+            
+            st.markdown(f"""
+            <div style='background:#111b21; padding:15px; border-radius:12px; border:2px solid #25D366; text-align:center;'>
+                <h4 style='color:#25D366; margin:0 0 10px 0;'>💬 Direct WhatsApp Live Screen Chat</h4>
+                <p style='color:#e9edef; font-size:14px;'>ইউজারদের সঙ্গে মেসেজে চ্যাট ও কমিউনিকেট করতে সরাসরি নিচের বাটনে ক্লিক করুন:</p>
+                <a href='{OWNER_WHATSAPP_LINK}' target='_blank' style='background-color:#25D366; color:white; font-size:16px; font-weight:bold; padding:12px 24px; border-radius:8px; text-decoration:none; display:inline-block; margin-top:5px; box-shadow:0 4px 10px rgba(37,211,102,0.4);'>
+                    📱 Open WhatsApp Live Chat ({OWNER_WHATSAPP_NUMBER})
+                </a>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown("---")
+            st.markdown("##### 🔐 Owner Access Control & Security Code")
+            sec_input = st.text_input("Enter Secret Owner Key", type="password", key="sec_tab_input")
+            col_sec1, col_sec2 = st.columns(2)
+            
+            if col_sec1.button("🔓 Verify Owner Secret Key"):
+                if sec_input in SECRET_CODES:
+                    st.session_state.is_owner_session = True
+                    st.success("✅ Owner Access Granted & Verified!")
+                    st.rerun()
+                else:
+                    st.error("❌ Invalid Secret Owner Key!")
+                    
+            if col_sec2.button("🔒 Lock Owner Panel (Exit Session)"):
+                st.session_state.is_owner_session = False
+                st.warning("🔒 Owner Command Center Locked!")
+                st.rerun()
+
     else:
+        # If owner session is locked, show 17th Tab authentication box directly
+        st.info("🔒 Owner Control Panel is locked. Open tab 17 below to unlock using Secret Key.")
+        with st.expander("🔐 17. Owner Secret Key Access Window", expanded=True):
+            sec_input_public = st.text_input("Enter Secret Key to Access Owner Panels", type="password", key="sec_public_input")
+            if st.button("🔓 Unlock Master Owner Panel"):
+                if sec_input_public in SECRET_CODES:
+                    st.session_state.is_owner_session = True
+                    st.success("✅ Access Granted!")
+                    st.rerun()
+                else:
+                    st.error("❌ Invalid Secret Key!")
+
+    st.markdown("---")
+    
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        if search_input and search_input.strip() not in SECRET_CODES:
+            q_str = f"%{search_input}%"
+            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
+        else:
+            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC")
+            
+        posts = [dict(r) for r in c.fetchall()]
+
+    ads_enabled = get_setting("show_ads") == "ON"
+    ads_html = get_setting("adsense_script")
+
+    sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5, sub_feed6, sub_feed7 = st.tabs(["🌐 All Feed", "🕌 Islamic Streams", "🎬 Full Movies", "🛒 Amazon Store", "📱 Reels / Shorts", "🖼️ Photos", "📹 YouTube Style Long"])
+
+    with sub_feed1:
+        for post in posts:
+            render_post_card(post, ads_enabled, ads_html, prefix="all")
+
+    with sub_feed2:
+        st.markdown("### 🕌 Islamic Streams & Talks")
+        mahfil_posts = [p for p in posts if p.get("post_category") == "mahfil"]
+        if not mahfil_posts:
+            st.info("No Islamic or broadcast streams uploaded yet.")
+        else:
+            for post in mahfil_posts:
+                render_post_card(post, ads_enabled, ads_html, prefix="mahfil")
+
+    with sub_feed3:
+        st.markdown("### 🎬 Full HD Movies & Theater Releases")
+        movie_posts = [p for p in posts if p.get("post_category") == "movie"]
+        if not movie_posts:
+            st.info("No movie content available right now.")
+        else:
+            for post in movie_posts:
+                render_post_card(post, ads_enabled, ads_html, prefix="movie")
+
+    with sub_feed4:
+        st.markdown("### 🛒 Amazon Marketplace & Featured Products")
         with get_db_connection() as conn:
             c = conn.cursor()
-            if search_input:
-                q_str = f"%{search_input}%"
-                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
-            else:
-                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC")
-                
-            posts = [dict(r) for r in c.fetchall()]
+            c.execute("SELECT * FROM amazon_products ORDER BY created_at DESC")
+            public_amz_products = c.fetchall()
 
-        ads_enabled = get_setting("show_ads") == "ON"
-        ads_html = get_setting("adsense_script")
+        if not public_amz_products:
+            st.info("No featured Amazon products available right now.")
+        else:
+            grid_cols = st.columns(2)
+            for idx, ap in enumerate(public_amz_products):
+                with grid_cols[idx % 2]:
+                    st.markdown(f"""
+                    <div class='amazon-product-card'>
+                        <h4 style='color:#ff9900; margin-bottom:5px;'>{ap['title']}</h4>
+                        <p style='margin:0 0 10px 0;'>Price: <span style='color:#00ff66; font-weight:bold;'>{ap['price']}</span></p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if ap['image_url']:
+                        st.image(ap['image_url'], use_container_width=True)
+                    st.markdown(f"<a href='{ap['affiliate_link']}' target='_blank'><button style='width:100%; background:#ff9900; color:#000; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;'>🛒 Buy Now on Amazon</button></a>", unsafe_allow_html=True)
+                    st.markdown("<br>", unsafe_allow_html=True)
 
-        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5, sub_feed6, sub_feed7 = st.tabs(["🌐 All Feed", "🕌 Islamic Streams", "🎬 Full Movies", "🛒 Amazon Store", "📱 Reels / Shorts", "🖼️ Photos", "📹 YouTube Style Long"])
+    with sub_feed5:
+        short_posts = [p for p in posts if p.get("post_category") == "short"]
+        if not short_posts:
+            st.info("No Reels / Short Videos uploaded yet.")
+        else:
+            for post in short_posts:
+                render_post_card(post, ads_enabled, ads_html, prefix="short")
 
-        with sub_feed1:
-            for post in posts:
-                render_post_card(post, ads_enabled, ads_html, prefix="all")
+    with sub_feed6:
+        picture_posts = [p for p in posts if p.get("post_category") == "picture"]
+        if not picture_posts:
+            st.info("No Photo posts available.")
+        else:
+            for post in picture_posts:
+                render_post_card(post, ads_enabled, ads_html, prefix="pic")
 
-        with sub_feed2:
-            st.markdown("### 🕌 Islamic Streams & Talks")
-            mahfil_posts = [p for p in posts if p.get("post_category") == "mahfil"]
-            if not mahfil_posts:
-                st.info("No Islamic or broadcast streams uploaded yet.")
-            else:
-                for post in mahfil_posts:
-                    render_post_card(post, ads_enabled, ads_html, prefix="mahfil")
-
-        with sub_feed3:
-            st.markdown("### 🎬 Full HD Movies & Theater Releases")
-            movie_posts = [p for p in posts if p.get("post_category") == "movie"]
-            if not movie_posts:
-                st.info("No movie content available right now.")
-            else:
-                for post in movie_posts:
-                    render_post_card(post, ads_enabled, ads_html, prefix="movie")
-
-        with sub_feed4:
-            st.markdown("### 🛒 Amazon Marketplace & Featured Products")
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT * FROM amazon_products ORDER BY created_at DESC")
-                public_amz_products = c.fetchall()
-
-            if not public_amz_products:
-                st.info("No featured Amazon products available right now.")
-            else:
-                grid_cols = st.columns(2)
-                for idx, ap in enumerate(public_amz_products):
-                    with grid_cols[idx % 2]:
-                        st.markdown(f"""
-                        <div class='amazon-product-card'>
-                            <h4 style='color:#ff9900; margin-bottom:5px;'>{ap['title']}</h4>
-                            <p style='margin:0 0 10px 0;'>Price: <span style='color:#00ff66; font-weight:bold;'>{ap['price']}</span></p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        if ap['image_url']:
-                            st.image(ap['image_url'], use_container_width=True)
-                        st.markdown(f"<a href='{ap['affiliate_link']}' target='_blank'><button style='width:100%; background:#ff9900; color:#000; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;'>🛒 Buy Now on Amazon</button></a>", unsafe_allow_html=True)
-                        st.markdown("<br>", unsafe_allow_html=True)
-
-        with sub_feed5:
-            short_posts = [p for p in posts if p.get("post_category") == "short"]
-            if not short_posts:
-                st.info("No Reels / Short Videos uploaded yet.")
-            else:
-                for post in short_posts:
-                    render_post_card(post, ads_enabled, ads_html, prefix="short")
-
-        with sub_feed6:
-            picture_posts = [p for p in posts if p.get("post_category") == "picture"]
-            if not picture_posts:
-                st.info("No Photo posts available.")
-            else:
-                for post in picture_posts:
-                    render_post_card(post, ads_enabled, ads_html, prefix="pic")
-
-        with sub_feed7:
-            long_posts = [p for p in posts if p.get("post_category") in ["long", "general"]]
-            if not long_posts:
-                st.info("No Long Videos available.")
-            else:
-                for post in long_posts:
-                    render_post_card(post, ads_enabled, ads_html, prefix="long")
+    with sub_feed7:
+        long_posts = [p for p in posts if p.get("post_category") in ["long", "general"]]
+        if not long_posts:
+            st.info("No Long Videos available.")
+        else:
+            for post in long_posts:
+                render_post_card(post, ads_enabled, ads_html, prefix="long")
 
 with tab_profile:
     if not st.session_state.user_id:
