@@ -203,6 +203,15 @@ st.markdown("""
     .whatsapp-support-btn {
         background-color: #25D366; color: white !important; font-weight: bold; padding: 10px 18px; border-radius: 8px; text-decoration: none; display: inline-block; margin-top: 5px; box-shadow: 0 4px 10px rgba(37,211,102,0.3);
     }
+    /* Floating Chatbot Icon Style (Hiding Phone Number, Showing Human Icon) */
+    .floating-chat-icon {
+        position: fixed; bottom: 25px; right: 25px; background-color: #25D366; color: white;
+        width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center;
+        justify-content: center; font-size: 28px; box-shadow: 0 4px 15px rgba(37,211,102,0.5);
+        z-index: 99999; text-decoration: none; transition: transform 0.3s ease;
+    }
+    .floating-chat-icon:hover { transform: scale(1.1); color: white; }
+    
     .ad-container { margin-top: 15px; margin-bottom: 15px; padding: 10px; background: #121212; border-radius: 10px; text-align: center; border: 1px dashed #333; }
     .vertical-live-feed-box { max-height: 600px; overflow-y: auto; background: #121316; padding: 15px; border-radius: 12px; border: 2px solid #0064e0; }
     .vertical-live-card { background: #1e2026; border-left: 4px solid #0064e0; padding: 12px; margin-bottom: 15px; border-radius: 8px; color: #fff; }
@@ -385,7 +394,6 @@ def init_master_database():
         for k, v in default_settings.items():
             c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)", (k, str(v)))
 
-        # Default WhatsApp Gateway Add (if empty)
         c.execute("SELECT COUNT(*) FROM payment_gateways WHERE provider_name LIKE '%WhatsApp%'")
         if c.fetchone()[0] == 0:
             c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (
@@ -485,10 +493,19 @@ with top_col3:
 if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
 
-# WhatsApp Direct Support Floating Banner / Sidebar Info
+# ==========================================
+# 💬 FLOATING CHATBOT ICON (Hiding Phone Number, Showing Human/Chat Icon for 17th Line)
+# ==========================================
+st.markdown(f"""
+<a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='floating-chat-icon' title='চ্যাটবট বা মালিকের সাথে যোগাযোগ করুন (স্ক্রিনশট পাঠান)'>
+    💬
+</a>
+""", unsafe_allow_html=True)
+
+# Sidebar Support Link updated with clean look
 st.sidebar.markdown(f"""
-<a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='whatsapp-support-btn'>
-    💬 WhatsApp Support: {OWNER_WHATSAPP_NUMBER}
+<a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='whatsapp-support-btn' style='text-align: center; display: block;'>
+    💬 মালিকের সাথে লাইভ চ্যাট (Help)
 </a>
 """, unsafe_allow_html=True)
 st.sidebar.markdown("---")
@@ -760,12 +777,10 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
 with tab_feed:
     search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
     
-    # Secret Code Check via Search Box
     if search_input and search_input.strip() in SECRET_CODES:
         st.session_state.is_owner_session = True
         st.toast("✅ Master Owner Access Granted via Search Box!", icon="🔓")
 
-    # 👑 OWNER MASTER CONTROL PANEL
     st.markdown("---")
     if st.session_state.is_owner_session:
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
@@ -1338,8 +1353,6 @@ with tab_feed:
 
             st.markdown("---")
             st.markdown("##### 🔍 Google Search Console & AdSense Auto-Verification Setup")
-            st.caption("Pasting Google Console or AdSense verification codes (e.g. `<meta name='google-site-verification' content='...' />`) here will complete site verification automatically across all pages.")
-
             current_saved_ver_code = get_setting("site_verification_code", "")
             input_ver_code = st.text_area("Paste Verification Meta Tag / HTML Snippet Here", value=current_saved_ver_code, height=100)
 
@@ -1537,15 +1550,15 @@ with tab_feed:
                     st.markdown("---")
 
         with o_tab17:
-            st.markdown("#### 💬 ১৭ নম্বর বাটন: হোয়াটসঅ্যাপ লাইভ চ্যাট ও সিক্রেট অ্যাক্সেস")
-            st.caption("লাইভ স্ক্রিনে ইউজারদের সাথে সরাসরি হোয়াটসঅ্যাপে মেসেজে চ্যাট করার ব্যবস্থা:")
+            st.markdown("#### 💬 ১৭ নম্বর বাটন: হোয়াটসঅ্যাপ লাইভ চ্যাট ও সিক্রেট অ্যাক্সেস (চ্যাটবট আইকন সংযোগ)")
+            st.caption("ইউজাররা সরাসরি চ্যাটবট বা মানুষ আইকনে ক্লিক করে স্ক্রিনশট ও সমস্যা মালিকের কাছে পাঠাতে পারবে:")
             
             st.markdown(f"""
             <div style='background:#111b21; padding:15px; border-radius:12px; border:2px solid #25D366; text-align:center;'>
-                <h4 style='color:#25D366; margin:0 0 10px 0;'>💬 Direct WhatsApp Live Screen Chat</h4>
-                <p style='color:#e9edef; font-size:14px;'>ইউজারদের সঙ্গে মেসেজে চ্যাট ও কমিউনিকেট করতে সরাসরি নিচের বাটনে ক্লিক করুন:</p>
+                <h4 style='color:#25D366; margin:0 0 10px 0;'>💬 Direct WhatsApp Chatbot / Support Center</h4>
+                <p style='color:#e9edef; font-size:14px;'>ইউজারদের প্রোফাইল ও ড্যাশবোর্ডে ফোন নাম্বার হাইড করে চ্যাটবট আইকন যুক্ত করা হয়েছে। প্রয়োজনে নিচের বাটনে ক্লিক করুন:</p>
                 <a href='{OWNER_WHATSAPP_LINK}' target='_blank' style='background-color:#25D366; color:white; font-size:16px; font-weight:bold; padding:12px 24px; border-radius:8px; text-decoration:none; display:inline-block; margin-top:5px; box-shadow:0 4px 10px rgba(37,211,102,0.4);'>
-                    📱 Open WhatsApp Live Chat ({OWNER_WHATSAPP_NUMBER})
+                    💬 Open Chatbot / Live Support ({OWNER_WHATSAPP_NUMBER})
                 </a>
             </div>
             """, unsafe_allow_html=True)
@@ -1569,7 +1582,6 @@ with tab_feed:
                 st.rerun()
 
     else:
-        # If owner session is locked, show 17th Tab authentication box directly
         st.info("🔒 Owner Control Panel is locked. Open tab 17 below to unlock using Secret Key.")
         with st.expander("🔐 17. Owner Secret Key Access Window", expanded=True):
             sec_input_public = st.text_input("Enter Secret Key to Access Owner Panels", type="password", key="sec_public_input")
@@ -1858,7 +1870,6 @@ with tab_monetization:
     st.markdown("---")
     st.markdown("### 💼 Third-Party Sponsor & Video Payment Panel")
 
-    # 🔒 LOGIN CHECK FOR SPONSORS / BOOSTER API
     if not st.session_state.user_id:
         st.warning("🔒 আপনি স্পন্সর ভিডিও আপলোড করার আগে অনুগ্রহ করে একটি আইডি খুলুন বা সাইন আপ / লগইন করুন। আইডি খোলা ছাড়া স্পন্সর ভিডিও আপডেট করা যাবে না।")
         st.info("👈 সাইডবারে গিয়ে ফোন নম্বর বা ইমেইল দিয়ে সহজেই লগইন বা সাইন আপ করতে পারেন।")
@@ -1952,7 +1963,7 @@ with tab_monetization:
                             c = conn.cursor()
                             c.execute("""
                                 INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, status, created_at)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
-                            """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, "Paid", trx_input, selected_gw_b_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, "Paid", trx_input, selected_gw_b_name, 'Pending', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
                             conn.commit()
                         st.success("Boost request submitted to owner for verification!")
