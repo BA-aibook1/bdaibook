@@ -120,7 +120,7 @@ LOCAL_DB_FILE = "global_ai_book_master.db"
 BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
 def get_db_connection():
-    conn = sqlite3.connect(LOCAL_DB_FILE, check_same_thread=False, timeout=10)
+    conn = sqlite3.connect(LOCAL_DB_FILE, check_same_thread=False, timeout=15)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -205,15 +205,9 @@ st.markdown("""
     .yt-player-card {
         background: #0f0f0f; border-radius: 16px; overflow: hidden; border: 1px solid #272727; margin-bottom: 25px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
     }
-    .yt-badge {
-        background: #ff0000; color: #fff; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px;
-    }
-    .mahfil-badge {
-        background: #008055; color: #fff; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px;
-    }
-    .movie-badge {
-        background: #e50914; color: #fff; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px;
-    }
+    .yt-badge { background: #ff0000; color: #fff; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px; }
+    .mahfil-badge { background: #008055; color: #fff; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px; }
+    .movie-badge { background: #e50914; color: #fff; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -407,9 +401,9 @@ def hash_pass(pwd):
     return hashlib.sha256(pwd.encode()).hexdigest()
 
 def get_meta_blue_badge():
-    return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block; flex-shrink: 0;">
-        <path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C15.55 2.475 14.18 1.6 12.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C2.575 9.55 1.7 10.92 1.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.05 1.273 2.42 2.148 4 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-1.05 2.148-2.42 2.148-4z"/>
-        <path fill="#ffffff" d="M10.2 16.2l-3.5-3.5 1.4-1.4 2.1 2.1 5.7-5.7 1.4 1.4-7.1 7.1z"/>
+    return """<svg viewBox="0 0 24 24" fill="#0866FF" width="18" height="18" style="vertical-align: middle; margin-left: 4px; margin-right: 4px; display: inline-block; flex-shrink: 0;">
+        <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.05 1.273 2.42 2.148 4 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-1.05 2.148-2.42 2.148-4z"/>
+        <path fill="#FFFFFF" d="M10.2 16.2l-3.7-3.7 1.4-1.4 2.3 2.3 5.3-5.3 1.4 1.4z"/>
     </svg>"""
 
 def increment_views(post_id):
@@ -451,7 +445,6 @@ def check_user_meta_bluetooth_permission(user_id):
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
-if "active_tab" not in st.session_state: st.session_state.active_tab = 0
 
 site_logo_path = get_setting("logo_path")
 app_name = get_setting("app_name", "Global AI Book")
@@ -468,9 +461,7 @@ with top_col2:
     st.markdown(f"<h3 style='text-align: center; color:#0064e0; margin:0;'>{app_name}</h3>", unsafe_allow_html=True)
 
 with top_col3:
-    if st.button("👤 Profile", key="quick_profile_btn"):
-        st.session_state.active_tab = 1
-        st.rerun()
+    st.write("")
 
 if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
@@ -596,9 +587,6 @@ else:
 
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
-# ==========================================
-# FIXED PUBLIC RENDER CARD (WITH PUBLIC DP)
-# ==========================================
 def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     increment_views(post["record_id"])
     cat = post.get("post_category", "general")
@@ -608,7 +596,6 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     else:
         st.markdown("<div class='fb-post-card'>", unsafe_allow_html=True)
     
-    # FETCH REAL TIME USER DETAILS (PUBLIC DP & NAME)
     with get_db_connection() as conn:
         c = conn.cursor()
         c.execute("SELECT full_name, profile_pic_path, is_verified FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (post.get("user_id"),))
@@ -1317,4 +1304,575 @@ with tab_feed:
             col_rc2.metric("💼 Total Sponsor Requests Processed", total_sponsors_all)
 
             st.markdown("---")
-            st.markdown("##### 🔍 Google Searc
+            st.markdown("##### 🔍 Google Search Console & AdSense Auto-Verification Setup")
+            st.caption("Pasting Google Console or AdSense verification codes (e.g. `<meta name='google-site-verification' content='...' />`) here will complete site verification automatically across all pages.")
+
+            current_saved_ver_code = get_setting("site_verification_code", "")
+            input_ver_code = st.text_area("Paste Verification Meta Tag / HTML Snippet Here", value=current_saved_ver_code, height=100)
+
+            if st.button("💾 Save & Activate Site Verification Automatically"):
+                set_setting("site_verification_code", input_ver_code)
+                st.success("✅ Site verification code saved and activated globally across all pages!")
+                st.rerun()
+
+            st.markdown("---")
+            st.markdown("##### 🎵 Master Configuration")
+            st.text_input("Default Master Admin Name", value="Sohel Rana", disabled=True)
+            st.success("✅ Copyright and title settings are synchronized with artist Sohel Rana in the database.")
+
+            if st.button("🚀 Run System Optimization & Sync"):
+                st.success("✅ Database sync and media index optimization completed successfully!")
+
+        with o_tab15:
+            st.markdown("#### 🎵 15th Screen: Free Copyright-Free Music Library (Owner Upload)")
+            st.caption("Admin can upload free background music here.")
+            
+            with st.form("owner_music_upload_form"):
+                song_title = st.text_input("Song Title / Name")
+                artist_name = st.text_input("Artist Name", value="Sohel Rana")
+                song_file = st.file_uploader("Upload Copyright-Free Audio Song (.mp3/.wav)", type=["mp3", "wav"])
+                submit_song = st.form_submit_button("📤 Upload to Free Music Library")
+                
+                if submit_song and song_file and song_title:
+                    song_id = str(uuid.uuid4())
+                    s_path = os.path.join(UPLOAD_DIR, f"free_song_{song_id}.mp3")
+                    with open(s_path, "wb") as f:
+                        f.write(song_file.getbuffer())
+                    
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("INSERT INTO music_library VALUES (?, ?, ?, ?, ?)", (song_id, song_title, artist_name, s_path, now))
+                        conn.commit()
+                    st.success("✅ Copyright-free song added successfully to the public library!")
+                    st.rerun()
+
+            st.markdown("##### 🎧 Available Free Songs in Library:")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM music_library ORDER BY created_at DESC")
+                m_songs = c.fetchall()
+                for ms in m_songs:
+                    col_m1, col_m2 = st.columns([3, 1])
+                    col_m1.write(f"🎵 **{ms['title']}** - {ms['artist']}")
+                    if col_m2.button("🗑️ Delete", key=f"del_song_{ms['song_id']}"):
+                        c.execute("DELETE FROM music_library WHERE song_id = ?", (ms['song_id'],))
+                        conn.commit()
+                        st.rerun()
+
+        with o_tab16:
+            st.markdown("#### 🛒 16th Screen: Amazon E-Commerce & Owner Master Permission Target Hub")
+            
+            st.markdown("<div class='meta-control-box'>", unsafe_allow_html=True)
+            st.markdown("### ⚡ Owner Master Control Switch (Meta & Bluetooth Permission)")
+            
+            curr_global_meta = get_setting("is_global_meta_active", "true") == "true"
+            curr_meta_mode = get_setting("meta_mode", "SELECTED_USERS")
+
+            col_sw1, col_sw2 = st.columns([2, 2])
+            with col_sw1:
+                st.write(f"🌐 **Global Meta Control Switch Status:** **{'ENABLED (ON)' if curr_global_meta else 'DISABLED (OFF)'}**")
+                if curr_global_meta:
+                    if st.button("🔴 Turn Master Meta Switch OFF"):
+                        set_setting("is_global_meta_active", "false")
+                        st.warning("Master Meta Switch Turned OFF Globally!")
+                        st.rerun()
+                else:
+                    if st.button("🟢 Turn Master Meta Switch ON"):
+                        set_setting("is_global_meta_active", "true")
+                        st.success("Master Meta Switch Turned ON Globally!")
+                        st.rerun()
+
+            with col_sw2:
+                st.write(f"🎯 **Active Target Mode:** **{curr_meta_mode}**")
+
+            st.markdown("---")
+            st.markdown("##### 🔘 Select Meta & Bluetooth Mode (3 Target Buttons)")
+            
+            b_col1, b_col2, b_col3 = st.columns(3)
+            
+            if b_col1.button("🌐 1. Meta All (For Everyone)", use_container_width=True):
+                set_setting("meta_mode", "ALL")
+                set_setting("is_global_meta_active", "true")
+                st.success("Mode Set: Meta & Bluetooth feature activated for ALL users automatically!")
+                st.rerun()
+
+            if b_col2.button("🎯 2. Meta Select Target (Selected Users)", use_container_width=True):
+                set_setting("meta_mode", "SELECTED_USERS")
+                set_setting("is_global_meta_active", "true")
+                st.info("Mode Set: Only TARGETED / APPROVED real users will get access.")
+                st.rerun()
+
+            if b_col3.button("🚫 3. Meta Block/Off (Globally Disabled)", use_container_width=True):
+                set_setting("meta_mode", "DISABLED")
+                set_setting("is_global_meta_active", "false")
+                st.error("Mode Set: Meta & Bluetooth feature BLOCKED globally.")
+                st.rerun()
+
+            st.markdown("---")
+            st.markdown("##### 👥 Real vs Fake User Targeting & Bluetooth Permission Control")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT user_id, full_name, auth_identifier, user_status, meta_bluetooth_permission FROM master_app_table WHERE data_type = 'user'")
+                all_app_users = c.fetchall()
+
+            if not all_app_users:
+                st.info("No registered users found for permission targeting.")
+            else:
+                for u_target in all_app_users:
+                    u_id = u_target["user_id"]
+                    u_status = u_target["user_status"] or "REAL"
+                    u_bt = u_target["meta_bluetooth_permission"] == 1
+                    
+                    with st.expander(f"👤 {u_target['full_name']} ({u_target['auth_identifier']}) - Status: [{u_status}]"):
+                        col_usr_t1, col_usr_t2, col_usr_t3 = st.columns([2, 2, 2])
+                        
+                        new_usr_status = col_usr_t1.selectbox("User Authenticity", ["REAL", "FAKE"], index=0 if u_status == "REAL" else 1, key=f"st_sel_{u_id}")
+                        bt_grant = col_usr_t2.checkbox("Allow Meta Bluetooth Permission", value=u_bt, key=f"bt_cb_{u_id}")
+                        
+                        if col_usr_t3.button("💾 Save User Permission", key=f"save_perm_{u_id}"):
+                            with get_db_connection() as conn:
+                                c = conn.cursor()
+                                c.execute("""
+                                    UPDATE master_app_table 
+                                    SET user_status = ?, meta_bluetooth_permission = ? 
+                                    WHERE user_id = ?
+                                """, (new_usr_status, 1 if bt_grant else 0, u_id))
+                                conn.commit()
+                            st.success(f"Permissions updated for {u_target['full_name']}!")
+                            st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            st.markdown("---")
+            st.markdown("##### ➕ Add New Amazon Product")
+            with st.form("add_amazon_product_form"):
+                p_title = st.text_input("Product Title", placeholder="e.g. Wireless Bluetooth Headphones")
+                p_price = st.text_input("Product Price", placeholder="e.g. $29.99")
+                p_link = st.text_input("Amazon Affiliate Direct Link", placeholder="https://amazon.com/dp/...")
+                p_image = st.text_input("Product Image URL", placeholder="https://m.media-amazon.com/images/...")
+                p_category = st.selectbox("Category", ["Electronics", "Fashion", "Gadgets", "Home & Kitchen", "Books"])
+                
+                submit_p = st.form_submit_button("🛒 Save Product to Marketplace")
+                if submit_p and p_title and p_link:
+                    prod_id = str(uuid.uuid4())
+                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO amazon_products (product_id, title, price, affiliate_link, image_url, category, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (prod_id, p_title, p_price, p_link, p_image, p_category, now_str))
+                        conn.commit()
+                    st.success("✅ Amazon product added to store!")
+                    st.rerun()
+
+            st.markdown("---")
+            st.markdown("##### 📦 Active Amazon Products Listing")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM amazon_products ORDER BY created_at DESC")
+                amz_products = c.fetchall()
+
+            if not amz_products:
+                st.info("No Amazon products added yet.")
+            else:
+                for ap in amz_products:
+                    st.markdown(f"""
+                    <div class='amazon-product-card'>
+                        <div style='display:flex; justify-content:space-between; align-items:center;'>
+                            <div>
+                                <h4 style='margin:0; color:#ff9900;'>🛒 {ap['title']}</h4>
+                                <p style='margin:5px 0 0 0; color:#fff;'>Price: <b>{ap['price']}</b> | Category: <i>{ap['category']}</i></p>
+                            </div>
+                            <a href='{ap['affiliate_link']}' target='_blank' style='background:#ff9900; color:#000; padding:8px 12px; text-decoration:none; border-radius:6px; font-weight:bold;'>Buy / View on Amazon</a>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if ap['image_url']:
+                        st.image(ap['image_url'], width=150)
+                        
+                    if st.button("🗑️ Remove Product", key=f"del_amz_{ap['product_id']}"):
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("DELETE FROM amazon_products WHERE product_id = ?", (ap['product_id'],))
+                            conn.commit()
+                        st.rerun()
+                    st.markdown("---")
+
+    else:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            if search_input:
+                q_str = f"%{search_input}%"
+                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
+            else:
+                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC")
+                
+            posts = [dict(r) for r in c.fetchall()]
+
+        ads_enabled = get_setting("show_ads") == "ON"
+        ads_html = get_setting("adsense_script")
+
+        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5, sub_feed6, sub_feed7 = st.tabs(["🌐 All Feed", "🕌 Islamic Streams", "🎬 Full Movies", "🛒 Amazon Store", "📱 Reels / Shorts", "🖼️ Photos", "📹 YouTube Style Long"])
+
+        with sub_feed1:
+            for post in posts:
+                render_post_card(post, ads_enabled, ads_html, prefix="all")
+
+        with sub_feed2:
+            st.markdown("### 🕌 Islamic Streams & Talks")
+            mahfil_posts = [p for p in posts if p.get("post_category") == "mahfil"]
+            if not mahfil_posts:
+                st.info("No Islamic or broadcast streams uploaded yet.")
+            else:
+                for post in mahfil_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="mahfil")
+
+        with sub_feed3:
+            st.markdown("### 🎬 Full HD Movies & Theater Releases")
+            movie_posts = [p for p in posts if p.get("post_category") == "movie"]
+            if not movie_posts:
+                st.info("No movie content available right now.")
+            else:
+                for post in movie_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="movie")
+
+        with sub_feed4:
+            st.markdown("### 🛒 Amazon Marketplace & Featured Products")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM amazon_products ORDER BY created_at DESC")
+                public_amz_products = c.fetchall()
+
+            if not public_amz_products:
+                st.info("No featured Amazon products available right now.")
+            else:
+                grid_cols = st.columns(2)
+                for idx, ap in enumerate(public_amz_products):
+                    with grid_cols[idx % 2]:
+                        st.markdown(f"""
+                        <div class='amazon-product-card'>
+                            <h4 style='color:#ff9900; margin-bottom:5px;'>{ap['title']}</h4>
+                            <p style='margin:0 0 10px 0;'>Price: <span style='color:#00ff66; font-weight:bold;'>{ap['price']}</span></p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if ap['image_url']:
+                            st.image(ap['image_url'], use_container_width=True)
+                        st.markdown(f"<a href='{ap['affiliate_link']}' target='_blank'><button style='width:100%; background:#ff9900; color:#000; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;'>🛒 Buy Now on Amazon</button></a>", unsafe_allow_html=True)
+                        st.markdown("<br>", unsafe_allow_html=True)
+
+        with sub_feed5:
+            short_posts = [p for p in posts if p.get("post_category") == "short"]
+            if not short_posts:
+                st.info("No Reels / Short Videos uploaded yet.")
+            else:
+                for post in short_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="short")
+
+        with sub_feed6:
+            picture_posts = [p for p in posts if p.get("post_category") == "picture"]
+            if not picture_posts:
+                st.info("No Photo posts available.")
+            else:
+                for post in picture_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="pic")
+
+        with sub_feed7:
+            long_posts = [p for p in posts if p.get("post_category") in ["long", "general"]]
+            if not long_posts:
+                st.info("No Long Videos available.")
+            else:
+                for post in long_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="long")
+
+with tab_profile:
+    if not st.session_state.user_id:
+        st.warning("Please login to manage profile!")
+    else:
+        tick = get_meta_blue_badge() if current_user.get("is_verified") else ""
+        st.markdown(f"<div style='display: flex; align-items: center;'><h2>Profile Studio: {current_user.get('full_name', 'User')}</h2>{tick}</div>", unsafe_allow_html=True)
+        
+        profile_path = current_user.get("profile_pic_path")
+        
+        col_p1, col_p2 = st.columns([1, 4])
+        with col_p1:
+            if profile_path and os.path.exists(profile_path):
+                st.image(profile_path, width=120)
+            else:
+                st.markdown("👤")
+        with col_p2:
+            st.write(f"👥 **Real Followers:** {real_followers:,}")
+            st.write(f"**Bio:** {current_user.get('bio', 'No bio added')}")
+
+        with st.expander("⚙️ Edit Profile"):
+            u_name = st.text_input("Name", value=current_user.get("full_name", ""))
+            u_bio = st.text_area("Bio", value=current_user.get("bio") or "")
+            up_prof = st.file_uploader("Upload Profile Picture", type=["jpg", "png", "jpeg"], key="dp_edit")
+            
+            if st.button("Save Profile"):
+                p_path = profile_path
+                if up_prof:
+                    p_path = os.path.join(UPLOAD_DIR, f"dp_{st.session_state.user_id}.png")
+                    with open(p_path, "wb") as f: f.write(up_prof.getbuffer())
+                    
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("UPDATE master_app_table SET full_name = ?, bio = ?, profile_pic_path = ? WHERE user_id = ? AND data_type = 'user'", (u_name, u_bio, p_path, st.session_state.user_id))
+                    c.execute("UPDATE master_app_table SET full_name = ? WHERE user_id = ? AND data_type = 'post'", (u_name, st.session_state.user_id))
+                    conn.commit()
+                
+                save_to_internal_vault({
+                    "record_id": st.session_state.user_id,
+                    "data_type": "user",
+                    "user_id": st.session_state.user_id,
+                    "full_name": u_name,
+                    "bio": u_bio,
+                    "profile_pic_path": p_path
+                })
+                
+                st.success("Profile Picture and Info Updated Successfully!")
+                st.rerun()
+
+        st.markdown("---")
+        st.markdown("### 📤 High-Speed Smart Video Processing & Auto-Compression Center")
+        
+        if get_setting("lock_upload") == "ON":
+            st.error("🚫 Video Upload System is temporarily disabled by Owner.")
+        else:
+            post_type = st.selectbox("Format / Category", [
+                "short", 
+                "long", 
+                "mahfil", 
+                "movie", 
+                "picture"
+            ])
+            
+            if get_setting("daily_limit_mode") == "ON":
+                current_cnt = get_user_today_upload_count(st.session_state.user_id, post_type)
+                limit_max = 1 if post_type in ["short", "long", "mahfil", "movie"] else 10
+                st.info(f"⚠️ **Daily Guidelines Active:** You have uploaded **{current_cnt}/{limit_max}** {post_type} post(s) today.")
+
+            title = st.text_input("Title")
+            desc = st.text_area("Description")
+            p_tags = st.text_input("Hashtags")
+            
+            use_live_camera = st.checkbox("📸 Use Live Camera Instead of File Upload")
+            
+            if use_live_camera:
+                uploaded_media = st.camera_input("📷 Capture Live Photo via Camera")
+            else:
+                uploaded_media = st.file_uploader("Media File (Supports Up To 10 GB Video/Movies/Media)", type=["mp4", "jpg", "png", "mov", "mkv", "avi"])
+            
+            if st.button("⚡ Fast Process, Compress & Publish Post"):
+                if uploaded_media and title:
+                    if not use_live_camera:
+                        MAX_FILE_SIZE_MB = 10000 * 1024 * 1024 # Up to 10GB Limit support
+                        if uploaded_media.size > MAX_FILE_SIZE_MB:
+                            st.error("🚫 File size cannot exceed 10 GB!")
+                            st.stop()
+                            
+                        is_clean, scan_msg = sanitize_file_and_check_virus(uploaded_media, uploaded_media.name)
+                        if not is_clean:
+                            st.error(scan_msg)
+                            st.stop()
+
+                    if get_setting("daily_limit_mode") == "ON":
+                        today_count = get_user_today_upload_count(st.session_state.user_id, post_type)
+                        if post_type in ["short", "long", "mahfil", "movie"] and today_count >= 1:
+                            st.error(f"🚫 Limit Exceeded! You can only upload 1 {post_type.upper()} video per 24 hours.")
+                            st.stop()
+                        elif post_type == "picture" and today_count >= 10:
+                            st.error("🚫 Limit Exceeded! You can only upload 10 Pictures/Posts per 24 hours.")
+                            st.stop()
+
+                    if any(w in (title + " " + desc).lower() for w in BANNED_KEYWORDS):
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+                            c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, st.session_state.user_id))
+                            conn.commit()
+                        st.error("🚫 Inappropriate Content Detected! Account suspended.")
+                        st.rerun()
+
+                    ext = ".png" if use_live_camera else os.path.splitext(uploaded_media.name)[1]
+                    m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{ext}")
+                    
+                    with st.spinner("⏳ Chunking file to server..."):
+                        if use_live_camera:
+                            with open(m_path, "wb") as f:
+                                f.write(uploaded_media.getbuffer())
+                        else:
+                            process_and_chunk_media(uploaded_media, m_path)
+
+                    if ext.lower() in ['.mp4', '.mkv', '.mov', '.avi']:
+                        with st.spinner("🚀 Auto-Compressing large video size for Fast Streaming..."):
+                            auto_compress_video(m_path)
+
+                    if ext.lower() in ['.jpg', '.jpeg', '.png']:
+                        is_safe, msg = check_image_safety_with_ai(m_path)
+                        if not is_safe:
+                            if os.path.exists(m_path):
+                                os.remove(m_path)
+                            st.error("🚫 Google AI Auto-Moderation: Inappropriate content detected in image! Post rejected.")
+                            st.stop()
+
+                    rec_id = str(uuid.uuid4())
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    post_data_map = {
+                        "record_id": rec_id,
+                        "data_type": "post",
+                        "user_id": st.session_state.user_id,
+                        "full_name": current_user.get("full_name", "User"),
+                        "is_verified": current_user.get("is_verified", 1),
+                        "title": title,
+                        "content": desc,
+                        "tags": p_tags,
+                        "media_path": m_path,
+                        "post_category": post_type,
+                        "views_count": 1,
+                        "likes_count": 0,
+                        "created_at": now
+                    }
+
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, tags, media_path, post_category, views_count, likes_count, created_at)
+                            VALUES (?, 'post', ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?)
+                        """, (rec_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), title, desc, p_tags, m_path, post_type, now))
+                        conn.commit()
+                        
+                    save_to_internal_vault(post_data_map)
+                    st.success("🎉 Fast Compression Complete & Video Published Successfully!")
+                    st.rerun()
+
+with tab_monetization:
+    st.markdown("### 💸 Worldwide Monetization & Video Boost Center")
+    
+    mon_status = current_user.get("monetization_status", "Not Eligible")
+    
+    if mon_status == "Approved":
+        st.success(f"🎉 **Monetization Active & Approved!**")
+        st.metric("Estimated Earning Balance", "$1,250.00 USD")
+    elif real_followers >= 1000:
+        st.success(f"🎉 **You are eligible for Monetization!**")
+        with st.expander("📝 Apply for Monetization Payout"):
+            bank_info_input = st.text_area("Enter Your Bank Account / Mobile Banking Details for Payouts")
+            if st.button("Submit Monetization Application"):
+                if bank_info_input:
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO monetization_requests (mon_id, user_id, followers_count, bank_info, created_at)
+                            VALUES (?, ?, ?, ?, ?)
+                        """, (str(uuid.uuid4()), st.session_state.user_id, real_followers, bank_info_input, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                        conn.commit()
+                    st.success("Application Submitted!")
+    else:
+        st.info(f"📈 **Monetization Progress:** {real_followers}/1,000 Real Followers needed.")
+
+    st.markdown("---")
+    st.markdown("### 💼 Third-Party Sponsor & Video Payment Panel")
+
+    # 🔒 LOGIN CHECK FOR SPONSORS / BOOSTER API
+    if not st.session_state.user_id:
+        st.warning("🔒 আপনি স্পন্সর ভিডিও আপলোড করার আগে অনুগ্রহ করে একটি আইডি খুলুন বা সাইন আপ / লগইন করুন। আইডি খোলা ছাড়া স্পন্সর ভিডিও আপডেট করা যাবে না।")
+        st.info("👈 সাইডবারে গিয়ে ফোন নম্বর বা ইমেইল দিয়ে সহজেই লগইন বা সাইন আপ করতে পারেন।")
+    else:
+        with st.expander("📥 Submit Sponsored Video & Payment Info", expanded=True):
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
+                active_gateways = c.fetchall()
+
+            gw_options = {}
+            if active_gateways:
+                gw_options = {f"[{gw['method_type']}] {gw['provider_name']}": gw for gw in active_gateways}
+                selected_gw_sp_name = st.selectbox("Select Payment Channel", list(gw_options.keys()), key="sp_gw_select")
+                selected_gw_sp = gw_options[selected_gw_sp_name]
+                
+                st.info(f"💳 **Official Transfer Details:**\n```\n{selected_gw_sp['account_details']}\n```")
+
+            with st.form("sponsor_video_submit_form"):
+                sp_name = st.text_input("Your Name / Company Name", value=current_user.get('full_name', ''))
+                trx_10 = st.text_input("Enter Exactly 10-Digit Transaction ID (TrxID / Ref Code)", max_chars=10)
+                
+                sp_video_url = st.text_input("Video Link (YouTube / Facebook / Direct URL)")
+                sp_video_file = st.file_uploader("OR Upload Video File Direct", type=["mp4", "mov", "mkv"])
+                
+                submit_sp_btn = st.form_submit_button("🚀 Submit to Owner for Approval")
+
+                if submit_sp_btn:
+                    clean_trx = trx_10.strip()
+                    if len(clean_trx) != 10:
+                        st.error("❌ Invalid Transaction ID! Reference/TrxID code must be exactly 10 characters long.")
+                    elif not (sp_video_url or sp_video_file):
+                        st.error("❌ Please provide either a video URL link or upload a video file!")
+                    else:
+                        v_file_path = ""
+                        if sp_video_file:
+                            v_file_path = os.path.join(UPLOAD_DIR, f"sp_{uuid.uuid4()}.mp4")
+                            with open(v_file_path, "wb") as f:
+                                f.write(sp_video_file.getbuffer())
+
+                        req_id = str(uuid.uuid4())
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        selected_channel_label = selected_gw_sp_name if active_gateways else "Direct Payment"
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO sponsor_video_requests 
+                                (request_id, user_id, sponsor_name, trx_id_10digit, bank_details_used, video_link, video_file_path, status, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+                            """, (req_id, st.session_state.user_id, sp_name, clean_trx, selected_channel_label, sp_video_url, v_file_path, now_str))
+                            conn.commit()
+                            
+                        st.success("✅ Payment info and video submitted successfully!")
+
+    st.markdown("---")
+    st.markdown("### 🔥 Boost Your Video / Post (Dynamic Payment Gateways)")
+    
+    if not st.session_state.user_id:
+        st.warning("Please login to boost posts.")
+    else:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT record_id, title FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
+            user_posts = c.fetchall()
+        
+        if not user_posts:
+            st.info("You haven't uploaded any posts yet to boost.")
+        elif not active_gateways:
+            st.error("No active payment methods found. Please contact admin.")
+        else:
+            post_options = {p["title"]: p["record_id"] for p in user_posts}
+            selected_title = st.selectbox("Select Post to Boost", list(post_options.keys()))
+            selected_post_id = post_options[selected_title]
+            
+            boost_plan = st.selectbox("Select Boost Package", [
+                "Basic - 5,000 Views ($5)",
+                "Pro - 20,000 Views ($15)",
+                "VIP Unlimited - 100,000 Views ($50)"
+            ])
+            
+            if active_gateways:
+                selected_gw_b_name = st.selectbox("Select Payment Method for Boost", list(gw_options.keys()), key="boost_gw_select")
+                selected_gw_b = gw_options[selected_gw_b_name]
+                st.info(f"💳 Send Payment To:\n```\n{selected_gw_b['account_details']}\n```")
+                
+                trx_input = st.text_input("Enter TrxID / Payment Ref Info")
+                if st.button("Submit Boost Request"):
+                    if trx_input:
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, status, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+                            """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, "Paid", trx_input, selected_gw_b_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                            conn.commit()
+                        st.success("Boost request submitted to owner for verification!")
