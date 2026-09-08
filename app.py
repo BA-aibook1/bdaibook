@@ -203,7 +203,6 @@ st.markdown("""
     .whatsapp-support-btn {
         background-color: #25D366; color: white !important; font-weight: bold; padding: 10px 18px; border-radius: 8px; text-decoration: none; display: inline-block; margin-top: 5px; box-shadow: 0 4px 10px rgba(37,211,102,0.3);
     }
-    /* Floating Chatbot Icon Style (Hiding Phone Number, Showing Human Icon) */
     .floating-chat-icon {
         position: fixed; bottom: 25px; right: 25px; background-color: #25D366; color: white;
         width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center;
@@ -211,14 +210,12 @@ st.markdown("""
         z-index: 99999; text-decoration: none; transition: transform 0.3s ease;
     }
     .floating-chat-icon:hover { transform: scale(1.1); color: white; }
-    
     .ad-container { margin-top: 15px; margin-bottom: 15px; padding: 10px; background: #121212; border-radius: 10px; text-align: center; border: 1px dashed #333; }
     .vertical-live-feed-box { max-height: 600px; overflow-y: auto; background: #121316; padding: 15px; border-radius: 12px; border: 2px solid #0064e0; }
     .vertical-live-card { background: #1e2026; border-left: 4px solid #0064e0; padding: 12px; margin-bottom: 15px; border-radius: 8px; color: #fff; }
     .duplicate-card { background: #2a1215; border-left: 4px solid #ff4b4b; padding: 12px; margin-bottom: 10px; border-radius: 8px; color: #fff; }
     .amazon-product-card { background: #1e2026; border: 1px solid #ff9900; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
     .meta-control-box { background: #111a2e; border: 2px solid #0064e0; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
-    
     .yt-player-card {
         background: #0f0f0f; border-radius: 16px; overflow: hidden; border: 1px solid #272727; margin-bottom: 25px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
     }
@@ -494,7 +491,7 @@ if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
 
 # ==========================================
-# 💬 FLOATING CHATBOT ICON (Hiding Phone Number, Showing Human/Chat Icon for 17th Line)
+# 💬 FLOATING CHATBOT ICON
 # ==========================================
 st.markdown(f"""
 <a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='floating-chat-icon' title='চ্যাটবট বা মালিকের সাথে যোগাযোগ করুন (স্ক্রিনশট পাঠান)'>
@@ -502,7 +499,6 @@ st.markdown(f"""
 </a>
 """, unsafe_allow_html=True)
 
-# Sidebar Support Link updated with clean look
 st.sidebar.markdown(f"""
 <a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='whatsapp-support-btn' style='text-align: center; display: block;'>
     💬 মালিকের সাথে লাইভ চ্যাট (Help)
@@ -802,8 +798,6 @@ with tab_feed:
         st.markdown("---")
         st.markdown("### 🎛️ Owner Master Control Power Panels")
         
-        # OWNER PANELS HIDDEN FROM REGULAR VIEW / USERS & OWNER'S DEVICE UNLESS SEARCHED OR UNLOCKED VIA SECRET CODE
-        # (All original 17 tabs kept intact below inside the owner session check)
         o_tabs = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
@@ -1584,7 +1578,6 @@ with tab_feed:
                 st.rerun()
 
     else:
-        # OWNER BUTTONS/PANELS ARE COMPLETELY HIDDEN FROM USERS & THE OWNER'S DEVICE UNTIL THE SECRET KEY IS TYPED IN SEARCH
         pass
 
     st.markdown("---")
@@ -1755,7 +1748,7 @@ with tab_profile:
             if st.button("⚡ Fast Process, Compress & Publish Post"):
                 if uploaded_media and title:
                     if not use_live_camera:
-                        MAX_FILE_SIZE_MB = 10000 * 1024 * 1024 # Up to 10GB Limit support
+                        MAX_FILE_SIZE_MB = 10000 * 1024 * 1024
                         if uploaded_media.size > MAX_FILE_SIZE_MB:
                             st.error("🚫 File size cannot exceed 10 GB!")
                             st.stop()
@@ -1868,20 +1861,20 @@ with tab_monetization:
         st.warning("🔒 আপনি স্পন্সর ভিডিও আপলোড করার আগে অনুগ্রহ করে একটি আইডি খুলুন বা সাইন আপ / লগইন করুন। আইডি খোলা ছাড়া স্পন্সর ভিডিও আপডেট করা যাবে না।")
         st.info("👈 সাইডবারে গিয়ে ফোন নম্বর বা ইমেইল দিয়ে সহজেই লগইন বা সাইন আপ করতে পারেন।")
     else:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
+            active_gateways = c.fetchall()
+
+        gw_options = {}
+        if active_gateways:
+            gw_options = {f"[{gw['method_type']}] {gw['provider_name']}": gw for gw in active_gateways}
+            selected_gw_sp_name = st.selectbox("Select Payment Channel", list(gw_options.keys()), key="sp_gw_select")
+            selected_gw_sp = gw_options[selected_gw_sp_name]
+            
+            st.info(f"💳 **Official Transfer Details:**\n```\n{selected_gw_sp['account_details']}\n```")
+
         with st.expander("📥 Submit Sponsored Video & Payment Info", expanded=True):
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
-                active_gateways = c.fetchall()
-
-            gw_options = {}
-            if active_gateways:
-                gw_options = {f"[{gw['method_type']}] {gw['provider_name']}": gw for gw in active_gateways}
-                selected_gw_sp_name = st.selectbox("Select Payment Channel", list(gw_options.keys()), key="sp_gw_select")
-                selected_gw_sp = gw_options[selected_gw_sp_name]
-                
-                st.info(f"💳 **Official Transfer Details:**\n```\n{selected_gw_sp['account_details']}\n```")
-
             with st.form("sponsor_video_submit_form"):
                 sp_name = st.text_input("Your Name / Company Name", value=current_user.get('full_name', ''))
                 trx_10 = st.text_input("Enter Exactly 10-Digit Transaction ID (TrxID / Ref Code)", max_chars=10)
@@ -1930,9 +1923,14 @@ with tab_monetization:
             c.execute("SELECT record_id, title FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
             user_posts = c.fetchall()
         
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
+            active_gateways_boost = c.fetchall()
+
         if not user_posts:
             st.info("You haven't uploaded any posts yet to boost.")
-        elif not active_gateways:
+        elif not active_gateways_boost:
             st.error("No active payment methods found. Please contact admin.")
         else:
             post_options = {p["title"]: p["record_id"] for p in user_posts}
@@ -1945,19 +1943,21 @@ with tab_monetization:
                 "VIP Unlimited - 100,000 Views ($50)"
             ])
             
-            if active_gateways:
-                selected_gw_b_name = st.selectbox("Select Payment Method for Boost", list(gw_options.key()), key="boost_gw_select")
-                selected_gw_b = gw_options[selected_gw_b_name]
-                st.info(f"💳 Send Payment To:\n```\n{selected_gw_b['account_details']}\n```")
-                
-                trx_input = st.text_input("Enter TrxID / Payment Ref Info")
-                if st.button("Submit Boost Request"):
-                    if trx_input:
-                        with get_db_connection() as conn:
-                            c = conn.cursor()
-                            c.execute("""
-                                INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, status, created_at)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, "Paid", trx_input, selected_gw_b_name, 'Pending', datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-                            conn.commit()
-                        st.success("Boost request submitted to owner for verification!")
+            gw_boost_options = {f"[{gw['method_type']}] {gw['provider_name']}": gw for gw in active_gateways_boost}
+            selected_gw_b_name = st.selectbox("Select Payment Method for Boost", list(gw_boost_options.keys()), key="boost_gw_select")
+            selected_gw_b = gw_boost_options[selected_gw_b_name]
+            st.info(f"💳 Send Payment To:\n```\n{selected_gw_b['account_details']}\n```")
+            
+            trx_input = st.text_input("Enter TrxID / Payment Ref Info")
+            if st.button("Submit Boost Request"):
+                if trx_input:
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, status, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+                        """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, "Standard", trx_input, selected_gw_b_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                        conn.commit()
+                    st.success("✅ Boost request submitted successfully! Admin will review and approve soon.")
+                else:
+                    st.warning("Please enter transaction ID or reference info.")
