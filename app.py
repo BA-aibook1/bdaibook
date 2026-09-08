@@ -76,12 +76,8 @@ def process_and_chunk_media(file_obj, target_path):
     return True
 
 def auto_compress_video(input_path):
-    """
-    ৫০০ এমবি বা ৫০০০ এমবি বড় ভিডিওগুলোকে দ্রুত কমপ্রেস করে সাইজ ১০ গুণ ছোট করার অটোমেটিক ইঞ্জিন
-    """
     try:
         temp_output = input_path + "_compressed.mp4"
-        # Fast compression with ultra-fast preset and CRF 28 for low MB size
         command = [
             'ffmpeg', '-y', '-i', input_path,
             '-vcodec', 'libx264',
@@ -103,7 +99,7 @@ def auto_compress_video(input_path):
 # 1. PAGE SETUP & STORAGE DIRECTORY
 # ==========================================
 st.set_page_config(
-    page_title="BD AI Book",
+    page_title="Global AI Book",
     page_icon="📖",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -120,7 +116,7 @@ PERIOD_2_DIR = os.path.join(AUTO_VAULT_BASE, "days_16_to_30")
 os.makedirs(PERIOD_1_DIR, exist_ok=True)
 os.makedirs(PERIOD_2_DIR, exist_ok=True)
 
-LOCAL_DB_FILE = "bd_ai_book_master.db"
+LOCAL_DB_FILE = "global_ai_book_master.db"
 BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
 def get_db_connection():
@@ -366,8 +362,8 @@ def init_master_database():
         """)
         
         default_settings = {
-            "app_name": "BD AI Book",
-            "owner_announcement": "Welcome to BD AI Book - Next-Gen Social & Media Platform!",
+            "app_name": "Global AI Book",
+            "owner_announcement": "Welcome to Global AI Book - Next-Gen Social & Media Platform!",
             "lock_upload": "OFF",
             "daily_limit_mode": "OFF",
             "lock_login": "OFF",
@@ -457,7 +453,7 @@ if "is_owner_session" not in st.session_state: st.session_state.is_owner_session
 if "active_tab" not in st.session_state: st.session_state.active_tab = 0
 
 site_logo_path = get_setting("logo_path")
-app_name = get_setting("app_name", "BD AI Book")
+app_name = get_setting("app_name", "Global AI Book")
 announcement = get_setting("owner_announcement", "")
 
 top_col1, top_col2, top_col3 = st.columns([1, 3, 1])
@@ -488,7 +484,7 @@ if not st.session_state.user_id:
     if login_locked:
         st.sidebar.error("🚫 Login System is temporarily locked by Owner for maintenance!")
     else:
-        auth_input = st.sidebar.text_input("Phone Number or Gmail")
+        auth_input = st.sidebar.text_input("Phone Number or Email")
         auth_pass = st.sidebar.text_input("Password", type="password")
         
         is_recovery_mode = st.sidebar.checkbox("🔑 Account Recovery Mode?")
@@ -517,7 +513,7 @@ if not st.session_state.user_id:
                     st.session_state.otp_code = generated_otp
                     st.sidebar.success(f"🔑 Auto Verification Code: **{generated_otp}**")
                 else:
-                    st.sidebar.warning("Please provide both Gmail/Phone and Password!")
+                    st.sidebar.warning("Please provide both Email/Phone and Password!")
                     
             if st.session_state.otp_code:
                 user_otp = st.sidebar.text_input("Enter 6-Digit OTP Code")
@@ -639,9 +635,9 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
             
             badge_html = ""
             if cat == "mahfil":
-                badge_html = "<span class='mahfil-badge'>🕌 মাহফিল স্পেশাল</span> "
+                badge_html = "<span class='mahfil-badge'>🕌 Islamic Streams</span> "
             elif cat == "movie":
-                badge_html = "<span class='movie-badge'>🎬 ফুল মুভি HD</span> "
+                badge_html = "<span class='movie-badge'>🎬 Full Movie HD</span> "
             elif cat == "long":
                 badge_html = "<span class='yt-badge'>▶ YouTube HD Video</span> "
                 
@@ -778,10 +774,10 @@ with tab_feed:
             "8️⃣ Live Monitor Feed",
             "9️⃣ User Recovery & Management",
             "🔟 Sponsor Video Approvals",
-            "1️⃣1️⃣ Darjeeling Master Rules",
+            "1️⃣1️⃣ Global Master Rules",
             "1️⃣2️⃣ Anti-Duplicate Account Switch",
             "1️⃣3️⃣ Master Vault & Auto-Backup",
-            "1️⃣4️⃣ Lalmonirhat Master Control & Analytics",
+            "1️⃣4️⃣ Master Control & Analytics",
             "1️⃣5️⃣ Free Copyright-Free Music Library (Owner Upload)",
             "1️⃣6️⃣ Amazon E-Commerce & Meta Target Hub"
         ])
@@ -790,7 +786,7 @@ with tab_feed:
         
         with o_tab1:
             st.markdown("#### 🖼️ Global Branding & Logo")
-            new_app_name = st.text_input("Header App Name", value=get_setting("app_name", "BD AI Book"))
+            new_app_name = st.text_input("Header App Name", value=get_setting("app_name", "Global AI Book"))
             new_announcement = st.text_area("Global Owner Announcement", value=get_setting("owner_announcement", ""))
             up_logo = st.file_uploader("Change Master Logo", type=["png", "jpg", "jpeg"])
             
@@ -852,7 +848,7 @@ with tab_feed:
         with o_tab4:
             st.markdown("#### 🏦 Dynamic Payment Gateway Control")
             with st.form("add_new_payment_method"):
-                m_type = st.selectbox("Method Type", ["Mobile Banking", "Bank Transfer (Foreign)", "Bank Transfer (BD)", "Crypto / International"])
+                m_type = st.selectbox("Method Type", ["Mobile Banking", "Bank Transfer (Foreign)", "Bank Transfer (Local)", "Crypto / International"])
                 p_name = st.text_input("Provider / Bank Name", placeholder="e.g. Clear Bank / Islami Bank / USDT TRC20")
                 p_details = st.text_area("Account Details / Number", placeholder="e.g. Account No / IBAN / Crypto Address")
                 submit_gw = st.form_submit_button("➕ Add New Payment Method")
@@ -1123,7 +1119,7 @@ with tab_feed:
 
         with o_tab12:
             st.markdown("#### 🕵️‍♂️ 12th Screen: Auto-Duplicate Account Detector & Ban Control Switch")
-            st.caption("লাইভ সিস্টেম: একই জিমেইল বা ফোন দিয়ে একাধিক অ্যাকাউন্ট তৈরি করলে ব্যাকএন্ডে অটোমেটিক ডিটেক্ট হবে।")
+            st.caption("Live System: Duplicate accounts using the same email or phone will be automatically detected in the backend.")
             
             curr_dup_switch = get_setting("auto_duplicate_detector", "ON")
             st.write(f"🤖 **Auto-Duplicate Detector Switch:** **{'ACTIVE (ON)' if curr_dup_switch == 'ON' else 'DISABLED (OFF)'}**")
@@ -1197,7 +1193,7 @@ with tab_feed:
 
         with o_tab13:
             st.markdown("#### 📦 13th Screen: Master Vault, Data Backup & One-Click Restore Engine")
-            st.caption("পোস্ট, ছবি, শর্ট ভিডিও, মাহফিল এবং লং ভিডিও—এই সমস্ত ক্যাটাগরির তথ্য ও ডাটাবেজ অটো-সেভ কেন্দ্র।")
+            st.caption("Auto-save center for posts, images, short videos, broadcasts, and long videos.")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1219,7 +1215,7 @@ with tab_feed:
             col_v2.metric("🖼️ Pictures", cnt_pic)
             col_v3.metric("📱 Shorts", cnt_short)
             col_v4.metric("📹 Long", cnt_long)
-            col_v5.metric("🕌 Mahfil", cnt_mahfil)
+            col_v5.metric("🕌 Broadcasts", cnt_mahfil)
             col_v6.metric("🎬 Movies", cnt_movie)
 
             st.markdown("---")
@@ -1262,14 +1258,14 @@ with tab_feed:
                     st.download_button(
                         label="💾 Download Master Database Vault (.json)",
                         data=json_backup,
-                        file_name=f"bd_ai_book_vault_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                        file_name=f"global_ai_book_vault_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                         mime="application/json"
                     )
                     st.success("✅ Live Master Backup Vault generated successfully!")
 
             st.markdown("---")
             st.markdown("##### 📤 Emergency File Upload Data Restore System")
-            st.caption("যদি অন্য ডিভাইস থেকে ব্যাকআপ ফাইল আপলোড করে রিস্টোর করতে চান:")
+            st.caption("If you want to restore by uploading a backup file from another device:")
             
             uploaded_vault_file = st.file_uploader("Upload Backup JSON Vault File", type=["json"], key="vault_restore_uploader")
             
@@ -1301,7 +1297,7 @@ with tab_feed:
 
         with o_tab14:
             st.markdown("#### 🌟 14th Screen: Master Control & Regional Analytics")
-            st.caption("আঞ্চলিক কার্যক্রম, অটো সাইট ভেরিফিকেশন এবং স্পেশাল ওনার কন্ট্রোল প্যানেল।")
+            st.caption("Regional activities, automated site verification, and special owner control panel.")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1317,7 +1313,7 @@ with tab_feed:
 
             st.markdown("---")
             st.markdown("##### 🔍 Google Search Console & AdSense Auto-Verification Setup")
-            st.caption("এখানে গুগল কনসোল বা এডসেন্সের ভেরিফিকেশন কোড (যেমন: `<meta name='google-site-verification' content='...' />`) একবার সেভ করে রাখলে এটি অটোমেটিক সাইট ভেরিফিকেশন সম্পন্ন করবে।")
+            st.caption("Pasting Google Console or AdSense verification codes (e.g. `<meta name='google-site-verification' content='...' />`) here will complete site verification automatically across all pages.")
 
             current_saved_ver_code = get_setting("site_verification_code", "")
             input_ver_code = st.text_area("Paste Verification Meta Tag / HTML Snippet Here", value=current_saved_ver_code, height=100)
@@ -1337,7 +1333,7 @@ with tab_feed:
 
         with o_tab15:
             st.markdown("#### 🎵 15th Screen: Free Copyright-Free Music Library (Owner Upload)")
-            st.caption("অ্যাডমিন এখানে ফ্রি ব্যাকগ্রাউন্ড মিউজিক আপলোড করতে পারবেন।")
+            st.caption("Admin can upload free background music here.")
             
             with st.form("owner_music_upload_form"):
                 song_title = st.text_input("Song Title / Name")
@@ -1403,19 +1399,19 @@ with tab_feed:
             
             b_col1, b_col2, b_col3 = b_cols = st.columns(3)
             
-            if b_col1.button("🌐 1. Meta All (সবার জন্য)", use_container_width=True):
+            if b_col1.button("🌐 1. Meta All (For Everyone)", use_container_width=True):
                 set_setting("meta_mode", "ALL")
                 set_setting("is_global_meta_active", "true")
                 st.success("Mode Set: Meta & Bluetooth feature activated for ALL users automatically!")
                 st.rerun()
 
-            if b_col2.button("🎯 2. Meta Select Target (নির্দিষ্ট ইউজার)", use_container_width=True):
+            if b_col2.button("🎯 2. Meta Select Target (Selected Users)", use_container_width=True):
                 set_setting("meta_mode", "SELECTED_USERS")
                 set_setting("is_global_meta_active", "true")
                 st.info("Mode Set: Only TARGETED / APPROVED real users will get access.")
                 st.rerun()
 
-            if b_col3.button("🚫 3. Meta Block/Off (সম্পূর্ণ বন্ধ)", use_container_width=True):
+            if b_col3.button("🚫 3. Meta Block/Off (Globally Disabled)", use_container_width=True):
                 set_setting("meta_mode", "DISABLED")
                 set_setting("is_global_meta_active", "false")
                 st.error("Mode Set: Meta & Bluetooth feature BLOCKED globally.")
@@ -1528,26 +1524,26 @@ with tab_feed:
         ads_enabled = get_setting("show_ads") == "ON"
         ads_html = get_setting("adsense_script")
 
-        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5, sub_feed6, sub_feed7 = st.tabs(["🌐 All Feed", "🕌 মাহফিল সিস্টেম", "🎬 Full Movies", "🛒 Amazon Store", "📱 Reels / Shorts", "🖼️ Photos", "📹 YouTube Style Long"])
+        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5, sub_feed6, sub_feed7 = st.tabs(["🌐 All Feed", "🕌 Islamic Streams", "🎬 Full Movies", "🛒 Amazon Store", "📱 Reels / Shorts", "🖼️ Photos", "📹 YouTube Style Long"])
 
         with sub_feed1:
             for post in posts:
                 render_post_card(post, ads_enabled, ads_html, prefix="all")
 
         with sub_feed2:
-            st.markdown("### 🕌 ইসলামিক মাহফিল এবং ওয়াজ টিভি চ্যানেল (Mahfil Stream)")
+            st.markdown("### 🕌 Islamic Streams & Talks")
             mahfil_posts = [p for p in posts if p.get("post_category") == "mahfil"]
             if not mahfil_posts:
-                st.info("কোনো মাহফিল বা ইসলামিক আলোচনা আপলোড করা হয়নি।")
+                st.info("No Islamic or broadcast streams uploaded yet.")
             else:
                 for post in mahfil_posts:
                     render_post_card(post, ads_enabled, ads_html, prefix="mahfil")
 
         with sub_feed3:
-            st.markdown("### 🎬 ফুল এইচডি মুভি এবং থিয়েটার ফেয়ার (HD Movies Stream)")
+            st.markdown("### 🎬 Full HD Movies & Theater Releases")
             movie_posts = [p for p in posts if p.get("post_category") == "movie"]
             if not movie_posts:
-                st.info("কোনো মুভি কনটেন্ট পাওয়া যায়নি।")
+                st.info("No movie content available right now.")
             else:
                 for post in movie_posts:
                     render_post_card(post, ads_enabled, ads_html, prefix="movie")
@@ -1665,7 +1661,7 @@ with tab_profile:
             if use_live_camera:
                 uploaded_media = st.camera_input("📷 Capture Live Photo via Camera")
             else:
-                uploaded_media = st.file_uploader("Media File (Supports Up To 10 GB Video/Movies/Mahfil)", type=["mp4", "jpg", "png", "mov", "mkv", "avi"])
+                uploaded_media = st.file_uploader("Media File (Supports Up To 10 GB Video/Movies/Media)", type=["mp4", "jpg", "png", "mov", "mkv", "avi"])
             
             if st.button("⚡ Fast Process, Compress & Publish Post"):
                 if uploaded_media and title:
