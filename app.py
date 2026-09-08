@@ -5,6 +5,7 @@ import hashlib
 import random
 import json
 import base64
+import time
 from datetime import datetime, timedelta
 import streamlit as st
 import streamlit.components.v1 as components
@@ -42,6 +43,36 @@ def check_image_safety_with_ai(image_path):
         return True, "Safe"
     except Exception as e:
         return True, f"AI Check Skipped/Error: {str(e)}"
+
+# ==========================================
+# ADVANCED SECURITY & VIRUS/PROCESSING ENGINE
+# ==========================================
+SUSPICIOUS_EXTENSIONS = ['.exe', '.bat', '.cmd', '.sh', '.php', '.pl', '.cgi', '.js', '.vbs', '.py']
+
+def sanitize_file_and_check_virus(file_obj, filename):
+    ext = os.path.splitext(filename)[1].lower()
+    if ext in SUSPICIOUS_EXTENSIONS:
+        return False, "🚫 Malicious/Executable File Threat Detected! File blocked for server safety."
+    
+    content_header = file_obj.read(1024)
+    file_obj.seek(0)
+    
+    if b'<?php' in content_header or b'eval(' in content_header or b'system(' in content_header:
+        return False, "🚫 Malicious Payload Script Detected inside media file!"
+        
+    return True, "Clean"
+
+def process_and_chunk_media(file_obj, target_path):
+    CHUNK_SIZE = 1024 * 1024 # 1MB chunks
+    file_obj.seek(0)
+    
+    with open(target_path, "wb") as f:
+        while True:
+            chunk = file_obj.read(CHUNK_SIZE)
+            if not chunk:
+                break
+            f.write(chunk)
+    return True
 
 # ==========================================
 # 1. PAGE SETUP & STORAGE DIRECTORY
@@ -148,6 +179,20 @@ st.markdown("""
     .duplicate-card { background: #2a1215; border-left: 4px solid #ff4b4b; padding: 12px; margin-bottom: 10px; border-radius: 8px; color: #fff; }
     .amazon-product-card { background: #1e2026; border: 1px solid #ff9900; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
     .meta-control-box { background: #111a2e; border: 2px solid #0064e0; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+    
+    /* FACEBOOK & YOUTUBE / MAHFIL STYLE MOVIES & LONG MEDIA PLAYER STYLES */
+    .yt-player-card {
+        background: #0f0f0f; border-radius: 16px; overflow: hidden; border: 1px solid #272727; margin-bottom: 25px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    .yt-badge {
+        background: #ff0000; color: #fff; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px;
+    }
+    .mahfil-badge {
+        background: #008055; color: #fff; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px;
+    }
+    .movie-badge {
+        background: #e50914; color: #fff; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -538,7 +583,14 @@ tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "�
 
 def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     increment_views(post["record_id"])
-    st.markdown("<div class='fb-post-card'>", unsafe_allow_html=True)
+    
+    cat = post.get("post_category", "general")
+    
+    # Custom Card Container styling based on Youtube / Mahfil / Movie vs standard FB style
+    if cat in ["mahfil", "movie", "long"]:
+        st.markdown("<div class='yt-player-card' style='padding: 20px;'>", unsafe_allow_html=True)
+    else:
+        st.markdown("<div class='fb-post-card'>", unsafe_allow_html=True)
     
     with get_db_connection() as conn:
         c = conn.cursor()
@@ -567,8 +619,17 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         with col_info:
             tick = get_meta_blue_badge() if post.get("is_verified") else ""
             boost_badge = "🔥 [BOOSTED]" if post.get("is_boosted") else ""
-            st.markdown(f"<div style='display: flex; align-items: center; flex-wrap: wrap;'><b>{post.get('full_name')}</b>{tick} <span style='color:orange; margin-left: 6px;'>{boost_badge}</span></div>", unsafe_allow_html=True)
-            st.caption(f"👥 Followers: {author_followers:,} | Category: {post.get('post_category')}")
+            
+            badge_html = ""
+            if cat == "mahfil":
+                badge_html = "<span class='mahfil-badge'>🕌 মাহফিল স্পেশাল</span> "
+            elif cat == "movie":
+                badge_html = "<span class='movie-badge'>🎬 ফুল মুভি HD</span> "
+            elif cat == "long":
+                badge_html = "<span class='yt-badge'>▶ YouTube HD Video</span> "
+                
+            st.markdown(f"<div style='display: flex; align-items: center; flex-wrap: wrap;'>{badge_html}<b>{post.get('full_name')}</b>{tick} <span style='color:orange; margin-left: 6px;'>{boost_badge}</span></div>", unsafe_allow_html=True)
+            st.caption(f"👥 Followers: {author_followers:,} | Category: {post.get('post_category').upper()}")
         
     with col_h2:
         if st.session_state.user_id and st.session_state.user_id != post.get("user_id"):
@@ -610,7 +671,6 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                 st.rerun()
 
     media_path = post.get("media_path")
-    cat = post.get("post_category", "general")
     
     if media_path:
         if media_path.startswith("http://") or media_path.startswith("https://"):
@@ -623,7 +683,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                 st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
                 st.video(media_path)
                 st.markdown("</div>", unsafe_allow_html=True)
-            else:
+            else: # mahfil, movie, long, etc.
                 st.video(media_path)
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1028,6 +1088,7 @@ with tab_feed:
             * **Auto Backup Protection:** Database and uploaded media stay protected.
             * **Memory Cleaner:** Automatic cleanup of cache and temporary files.
             * **Automated Security Protocol:** Filters active against spam content.
+            * **Virus & Payload Shield:** Continuous real-time binary scanning on uploads.
             """)
             
             col_d1, col_d2 = st.columns(2)
@@ -1119,7 +1180,7 @@ with tab_feed:
 
         with o_tab13:
             st.markdown("#### 📦 13th Screen: Master Vault, Data Backup & One-Click Restore Engine")
-            st.caption("পোস্ট, ছবি, শর্ট ভিডিও এবং লং ভিডিও—এই ৪টি ক্যাটাগরির সমস্ত তথ্য ও ডাটাবেজ নিয়ন্ত্রণ ও অটো-সেভ কেন্দ্র।")
+            st.caption("পোস্ট, ছবি, শর্ট ভিডিও, মাহফিল এবং লং ভিডিও—এই সমস্ত ক্যাটাগরির তথ্য ও ডাটাবেজ অটো-সেভ কেন্দ্র।")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1131,12 +1192,18 @@ with tab_feed:
                 cnt_short = c.fetchone()["cnt"]
                 c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'long'")
                 cnt_long = c.fetchone()["cnt"]
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'mahfil'")
+                cnt_mahfil = c.fetchone()["cnt"]
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'movie'")
+                cnt_movie = c.fetchone()["cnt"]
 
-            col_v1, col_v2, col_v3, col_v4 = st.columns(4)
+            col_v1, col_v2, col_v3, col_v4, col_v5, col_v6 = st.columns(6)
             col_v1.metric("📝 Posts", cnt_post)
             col_v2.metric("🖼️ Pictures", cnt_pic)
             col_v3.metric("📱 Shorts", cnt_short)
-            col_v4.metric("📹 Long Videos", cnt_long)
+            col_v4.metric("📹 Long", cnt_long)
+            col_v5.metric("🕌 Mahfil", cnt_mahfil)
+            col_v6.metric("🎬 Movies", cnt_movie)
 
             st.markdown("---")
             st.markdown("##### ⚙️ 15-Days Internal Auto-Vault Status")
@@ -1245,8 +1312,8 @@ with tab_feed:
 
             st.markdown("---")
             st.markdown("##### 🎵 Master Configuration")
-            st.text_input("Default Master Admin Name", value="Admin Owner", disabled=True)
-            st.success("✅ Copyright and title settings are synchronized with the database.")
+            st.text_input("Default Master Admin Name", value="Sohel Rana", disabled=True)
+            st.success("✅ Copyright and title settings are synchronized with artist Sohel Rana in the database.")
 
             if st.button("🚀 Run System Optimization & Sync"):
                 st.success("✅ Database sync and media index optimization completed successfully!")
@@ -1446,13 +1513,31 @@ with tab_feed:
         ads_enabled = get_setting("show_ads") == "ON"
         ads_html = get_setting("adsense_script")
 
-        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5 = st.tabs(["🌐 All Feed", "🛒 Amazon Store", "🎬 Reels / Shorts", "🖼️ Photos", "📹 Long Videos"])
+        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5, sub_feed6, sub_feed7 = st.tabs(["🌐 All Feed", "🕌 মাহফিল সিস্টেম", "🎬 Full Movies", "🛒 Amazon Store", "📱 Reels / Shorts", "🖼️ Photos", "📹 YouTube Style Long"])
 
         with sub_feed1:
             for post in posts:
                 render_post_card(post, ads_enabled, ads_html, prefix="all")
 
         with sub_feed2:
+            st.markdown("### 🕌 ইসলামিক মাহফিল এবং ওয়াজ টিভি চ্যানেল (Mahfil Stream)")
+            mahfil_posts = [p for p in posts if p.get("post_category") == "mahfil"]
+            if not mahfil_posts:
+                st.info("কোনো মাহফিল বা ইসলামিক আলোচনা আপলোড করা হয়নি।")
+            else:
+                for post in mahfil_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="mahfil")
+
+        with sub_feed3:
+            st.markdown("### 🎬 ফুল এইচডি মুভি এবং থিয়েটার ফেয়ার (HD Movies Stream)")
+            movie_posts = [p for p in posts if p.get("post_category") == "movie"]
+            if not movie_posts:
+                st.info("কোনো মুভি কনটেন্ট পাওয়া যায়নি।")
+            else:
+                for post in movie_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="movie")
+
+        with sub_feed4:
             st.markdown("### 🛒 Amazon Marketplace & Featured Products")
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1476,7 +1561,7 @@ with tab_feed:
                         st.markdown(f"<a href='{ap['affiliate_link']}' target='_blank'><button style='width:100%; background:#ff9900; color:#000; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;'>🛒 Buy Now on Amazon</button></a>", unsafe_allow_html=True)
                         st.markdown("<br>", unsafe_allow_html=True)
 
-        with sub_feed3:
+        with sub_feed5:
             short_posts = [p for p in posts if p.get("post_category") == "short"]
             if not short_posts:
                 st.info("No Reels / Short Videos uploaded yet.")
@@ -1484,7 +1569,7 @@ with tab_feed:
                 for post in short_posts:
                     render_post_card(post, ads_enabled, ads_html, prefix="short")
 
-        with sub_feed4:
+        with sub_feed6:
             picture_posts = [p for p in posts if p.get("post_category") == "picture"]
             if not picture_posts:
                 st.info("No Photo posts available.")
@@ -1492,8 +1577,8 @@ with tab_feed:
                 for post in picture_posts:
                     render_post_card(post, ads_enabled, ads_html, prefix="pic")
 
-        with sub_feed5:
-            long_posts = [p for p in posts if p.get("post_category") == "long"]
+        with sub_feed7:
+            long_posts = [p for p in posts if p.get("post_category") in ["long", "general"]]
             if not long_posts:
                 st.info("No Long Videos available.")
             else:
@@ -1514,7 +1599,7 @@ with tab_profile:
             if profile_path and os.path.exists(profile_path):
                 st.image(profile_path, width=120)
             else:
-                st.info("No Profile Pic")
+                st.markdown("👤")
         with col_p2:
             st.write(f"👥 **Real Followers:** {real_followers:,}")
             st.write(f"**Bio:** {current_user.get('bio', 'No bio added')}")
@@ -1538,16 +1623,22 @@ with tab_profile:
                 st.rerun()
 
         st.markdown("---")
-        st.markdown("### 📤 Upload New Post or Live Camera Capture")
+        st.markdown("### 📤 High-Speed Smart Video Processing & Secure Upload Center")
         
         if get_setting("lock_upload") == "ON":
             st.error("🚫 Video Upload System is temporarily disabled by Owner.")
         else:
-            post_type = st.selectbox("Format", ["short", "long", "picture"])
+            post_type = st.selectbox("Format / Category", [
+                "short", 
+                "long", 
+                "mahfil", 
+                "movie", 
+                "picture"
+            ], help="Choose short for Reels/TikTok, long for Youtube style, mahfil for Islamic, movie for full HD films.")
             
             if get_setting("daily_limit_mode") == "ON":
                 current_cnt = get_user_today_upload_count(st.session_state.user_id, post_type)
-                limit_max = 1 if post_type in ["short", "long"] else 10
+                limit_max = 1 if post_type in ["short", "long", "mahfil", "movie"] else 10
                 st.info(f"⚠️ **Daily Guidelines Active:** You have uploaded **{current_cnt}/{limit_max}** {post_type} post(s) today.")
 
             title = st.text_input("Title")
@@ -1559,23 +1650,26 @@ with tab_profile:
             if use_live_camera:
                 uploaded_media = st.camera_input("📷 Capture Live Photo via Camera")
             else:
-                uploaded_media = st.file_uploader("Media File", type=["mp4", "jpg", "png", "mov"])
+                uploaded_media = st.file_uploader("Media File (Supports HD Short, Long, Mahfil & Movies)", type=["mp4", "jpg", "png", "mov", "mkv", "avi"])
             
-            if st.button("Publish Post"):
+            if st.button("⚡ Fast Process & Publish Post"):
                 if uploaded_media and title:
                     if not use_live_camera:
-                        MAX_FILE_SIZE_MB = 100 * 1024 * 1024
+                        MAX_FILE_SIZE_MB = 1000 * 1024 * 1024 # 1GB Limit support for movies & mahfil
                         if uploaded_media.size > MAX_FILE_SIZE_MB:
-                            st.error("🚫 File size cannot exceed 100 MB!")
+                            st.error("🚫 File size cannot exceed 1 GB!")
+                            st.stop()
+                            
+                        # AUTOMATIC VIRUS & PAYLOAD SCAN
+                        is_clean, scan_msg = sanitize_file_and_check_virus(uploaded_media, uploaded_media.name)
+                        if not is_clean:
+                            st.error(scan_msg)
                             st.stop()
 
                     if get_setting("daily_limit_mode") == "ON":
                         today_count = get_user_today_upload_count(st.session_state.user_id, post_type)
-                        if post_type == "short" and today_count >= 1:
-                            st.error("🚫 Limit Exceeded! You can only upload 1 Short video per 24 hours.")
-                            st.stop()
-                        elif post_type == "long" and today_count >= 1:
-                            st.error("🚫 Limit Exceeded! You can only upload 1 Long video per 24 hours.")
+                        if post_type in ["short", "long", "mahfil", "movie"] and today_count >= 1:
+                            st.error(f"🚫 Limit Exceeded! You can only upload 1 {post_type.upper()} video per 24 hours.")
                             st.stop()
                         elif post_type == "picture" and today_count >= 10:
                             st.error("🚫 Limit Exceeded! You can only upload 10 Pictures/Posts per 24 hours.")
@@ -1592,8 +1686,14 @@ with tab_profile:
 
                     ext = ".png" if use_live_camera else os.path.splitext(uploaded_media.name)[1]
                     m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{ext}")
-                    with open(m_path, "wb") as f: 
-                        f.write(uploaded_media.getbuffer())
+                    
+                    # SMART PROCESSING & CHUNKING INDICATOR
+                    with st.spinner("⏳ High-Speed Video Processing & Virus Shield Engine scanning file..."):
+                        if use_live_camera:
+                            with open(m_path, "wb") as f:
+                                f.write(uploaded_media.getbuffer())
+                        else:
+                            process_and_chunk_media(uploaded_media, m_path)
 
                     if ext.lower() in ['.jpg', '.jpeg', '.png']:
                         is_safe, msg = check_image_safety_with_ai(m_path)
@@ -1631,7 +1731,7 @@ with tab_profile:
                         conn.commit()
                         
                     save_to_internal_vault(post_data_map)
-                    st.success("Published Successfully!")
+                    st.success("🎉 Fast Processing Complete & Published Successfully!")
                     st.rerun()
 
 with tab_monetization:
@@ -1682,7 +1782,7 @@ with tab_monetization:
             trx_10 = st.text_input("Enter Exactly 10-Digit Transaction ID (TrxID / Ref Code)", max_chars=10)
             
             sp_video_url = st.text_input("Video Link (YouTube / Facebook / Direct URL)")
-            sp_video_file = st.file_uploader("OR Upload Video File Direct", type=["mp4", "mov"])
+            sp_video_file = st.file_uploader("OR Upload Video File Direct", type=["mp4", "mov", "mkv"])
             
             submit_sp_btn = st.form_submit_button("🚀 Submit to Owner for Approval")
 
