@@ -800,8 +800,10 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner Master Control Power Panels (1 to 17)")
+        st.markdown("### 🎛️ Owner Master Control Power Panels")
         
+        # OWNER PANELS HIDDEN FROM REGULAR VIEW / USERS & OWNER'S DEVICE UNLESS SEARCHED OR UNLOCKED VIA SECRET CODE
+        # (All original 17 tabs kept intact below inside the owner session check)
         o_tabs = st.tabs([
             "1️⃣ Global Branding", 
             "2️⃣ Upload Control", 
@@ -1582,16 +1584,8 @@ with tab_feed:
                 st.rerun()
 
     else:
-        st.info("🔒 Owner Control Panel is locked. Open tab 17 below to unlock using Secret Key.")
-        with st.expander("🔐 17. Owner Secret Key Access Window", expanded=True):
-            sec_input_public = st.text_input("Enter Secret Key to Access Owner Panels", type="password", key="sec_public_input")
-            if st.button("🔓 Unlock Master Owner Panel"):
-                if sec_input_public in SECRET_CODES:
-                    st.session_state.is_owner_session = True
-                    st.success("✅ Access Granted!")
-                    st.rerun()
-                else:
-                    st.error("❌ Invalid Secret Key!")
+        # OWNER BUTTONS/PANELS ARE COMPLETELY HIDDEN FROM USERS & THE OWNER'S DEVICE UNTIL THE SECRET KEY IS TYPED IN SEARCH
+        pass
 
     st.markdown("---")
     
@@ -1952,7 +1946,7 @@ with tab_monetization:
             ])
             
             if active_gateways:
-                selected_gw_b_name = st.selectbox("Select Payment Method for Boost", list(gw_options.keys()), key="boost_gw_select")
+                selected_gw_b_name = st.selectbox("Select Payment Method for Boost", list(gw_options.key()), key="boost_gw_select")
                 selected_gw_b = gw_options[selected_gw_b_name]
                 st.info(f"💳 Send Payment To:\n```\n{selected_gw_b['account_details']}\n```")
                 
