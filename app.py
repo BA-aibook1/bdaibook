@@ -1872,24 +1872,19 @@ with tab_monetization:
                 "VIP Unlimited - 100,000 Views ($50)"
             ])
             
-            selected_gw_name = st.selectbox("Select Payment Method for Boost", list(gw_options.keys()), key="boost_gw_select")
-            selected_gw = gw_options[selected_gw_name]
-            
-            st.info(f"💳 Send Money / Transfer Details:\n```\n{selected_gw['account_details']}\n```")
+            if active_gateways:
+                selected_gw_b_name = st.selectbox("Select Payment Method for Boost", list(gw_options.keys()), key="boost_gw_select")
+                selected_gw_b = gw_options[selected_gw_b_name]
+                st.info(f"💳 Send Payment To:\n```\n{selected_gw_b['account_details']}\n```")
                 
-            trx_info_input = st.text_input("Enter Transaction ID / Reference Info")
-            
-            if st.button("🚀 Submit Boost Request"):
-                if trx_info_input:
-                    boost_id = str(uuid.uuid4())
-                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    with get_db_connection() as conn:
-                        c = conn.cursor()
-                        c.execute("""
-                            INSERT INTO boost_requests (boost_id, user_id, post_id, plan, trx_info, payment_method, status, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?)
-                        """, (boost_id, st.session_state.user_id, selected_post_id, boost_plan, trx_info_input, selected_gw_name, now_str))
-                        conn.commit()
-                    st.success("✅ Boost Request Submitted Successfully! Admin will review and activate it shortly.")
-                else:
-                    st.error("Please enter the Transaction ID.")
+                trx_input = st.text_input("Enter TrxID / Payment Ref Info")
+                if st.button("Submit Boost Request"):
+                    if trx_input:
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, status, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+                            """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, "Paid", trx_input, selected_gw_b_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                            conn.commit()
+                        st.success("Boost request submitted to owner for verification!")
