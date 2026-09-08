@@ -171,30 +171,31 @@ def auto_restore_from_internal_vault():
                     pass
     return restored_count
 
+# PROFESSIONAL YOUTUBE & FACEBOOK STYLE CUSTOM CSS DESIGN
 st.markdown("""
 <style>
     .block-container { padding-top: 1rem !important; }
     div[data-testid="stHeader"] {
         position: fixed; top: 0; left: 0; width: 100%;
-        background-color: #0e1117; z-index: 99999; border-bottom: 1px solid #222;
+        background-color: #0f0f0f; z-index: 99999; border-bottom: 1px solid #272727;
     }
     img { border-radius: 12px; }
     .profile-avatar-img {
         border-radius: 50% !important; object-fit: cover !important; border: 2px solid #0064e0 !important; width: 50px; height: 50px;
     }
     .fb-post-card {
-        background: #18191a; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #2f3031;
+        background: #18191a; padding: 20px; border-radius: 14px; margin-bottom: 20px; border: 1px solid #2f3031; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
-    .video-watermark-wrapper { position: relative; }
+    .video-watermark-wrapper { position: relative; border-radius: 12px; overflow: hidden; }
     .video-watermark-badge {
         position: absolute; top: 12px; right: 15px; background: rgba(0, 100, 224, 0.85);
-        color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 99; pointer-events: none;
+        color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 99; pointer-events: none; backdrop-filter: blur(4px);
     }
     .tiktok-container { max-width: 380px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 2px solid #222; background: #000; }
     .announcement-box {
-        background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 10px; border-radius: 10px; text-align: center; margin-bottom: 10px; font-weight: bold; font-size: 13px;
+        background: linear-gradient(90deg, #16222f 0%, #0064e0 100%); color: white; padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 15px; font-weight: bold; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
     }
-    .ad-container { margin-top: 15px; margin-bottom: 15px; padding: 8px; background: #0e0e10; border-radius: 8px; text-align: center; }
+    .ad-container { margin-top: 15px; margin-bottom: 15px; padding: 10px; background: #121212; border-radius: 10px; text-align: center; border: 1px dashed #333; }
     .vertical-live-feed-box { max-height: 600px; overflow-y: auto; background: #121316; padding: 15px; border-radius: 12px; border: 2px solid #0064e0; }
     .vertical-live-card { background: #1e2026; border-left: 4px solid #0064e0; padding: 12px; margin-bottom: 15px; border-radius: 8px; color: #fff; }
     .duplicate-card { background: #2a1215; border-left: 4px solid #ff4b4b; padding: 12px; margin-bottom: 10px; border-radius: 8px; color: #fff; }
@@ -407,7 +408,7 @@ def hash_pass(pwd):
 
 def get_meta_blue_badge():
     return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block; flex-shrink: 0;">
-        <path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58 875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.05 1.273 2.42 2.148 4 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-1.05 2.148-2.42 2.148-4z"/>
+        <path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C15.55 2.475 14.18 1.6 12.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C2.575 9.55 1.7 10.92 1.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.05 1.273 2.42 2.148 4 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-1.05 2.148-2.42 2.148-4z"/>
         <path fill="#ffffff" d="M10.2 16.2l-3.5-3.5 1.4-1.4 2.1 2.1 5.7-5.7 1.4 1.4-7.1 7.1z"/>
     </svg>"""
 
@@ -1401,7 +1402,7 @@ with tab_feed:
             st.markdown("---")
             st.markdown("##### 🔘 Select Meta & Bluetooth Mode (3 Target Buttons)")
             
-            b_col1, b_col2, b_col3 = b_cols = st.columns(3)
+            b_col1, b_col2, b_col3 = st.columns(3)
             
             if b_col1.button("🌐 1. Meta All (For Everyone)", use_container_width=True):
                 set_setting("meta_mode", "ALL")
@@ -1876,17 +1877,19 @@ with tab_monetization:
             
             st.info(f"💳 Send Money / Transfer Details:\n```\n{selected_gw['account_details']}\n```")
                 
-            trx_id = st.text_input("Enter Payment Transaction ID (TrxID) / Reference Code", key="boost_trx_input")
+            trx_info_input = st.text_input("Enter Transaction ID / Reference Info")
             
-            if st.button("Submit Boost Request"):
-                if trx_id:
+            if st.button("🚀 Submit Boost Request"):
+                if trx_info_input:
+                    boost_id = str(uuid.uuid4())
+                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     with get_db_connection() as conn:
                         c = conn.cursor()
                         c.execute("""
-                            INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, boost_plan.split('(')[-1].replace(')', ''), trx_id, selected_gw_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                            INSERT INTO boost_requests (boost_id, user_id, post_id, plan, trx_info, payment_method, status, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?)
+                        """, (boost_id, st.session_state.user_id, selected_post_id, boost_plan, trx_info_input, selected_gw_name, now_str))
                         conn.commit()
-                    st.success("✅ Boost Request Submitted Successfully!")
+                    st.success("✅ Boost Request Submitted Successfully! Admin will review and activate it shortly.")
                 else:
                     st.error("Please enter the Transaction ID.")
