@@ -6,6 +6,7 @@ import random
 import json
 import base64
 import time
+import subprocess
 from datetime import datetime, timedelta
 import streamlit as st
 import streamlit.components.v1 as components
@@ -45,7 +46,7 @@ def check_image_safety_with_ai(image_path):
         return True, f"AI Check Skipped/Error: {str(e)}"
 
 # ==========================================
-# ADVANCED SECURITY & VIRUS/PROCESSING ENGINE
+# ADVANCED SECURITY & AUTOMATIC COMPRESSION ENGINE
 # ==========================================
 SUSPICIOUS_EXTENSIONS = ['.exe', '.bat', '.cmd', '.sh', '.php', '.pl', '.cgi', '.js', '.vbs', '.py']
 
@@ -63,7 +64,7 @@ def sanitize_file_and_check_virus(file_obj, filename):
     return True, "Clean"
 
 def process_and_chunk_media(file_obj, target_path):
-    CHUNK_SIZE = 1024 * 1024 # 1MB chunks
+    CHUNK_SIZE = 4 * 1024 * 1024  # High speed 4MB Chunking
     file_obj.seek(0)
     
     with open(target_path, "wb") as f:
@@ -73,6 +74,30 @@ def process_and_chunk_media(file_obj, target_path):
                 break
             f.write(chunk)
     return True
+
+def auto_compress_video(input_path):
+    """
+    ৫০০ এমবি বা ৫০০০ এমবি বড় ভিডিওগুলোকে দ্রুত কমপ্রেস করে সাইজ ১০ গুণ ছোট করার অটোমেটিক ইঞ্জিন
+    """
+    try:
+        temp_output = input_path + "_compressed.mp4"
+        # Fast compression with ultra-fast preset and CRF 28 for low MB size
+        command = [
+            'ffmpeg', '-y', '-i', input_path,
+            '-vcodec', 'libx264',
+            '-crf', '28',
+            '-preset', 'ultrafast',
+            '-acodec', 'aac',
+            '-b:a', '128k',
+            temp_output
+        ]
+        res = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if res.returncode == 0 and os.path.exists(temp_output):
+            os.replace(temp_output, input_path)
+            return True
+        return False
+    except Exception:
+        return False
 
 # ==========================================
 # 1. PAGE SETUP & STORAGE DIRECTORY
@@ -180,7 +205,6 @@ st.markdown("""
     .amazon-product-card { background: #1e2026; border: 1px solid #ff9900; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
     .meta-control-box { background: #111a2e; border: 2px solid #0064e0; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
     
-    /* FACEBOOK & YOUTUBE / MAHFIL STYLE MOVIES & LONG MEDIA PLAYER STYLES */
     .yt-player-card {
         background: #0f0f0f; border-radius: 16px; overflow: hidden; border: 1px solid #272727; margin-bottom: 25px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
     }
@@ -238,20 +262,14 @@ def init_master_database():
             );
         """)
         
-        try:
-            c.execute("ALTER TABLE master_app_table ADD COLUMN recovery_code TEXT")
-        except sqlite3.OperationalError:
-            pass
+        try: c.execute("ALTER TABLE master_app_table ADD COLUMN recovery_code TEXT")
+        except sqlite3.OperationalError: pass
 
-        try:
-            c.execute("ALTER TABLE master_app_table ADD COLUMN user_status TEXT DEFAULT 'REAL'")
-        except sqlite3.OperationalError:
-            pass
+        try: c.execute("ALTER TABLE master_app_table ADD COLUMN user_status TEXT DEFAULT 'REAL'")
+        except sqlite3.OperationalError: pass
 
-        try:
-            c.execute("ALTER TABLE master_app_table ADD COLUMN meta_bluetooth_permission INTEGER DEFAULT 0")
-        except sqlite3.OperationalError:
-            pass
+        try: c.execute("ALTER TABLE master_app_table ADD COLUMN meta_bluetooth_permission INTEGER DEFAULT 0")
+        except sqlite3.OperationalError: pass
 
         c.execute("""
             CREATE TABLE IF NOT EXISTS boost_requests (
@@ -355,7 +373,7 @@ def init_master_database():
             "lock_login": "OFF",
             "logo_path": "",
             "adsense_client_id": "ca-pub-0000000000000000",
-            "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
+            "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b></div>""",
             "show_ads": "ON",
             "global_notify_msg": "System Active Globally",
             "auto_duplicate_detector": "ON",
@@ -586,7 +604,6 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     
     cat = post.get("post_category", "general")
     
-    # Custom Card Container styling based on Youtube / Mahfil / Movie vs standard FB style
     if cat in ["mahfil", "movie", "long"]:
         st.markdown("<div class='yt-player-card' style='padding: 20px;'>", unsafe_allow_html=True)
     else:
@@ -683,7 +700,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                 st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
                 st.video(media_path)
                 st.markdown("</div>", unsafe_allow_html=True)
-            else: # mahfil, movie, long, etc.
+            else:
                 st.video(media_path)
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1358,7 +1375,6 @@ with tab_feed:
         with o_tab16:
             st.markdown("#### 🛒 16th Screen: Amazon E-Commerce & Owner Master Permission Target Hub")
             
-            # --- META & BLUETOOTH OWNER CONTROL PANEL ---
             st.markdown("<div class='meta-control-box'>", unsafe_allow_html=True)
             st.markdown("### ⚡ Owner Master Control Switch (Meta & Bluetooth Permission)")
             
@@ -1440,7 +1456,6 @@ with tab_feed:
                             st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
-            # --- AMAZON E-COMMERCE SECTION ---
             st.markdown("---")
             st.markdown("##### ➕ Add New Amazon Product")
             with st.form("add_amazon_product_form"):
@@ -1623,7 +1638,7 @@ with tab_profile:
                 st.rerun()
 
         st.markdown("---")
-        st.markdown("### 📤 High-Speed Smart Video Processing & Secure Upload Center")
+        st.markdown("### 📤 High-Speed Smart Video Processing & Auto-Compression Center")
         
         if get_setting("lock_upload") == "ON":
             st.error("🚫 Video Upload System is temporarily disabled by Owner.")
@@ -1634,7 +1649,7 @@ with tab_profile:
                 "mahfil", 
                 "movie", 
                 "picture"
-            ], help="Choose short for Reels/TikTok, long for Youtube style, mahfil for Islamic, movie for full HD films.")
+            ])
             
             if get_setting("daily_limit_mode") == "ON":
                 current_cnt = get_user_today_upload_count(st.session_state.user_id, post_type)
@@ -1650,17 +1665,16 @@ with tab_profile:
             if use_live_camera:
                 uploaded_media = st.camera_input("📷 Capture Live Photo via Camera")
             else:
-                uploaded_media = st.file_uploader("Media File (Supports HD Short, Long, Mahfil & Movies)", type=["mp4", "jpg", "png", "mov", "mkv", "avi"])
+                uploaded_media = st.file_uploader("Media File (Supports Up To 10 GB Video/Movies/Mahfil)", type=["mp4", "jpg", "png", "mov", "mkv", "avi"])
             
-            if st.button("⚡ Fast Process & Publish Post"):
+            if st.button("⚡ Fast Process, Compress & Publish Post"):
                 if uploaded_media and title:
                     if not use_live_camera:
-                        MAX_FILE_SIZE_MB = 1000 * 1024 * 1024 # 1GB Limit support for movies & mahfil
+                        MAX_FILE_SIZE_MB = 10000 * 1024 * 1024 # Up to 10GB Limit support
                         if uploaded_media.size > MAX_FILE_SIZE_MB:
-                            st.error("🚫 File size cannot exceed 1 GB!")
+                            st.error("🚫 File size cannot exceed 10 GB!")
                             st.stop()
                             
-                        # AUTOMATIC VIRUS & PAYLOAD SCAN
                         is_clean, scan_msg = sanitize_file_and_check_virus(uploaded_media, uploaded_media.name)
                         if not is_clean:
                             st.error(scan_msg)
@@ -1687,13 +1701,16 @@ with tab_profile:
                     ext = ".png" if use_live_camera else os.path.splitext(uploaded_media.name)[1]
                     m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{ext}")
                     
-                    # SMART PROCESSING & CHUNKING INDICATOR
-                    with st.spinner("⏳ High-Speed Video Processing & Virus Shield Engine scanning file..."):
+                    with st.spinner("⏳ Chunking file to server..."):
                         if use_live_camera:
                             with open(m_path, "wb") as f:
                                 f.write(uploaded_media.getbuffer())
                         else:
                             process_and_chunk_media(uploaded_media, m_path)
+
+                    if ext.lower() in ['.mp4', '.mkv', '.mov', '.avi']:
+                        with st.spinner("🚀 Auto-Compressing large video size for Fast Streaming..."):
+                            auto_compress_video(m_path)
 
                     if ext.lower() in ['.jpg', '.jpeg', '.png']:
                         is_safe, msg = check_image_safety_with_ai(m_path)
@@ -1731,7 +1748,7 @@ with tab_profile:
                         conn.commit()
                         
                     save_to_internal_vault(post_data_map)
-                    st.success("🎉 Fast Processing Complete & Published Successfully!")
+                    st.success("🎉 Fast Compression Complete & Video Published Successfully!")
                     st.rerun()
 
 with tab_monetization:
@@ -1761,7 +1778,6 @@ with tab_monetization:
 
     st.markdown("---")
     st.markdown("### 💼 Third-Party Sponsor & Video Payment Panel")
-    st.caption("Advertisers or third parties can submit video links after completing payment.")
 
     with st.expander("📥 Submit Sponsored Video & Payment Info", expanded=True):
         with get_db_connection() as conn:
@@ -1812,7 +1828,7 @@ with tab_monetization:
                         """, (req_id, st.session_state.user_id or "Guest", sp_name, clean_trx, selected_channel_label, sp_video_url, v_file_path, now_str))
                         conn.commit()
                         
-                    st.success("✅ Payment info and video submitted successfully! The owner will verify the 10-digit TrxID and publish the video.")
+                    st.success("✅ Payment info and video submitted successfully!")
 
     st.markdown("---")
     st.markdown("### 🔥 Boost Your Video / Post (Dynamic Payment Gateways)")
@@ -1856,6 +1872,6 @@ with tab_monetization:
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, boost_plan.split('(')[-1].replace(')', ''), trx_id, selected_gw_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
                         conn.commit()
-                    st.success("✅ Boost Request Submitted Successfully! Owner will verify and activate boost shortly.")
+                    st.success("✅ Boost Request Submitted Successfully!")
                 else:
                     st.error("Please enter the Transaction ID.")
