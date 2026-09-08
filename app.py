@@ -179,8 +179,8 @@ st.markdown("""
         background-color: #0e1117; z-index: 99999; border-bottom: 1px solid #222;
     }
     img { border-radius: 12px; }
-    .stImage > img {
-        border-radius: 50% !important; object-fit: cover !important; border: 2px solid #0064e0 !important;
+    .profile-avatar-img {
+        border-radius: 50% !important; object-fit: cover !important; border: 2px solid #0064e0 !important; width: 50px; height: 50px;
     }
     .fb-post-card {
         background: #18191a; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #2f3031;
@@ -407,7 +407,7 @@ def hash_pass(pwd):
 
 def get_meta_blue_badge():
     return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block; flex-shrink: 0;">
-        <path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.05 1.273 2.42 2.148 4 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-1.05 2.148-2.42 2.148-4z"/>
+        <path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58 875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.05 1.273 2.42 2.148 4 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-1.05 2.148-2.42 2.148-4z"/>
         <path fill="#ffffff" d="M10.2 16.2l-3.5-3.5 1.4-1.4 2.1 2.1 5.7-5.7 1.4 1.4-7.1 7.1z"/>
     </svg>"""
 
@@ -595,9 +595,11 @@ else:
 
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
+# ==========================================
+# FIXED PUBLIC RENDER CARD (WITH PUBLIC DP)
+# ==========================================
 def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     increment_views(post["record_id"])
-    
     cat = post.get("post_category", "general")
     
     if cat in ["mahfil", "movie", "long"]:
@@ -605,9 +607,10 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     else:
         st.markdown("<div class='fb-post-card'>", unsafe_allow_html=True)
     
+    # FETCH REAL TIME USER DETAILS (PUBLIC DP & NAME)
     with get_db_connection() as conn:
         c = conn.cursor()
-        c.execute("SELECT profile_pic_path FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (post.get("user_id"),))
+        c.execute("SELECT full_name, profile_pic_path, is_verified FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (post.get("user_id"),))
         author = c.fetchone()
         
         c.execute("SELECT COUNT(*) as cnt FROM follows WHERE following_id = ?", (post.get("user_id"),))
@@ -619,18 +622,19 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
             c.execute("SELECT * FROM follows WHERE follower_id = ? AND following_id = ?", (st.session_state.user_id, post.get("user_id")))
             if c.fetchone(): is_following = True
 
+    author_name = author["full_name"] if author and author["full_name"] else post.get("full_name", "User")
     author_pic = author["profile_pic_path"] if author and author["profile_pic_path"] and os.path.exists(author["profile_pic_path"]) else None
     
     col_h1, col_h2 = st.columns([3, 2])
     with col_h1:
         col_pic, col_info = st.columns([1, 4])
         with col_pic:
-            if author_pic: 
+            if author_pic:
                 st.image(author_pic, width=50)
             else:
                 st.markdown("👤")
         with col_info:
-            tick = get_meta_blue_badge() if post.get("is_verified") else ""
+            tick = get_meta_blue_badge() if (author and author["is_verified"]) or post.get("is_verified") else ""
             boost_badge = "🔥 [BOOSTED]" if post.get("is_boosted") else ""
             
             badge_html = ""
@@ -641,7 +645,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
             elif cat == "long":
                 badge_html = "<span class='yt-badge'>▶ YouTube HD Video</span> "
                 
-            st.markdown(f"<div style='display: flex; align-items: center; flex-wrap: wrap;'>{badge_html}<b>{post.get('full_name')}</b>{tick} <span style='color:orange; margin-left: 6px;'>{boost_badge}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='display: flex; align-items: center; flex-wrap: wrap;'>{badge_html}<b>{author_name}</b>{tick} <span style='color:orange; margin-left: 6px;'>{boost_badge}</span></div>", unsafe_allow_html=True)
             st.caption(f"👥 Followers: {author_followers:,} | Category: {post.get('post_category').upper()}")
         
     with col_h2:
@@ -1615,6 +1619,7 @@ with tab_profile:
             st.write(f"👥 **Real Followers:** {real_followers:,}")
             st.write(f"**Bio:** {current_user.get('bio', 'No bio added')}")
 
+        # FIXED PROFILE EDIT WITH PUBLIC DATABASE SAVE
         with st.expander("⚙️ Edit Profile"):
             u_name = st.text_input("Name", value=current_user.get("full_name", ""))
             u_bio = st.text_area("Bio", value=current_user.get("bio") or "")
@@ -1628,9 +1633,23 @@ with tab_profile:
                     
                 with get_db_connection() as conn:
                     c = conn.cursor()
-                    c.execute("UPDATE master_app_table SET full_name = ?, bio = ?, profile_pic_path = ? WHERE user_id = ?", (u_name, u_bio, p_path, st.session_state.user_id))
+                    # UPDATE USER ROW IN DATABASE
+                    c.execute("UPDATE master_app_table SET full_name = ?, bio = ?, profile_pic_path = ? WHERE user_id = ? AND data_type = 'user'", (u_name, u_bio, p_path, st.session_state.user_id))
+                    # UPDATE POSTS ROW AUTHOR NAME
+                    c.execute("UPDATE master_app_table SET full_name = ? WHERE user_id = ? AND data_type = 'post'", (u_name, st.session_state.user_id))
                     conn.commit()
-                st.success("Profile Updated!")
+                
+                # UPDATE VAULT AS WELL
+                save_to_internal_vault({
+                    "record_id": st.session_state.user_id,
+                    "data_type": "user",
+                    "user_id": st.session_state.user_id,
+                    "full_name": u_name,
+                    "bio": u_bio,
+                    "profile_pic_path": p_path
+                })
+                
+                st.success("Profile Picture and Info Updated Successfully!")
                 st.rerun()
 
         st.markdown("---")
