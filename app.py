@@ -208,6 +208,11 @@ st.markdown("""
     .whatsapp-support-btn {
         background-color: #25D366; color: white !important; font-weight: bold; padding: 10px 18px; border-radius: 8px; text-decoration: none; display: inline-block; margin-top: 5px; box-shadow: 0 4px 10px rgba(37,211,102,0.3);
     }
+    .call-incoming-card {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        border: 2px solid #00d2ff; padding: 18px; border-radius: 15px; color: #fff;
+        margin-bottom: 20px; box-shadow: 0 8px 20px rgba(0,210,255,0.4); text-align: center;
+    }
     .ad-container { margin-top: 15px; margin-bottom: 15px; padding: 10px; background: #121212; border-radius: 10px; text-align: center; border: 1px dashed #333; }
     .vertical-live-feed-box { max-height: 600px; overflow-y: auto; background: #121316; padding: 15px; border-radius: 12px; border: 2px solid #0064e0; }
     .vertical-live-card { background: #1e2026; border-left: 4px solid #0064e0; padding: 12px; margin-bottom: 15px; border-radius: 8px; color: #fff; }
@@ -381,6 +386,17 @@ def init_master_database():
             );
         """)
         
+        # IN-APP SERVER CALLING SYSTEM TABLE
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS active_calls (
+                call_id TEXT PRIMARY KEY,
+                user_id TEXT,
+                user_name TEXT,
+                status TEXT DEFAULT 'Ringing',
+                created_at TEXT
+            );
+        """)
+        
         try: c.execute("ALTER TABLE live_complaints ADD COLUMN reply_text TEXT DEFAULT ''")
         except sqlite3.OperationalError: pass
         
@@ -503,6 +519,47 @@ if "is_owner_session" not in st.session_state: st.session_state.is_owner_session
 site_logo_path = get_setting("logo_path")
 app_name = get_setting("app_name", "Global AI Book")
 announcement = get_setting("owner_announcement", "")
+
+# ==========================================
+# IN-APP CALL NOTIFICATION SYSTEM (OWNER SIDE)
+# ==========================================
+if st.session_state.is_owner_session:
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT * FROM active_calls WHERE status = 'Ringing' ORDER BY created_at DESC LIMIT 1")
+        ringing_call = c.fetchone()
+        
+    if ringing_call:
+        # Ringing Sound Effect using HTML5
+        components.html("""
+            <audio autoplay loop>
+                <source src="https://www.soundjay.com/phone/phone-calling-1.mp3" type="audio/mpeg">
+            </audio>
+        """, height=0, width=0)
+        
+        st.markdown(f"""
+        <div class="call-incoming-card">
+            <h2 style="margin:0;">📲 In-App Incoming Call...</h2>
+            <p style="font-size:18px; margin: 10px 0;">Caller: <b>{ringing_call['user_name']}</b> (ID: {ringing_call['user_id'][:8]}...)</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        c_acc1, c_acc2 = st.columns(2)
+        if c_acc1.button("✅ Accept Call & Chat", key="accept_call_btn"):
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("UPDATE active_calls SET status = 'Accepted' WHERE call_id = ?", (ringing_call['call_id'],))
+                conn.commit()
+            st.success("Call Accepted! Opening Messaging Hub Panel 17...")
+            st.rerun()
+            
+        if c_acc2.button("❌ Decline Call", key="decline_call_btn"):
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("UPDATE active_calls SET status = 'Declined' WHERE call_id = ?", (ringing_call['call_id'],))
+                conn.commit()
+            st.warning("Call Rejected!")
+            st.rerun()
 
 top_col1, top_col2, top_col3 = st.columns([1, 3, 1])
 with top_col1:
@@ -653,6 +710,31 @@ with st.sidebar.expander("📩 Submit Live Complaint / Screenshot"):
     if not st.session_state.user_id:
         st.warning("🔒 অভিযোগ বা মেসেজ পাঠাতে অবশ্যই আগে লগইন করুন।")
     else:
+        # In-App Calling Button for Users
+        if st.button("📞 Call Owner / Live Support", key="user_initiate_call_btn"):
+            call_id = str(uuid.uuid4())
+            now_t = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            u_name_val = current_user.get('full_name', f"User_{st.session_state.user_id[:4]}")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("INSERT INTO active_calls (call_id, user_id, user_name, status, created_at) VALUES (?, ?, ?, 'Ringing', ?)",
+                          (call_id, st.session_state.user_id, u_name_val, now_t))
+                conn.commit()
+            st.sidebar.info("🔔 Calling Server Owner... Please wait for owner response.")
+
+        # Check call status for user
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT status FROM active_calls WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", (st.session_state.user_id,))
+            my_last_call = c.fetchone()
+            if my_last_call:
+                if my_last_call['status'] == 'Accepted':
+                    st.sidebar.success("✅ Owner Accepted Your Call! Send message or screenshots below.")
+                elif my_last_call['status'] == 'Declined':
+                    st.sidebar.error("❌ Call Declined by Owner.")
+
+        st.markdown("---")
         comp_msg = st.text_area("Type your message or issue here...", key="user_comp_text")
         comp_img = st.file_uploader("Upload Issue Screenshot", type=["png", "jpg", "jpeg"], key="user_comp_img")
         
@@ -1699,7 +1781,7 @@ with tab_feed:
                     with col_c1:
                         st.markdown(f"""
                         <a href='{wa_direct_url}' target='_blank' style='display:inline-block; background-color:#25D366; color:white; font-weight:bold; padding:8px 14px; border-radius:6px; text-decoration:none;'>
-                            📞 Call / Direct WhatsApp Message
+                            📞 Direct Contact
                         </a>
                         """, unsafe_allow_html=True)
                     
@@ -1721,6 +1803,7 @@ with tab_feed:
                     if st.button("🗑️ Delete Complaint", key=f"del_comp_{comp_dict['complaint_id']}"):
                         with get_db_connection() as conn:
                             c = conn.cursor()
+                            c.execute("DELETE FROM master_app_table WHERE record_id = ?", (comp_dict['complaint_id'],))
                             c.execute("DELETE FROM live_complaints WHERE complaint_id = ?", (comp_dict['complaint_id'],))
                             conn.commit()
                         st.rerun()
