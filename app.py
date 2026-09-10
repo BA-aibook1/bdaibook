@@ -1694,14 +1694,12 @@ with tab_feed:
                         if m_reply:
                             st.info(f"👑 **আপনার পাঠানো রিপ্লাই:** {m_reply}")
                         
-                        # Direct Reply Form
-                        with st.form(key=f"direct_chat_form_{m_id}"):
-                            reply_input = st.text_input("রিপ্লাই লিখুন...", value=m_reply, key=f"r_inp_{m_id}")
-                            c_btn1, c_btn2 = st.columns(2)
-                            submit_reply = c_btn1.form_submit_button("📤 Send Reply")
-                            delete_chat = c_btn2.form_submit_button("🗑️ Delete")
-                            
-                            if submit_reply and reply_input:
+                        # Clean direct reply box
+                        reply_input = st.text_input("রিপ্লাই লিখুন...", value=m_reply, key=f"r_inp_{m_id}")
+                        c_btn1, c_btn2 = st.columns(2)
+                        
+                        if c_btn1.button("📤 Send Reply", key=f"s_btn_{m_id}"):
+                            if reply_input:
                                 with get_db_connection() as conn:
                                     c = conn.cursor()
                                     c.execute("UPDATE live_complaints SET reply_text = ?, status = 'Replied' WHERE complaint_id = ?", (reply_input, m_id))
@@ -1709,13 +1707,13 @@ with tab_feed:
                                 st.success("✅ রিপ্লাই পাঠানো হয়েছে!")
                                 st.rerun()
                                 
-                            if delete_chat:
-                                with get_db_connection() as conn:
-                                    c = conn.cursor()
-                                    c.execute("DELETE FROM live_complaints WHERE complaint_id = ?", (m_id,))
-                                    conn.commit()
-                                st.warning("🗑️ চ্যাট মুছে ফেলা হয়েছে।")
-                                st.rerun()
+                        if c_btn2.button("🗑️ Delete Chat", key=f"d_btn_{m_id}"):
+                            with get_db_connection() as conn:
+                                c = conn.cursor()
+                                c.execute("DELETE FROM live_complaints WHERE complaint_id = ?", (m_id,))
+                                conn.commit()
+                            st.warning("🗑️ চ্যাট মুছে ফেলা হয়েছে।")
+                            st.rerun()
                         st.markdown("---")
 
     else:
