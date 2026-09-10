@@ -627,34 +627,40 @@ else:
         st.session_state.otp_code = None
         st.rerun()
 
-# 📩 English User Live Complaint & Screenshot Submission Box
+# 📩 Registered User Live Complaint & Screenshot Submission Box
 with st.sidebar.expander("📩 Submit Live Complaint / Screenshot"):
-    comp_msg = st.text_area("Type your message or issue here...", key="user_comp_text")
-    comp_img = st.file_uploader("Upload Issue Screenshot", type=["png", "jpg", "jpeg"], key="user_comp_img")
-    
-    if st.button("🚀 Send Complaint"):
-        if comp_msg or comp_img:
-            img_p = ""
-            if comp_img:
-                img_p = os.path.join(UPLOAD_DIR, f"comp_{uuid.uuid4()}.png")
-                with open(img_p, "wb") as f:
-                    f.write(comp_img.getbuffer())
-            
-            c_id = str(uuid.uuid4())
-            now_t = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            u_id_val = st.session_state.user_id if st.session_state.user_id else "GUEST"
-            u_name_val = current_user.get('full_name', 'Guest User')
-            
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("""
-                    INSERT INTO live_complaints (complaint_id, user_id, user_name, message, screenshot_path, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, 'Unread', ?)
-                """, (c_id, u_id_val, u_name_val, comp_msg, img_p, now_t))
-                conn.commit()
-            st.sidebar.success("✅ Complaint sent successfully!")
-        else:
-            st.sidebar.warning("Please provide message details or attach a screenshot.")
+    # ইউজার লগইন না থাকলে মেসেজ পাঠাতে দেওয়া হবে না
+    if not st.session_state.user_id:
+        st.warning("🔒 অভিযোগ বা মেসেজ পাঠাতে অবশ্যই আগে লগইন করুন।")
+    else:
+        comp_msg = st.text_area("Type your message or issue here...", key="user_comp_text")
+        comp_img = st.file_uploader("Upload Issue Screenshot", type=["png", "jpg", "jpeg"], key="user_comp_img")
+        
+        if st.button("🚀 Send Complaint"):
+            if comp_msg or comp_img:
+                img_p = ""
+                if comp_img:
+                    img_p = os.path.join(UPLOAD_DIR, f"comp_{uuid.uuid4()}.png")
+                    with open(img_p, "wb") as f:
+                        f.write(comp_img.getbuffer())
+                
+                c_id = str(uuid.uuid4())
+                now_t = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                # লগইন থাকা ইউজারের আসল ID এবং Name নেওয়া হচ্ছে
+                u_id_val = st.session_state.user_id
+                u_name_val = current_user.get('full_name', f"User_{u_id_val[:4]}")
+                
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("""
+                        INSERT INTO live_complaints (complaint_id, user_id, user_name, message, screenshot_path, status, created_at)
+                        VALUES (?, ?, ?, ?, ?, 'Unread', ?)
+                    """, (c_id, u_id_val, u_name_val, comp_msg, img_p, now_t))
+                    conn.commit()
+                st.sidebar.success("✅ Complaint sent successfully!")
+            else:
+                st.sidebar.warning("Please provide message details or attach a screenshot.")
 
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
