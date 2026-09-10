@@ -2059,4 +2059,24 @@ with tab_monetization:
                         st.success("✅ Sponsored video submitted! Pending approval by Owner.")
                         st.rerun()
                     else:
-                        st.warning("Please fill all required details!")
+                        st.warning("Please fill all required details!").video-watermark-badge {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: linear-gradient(135deg, rgba(0, 100, 224, 0.9), rgba(0, 200, 255, 0.8));
+    color: #ffffff;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    z-index: 99;
+    pointer-events: none;
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
