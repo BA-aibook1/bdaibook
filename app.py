@@ -1631,108 +1631,106 @@ with tab_feed:
                     st.markdown("---")
 
         with o_tab17:
-            st.markdown("#### 📩 17th Screen: Live Chat & Complaint Control Panel")
+            st.markdown("#### 👤 17th Screen: Profile Verification & WhatsApp Live Chat Engine")
+            st.caption("মালিক এখান থেকে ব্যবহারকারীদের প্রোফাইল ভেরিফিকেশন এবং ওয়াটসঅ্যাপ চ্যাট/স্ক্রিনশট ইনবক্স সরাসরি নিয়ন্ত্রণ করতে পারবেন।")
             
-            st.markdown("##### 🔒 WhatsApp Privacy & Support Button Settings")
-            curr_wa_status = get_setting("show_whatsapp_number", "ON")
-            col_wa1, col_wa2 = st.columns(2)
+            p17_sub1, p17_sub2 = st.tabs(["💬 live WhatsApp Chat & Screenshot Inbox", "✔️ Profile Verification Status"])
             
-            if curr_wa_status == "ON":
-                if col_wa1.button("🔴 Disable Live Support Button"):
-                    set_setting("show_whatsapp_number", "OFF")
-                    st.rerun()
-            else:
-                if col_wa2.button("🟢 Enable Live Support Button"):
-                    set_setting("show_whatsapp_number", "ON")
-                    st.rerun()
-
-            st.markdown("---")
-            st.markdown("##### 🔑 Auto Activation & Password System")
-            st.caption("Generate activation/recovery code for users directly from Panel 17:")
-            
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT user_id, full_name, auth_identifier FROM master_app_table WHERE data_type = 'user'")
-                all_u_p17 = c.fetchall()
-
-            if all_u_p17:
-                u_dict_p17 = {f"{u['full_name']} ({u['auth_identifier']})": u['user_id'] for u in all_u_p17}
-                sel_u_label = st.selectbox("Select Target User to Activate / Send Code", list(u_dict_p17.keys()), key="p17_u_select")
-                target_u_id = u_dict_p17[sel_u_label]
+            # --- Sub Tab 1: Live WhatsApp Messaging Engine ---
+            with p17_sub1:
+                st.markdown("##### 📩 ইউজারদের মেসেজ ও স্ক্রিনশট আদান-প্রদান কন্ট্রোল প্যানেল")
+                st.info("📱 WhatsApp Direct Support Number: **01722003172** (Calling disabled, Chat & Screenshot exchange active)")
                 
-                generated_act_code = str(random.randint(100000, 999999))
-                st.info(f"Generated Code: **{generated_act_code}**")
-                
-                if st.button("⚡ Activate & Assign Recovery Code Automatically"):
-                    with get_db_connection() as conn:
-                        c = conn.cursor()
-                        c.execute("UPDATE master_app_table SET recovery_code = ?, is_verified = 1 WHERE user_id = ?", (generated_act_code, target_u_id))
-                        conn.commit()
-                    st.success(f"✅ User activated! Recovery code assigned: {generated_act_code}")
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("SELECT * FROM live_complaints ORDER BY created_at DESC")
+                    all_chat_msgs = c.fetchall()
 
-            st.markdown("---")
-            st.markdown("##### 📥 Live Chat Messages, Screenshots & Direct User Messaging Engine")
-            
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT * FROM live_complaints ORDER BY created_at DESC")
-                complaints = c.fetchall()
-
-            if not complaints:
-                st.info("No new live chat messages recorded.")
-            else:
-                for comp in complaints:
-                    comp_dict = dict(comp)
-                    st.markdown(f"""
-                    <div style='background:#1e2026; padding:12px; border-radius:8px; margin-bottom:10px; border-left:4px solid #0064e0;'>
-                        <b>User:</b> {comp_dict.get('user_name', 'User')} ({comp_dict.get('user_id', '')[:8]}...)<br>
-                        <b>Message:</b> {comp_dict.get('message', '')}<br>
-                        <small style='color:#888;'>Time: {comp_dict.get('created_at', '')}</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if comp_dict.get('screenshot_path') and os.path.exists(comp_dict['screenshot_path']):
-                        st.image(comp_dict['screenshot_path'], width=300)
-                    
-                    with get_db_connection() as conn:
-                        c_temp = conn.cursor()
-                        c_temp.execute("SELECT auth_identifier FROM master_app_table WHERE user_id = ?", (comp_dict.get('user_id'),))
-                        user_auth = c_temp.fetchone()
-                        phone_or_email = user_auth['auth_identifier'] if user_auth else ""
-
-                    clean_phone = ''.join(filter(str.isdigit, phone_or_email))
-                    wa_direct_url = f"https://api.whatsapp.com/send?phone={clean_phone}&text=Hello" if clean_phone else OWNER_WHATSAPP_LINK
-
-                    col_c1, col_c2 = st.columns([1, 1])
-                    with col_c1:
-                        st.markdown(f"""
-                        <a href='{wa_direct_url}' target='_blank' style='display:inline-block; background-color:#25D366; color:white; font-weight:bold; padding:8px 14px; border-radius:6px; text-decoration:none;'>
-                            💬 Reply via WhatsApp Chat (No Call)
-                        </a>
-                        """, unsafe_allow_html=True)
-                    
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    
-                    with st.form(f"reply_form_{comp_dict['complaint_id']}"):
-                        current_reply = comp_dict.get('reply_text', '')
-                        reply_msg = st.text_area("Write reply message to this user", value=current_reply, key=f"r_txt_{comp_dict['complaint_id']}")
-                        submit_reply = st.form_submit_button("💬 Send Reply to User Panel")
+                if not all_chat_msgs:
+                    st.success("🎉 বর্তমানে কোনো নতুন মেসেজ বা স্ক্রিনশট পেন্ডিং নেই।")
+                else:
+                    for msg in all_chat_msgs:
+                        m_id = msg['complaint_id']
+                        u_id = msg['user_id']
+                        u_name = msg['user_name']
+                        m_text = msg['message']
+                        m_img = msg['screenshot_path']
+                        m_reply = dict(msg).get('reply_text', '')
+                        m_status = msg['status']
+                        m_time = msg['created_at']
                         
-                        if submit_reply and reply_msg:
-                            with get_db_connection() as conn:
-                                c = conn.cursor()
-                                c.execute("UPDATE live_complaints SET reply_text = ?, status = 'Replied' WHERE complaint_id = ?", (reply_msg, comp_dict['complaint_id']))
-                                conn.commit()
-                            st.success("✅ Reply sent to User Inbox successfully!")
-                            st.rerun()
+                        st.markdown(f"""
+                        <div style='background: #18191a; padding: 15px; border-radius: 12px; border-left: 5px solid #25D366; margin-bottom: 15px;'>
+                            <div style='display:flex; justify-content: space-between;'>
+                                <b>👤 Sender: {u_name}</b> <span style='color:#888; font-size:12px;'>(ID: {u_id[:8]}...) | ⏱️ {m_time}</span>
+                            </div>
+                            <p style='margin-top:10px; font-size:15px; color:#fff;'>💬 <b>Message:</b> {m_text}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if m_img and os.path.exists(m_img):
+                            st.image(m_img, caption="📸 User Attached Screenshot", width=320)
+                            
+                        if m_reply:
+                            st.success(f"👑 **Owner Reply Sent:** {m_reply}")
+                        
+                        with st.form(key=f"owner_reply_form_{m_id}"):
+                            reply_input = st.text_input("ইউজারকে রিপ্লাই লিখুন...", value=m_reply, key=f"r_inp_{m_id}")
+                            col_rep1, col_rep2 = st.columns(2)
+                            submit_reply = col_rep1.form_submit_button("📤 Send Reply to User")
+                            delete_chat = col_rep2.form_submit_button("🗑️ Delete Chat")
+                            
+                            if submit_reply:
+                                with get_db_connection() as conn:
+                                    c = conn.cursor()
+                                    c.execute("UPDATE live_complaints SET reply_text = ?, status = 'Replied' WHERE complaint_id = ?", (reply_input, m_id))
+                                    conn.commit()
+                                st.success("✅ রিপ্লাই সফলভাবে ইউজারের ইনবক্সে পাঠানো হয়েছে!")
+                                st.rerun()
+                                
+                            if delete_chat:
+                                with get_db_connection() as conn:
+                                    c = conn.cursor()
+                                    c.execute("DELETE FROM live_complaints WHERE complaint_id = ?", (m_id,))
+                                    conn.commit()
+                                st.warning("🗑️ চ্যাট ডিলিট করা হয়েছে।")
+                                st.rerun()
+                        st.markdown("---")
 
-                    if st.button("🗑️ Delete Chat Message", key=f"del_comp_{comp_dict['complaint_id']}"):
-                        with get_db_connection() as conn:
-                            c = conn.cursor()
-                            c.execute("DELETE FROM live_complaints WHERE complaint_id = ?", (comp_dict['complaint_id'],))
-                            conn.commit()
-                        st.rerun()
-                    st.markdown("---")
+            # --- Sub Tab 2: Profile & Verification Engine ---
+            with p17_sub2:
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("SELECT user_id, full_name, auth_identifier, is_verified, bio FROM master_app_table WHERE data_type = 'user'")
+                    all_users_p17 = c.fetchall()
+
+                if not all_users_p17:
+                    st.info("কোনো রেজিষ্টার্ড ব্যবহারকারী পাওয়া যায়নি।")
+                else:
+                    for u17 in all_users_p17:
+                        u17_dict = dict(u17)
+                        u_id = u17_dict['user_id']
+                        
+                        with st.expander(f"👤 {u17_dict['full_name']} ({u17_dict['auth_identifier']})"):
+                            st.write(f"**ইউজার আইডি:** `{u_id}`")
+                            
+                            v_col1, v_col2 = st.columns(2)
+                            
+                            is_v = u17_dict.get('is_verified', 0) == 1
+                            new_v = v_col1.checkbox("মেটা ব্লু ভেরিফাইড ব্যাজ (Meta Blue Badge)", value=is_v, key=f"v_cb_{u_id}")
+                            new_name = v_col2.text_input("প্রোফাইল নাম পরিবর্তন", value=u17_dict['full_name'], key=f"v_name_{u_id}")
+                            
+                            if st.button("💾 প্রোফাইল স্ট্যাটাস সংরক্ষণ করুন", key=f"save_p17_{u_id}"):
+                                with get_db_connection() as conn:
+                                    c = conn.cursor()
+                                    c.execute("""
+                                        UPDATE master_app_table 
+                                        SET full_name = ?, is_verified = ? 
+                                        WHERE user_id = ?
+                                    """, (new_name, 1 if new_v else 0, u_id))
+                                    conn.commit()
+                                st.success(f"✅ {new_name}-এর প্রোফাইল সফলভাবে আপডেট করা হয়েছে!")
+                                st.rerun()
 
     else:
         with get_db_connection() as conn:
@@ -2030,36 +2028,33 @@ with tab_monetization:
 
             with st.form("sponsor_video_submit_form"):
                 sp_name = st.text_input("Your Name / Company Name", value=current_user.get('full_name', ''))
-                trx_10 = st.text_input("Enter Exactly 10-Digit Transaction ID (TrxID / Ref Code)", max_chars=10)
+                sp_trx = st.text_input("10-Digit Transaction ID / Ref Code")
+                sp_link = st.text_input("Video Direct URL / Google Drive / Cloud Link (Optional)")
+                sp_file = st.file_uploader("Or Upload Video File Directly", type=["mp4", "mov", "mkv"])
                 
-                sp_video_url = st.text_input("Video Link (YouTube / Facebook / Direct URL)")
-                sp_video_file = st.file_uploader("OR Upload Video File Direct", type=["mp4", "mov", "mkv"])
+                submit_sponsor_req = st.form_submit_button("🚀 Submit Sponsored Video")
                 
-                submit_sp_btn = st.form_submit_button("🚀 Submit to Owner for Approval")
-
-                if submit_sp_btn:
-                    clean_trx = trx_10.strip()
-                    if len(clean_trx) != 10:
-                        st.error("❌ Invalid Transaction ID! Reference/TrxID code must be exactly 10 characters long.")
-                    elif not (sp_video_url or sp_video_file):
-                        st.error("❌ Please provide either a video URL link or upload a video file!")
-                    else:
-                        v_file_path = ""
-                        if sp_video_file:
-                            v_file_path = os.path.join(UPLOAD_DIR, f"sp_{uuid.uuid4()}.mp4")
-                            with open(v_file_path, "wb") as f:
-                                f.write(sp_video_file.getbuffer())
+                if submit_sponsor_req:
+                    if sp_name and sp_trx and (sp_link or sp_file):
+                        saved_v_path = ""
+                        if sp_file:
+                            sp_id_fn = str(uuid.uuid4())
+                            saved_v_path = os.path.join(UPLOAD_DIR, f"sp_{sp_id_fn}.mp4")
+                            with open(saved_v_path, "wb") as f:
+                                f.write(sp_file.getbuffer())
 
                         req_id = str(uuid.uuid4())
                         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        
-                        selected_channel_label = selected_gw_sp_name if active_gateways else "Direct Payment"
+                        gw_used_str = selected_gw_sp['provider_name'] if active_gateways else "WhatsApp Direct"
+
                         with get_db_connection() as conn:
                             c = conn.cursor()
                             c.execute("""
-                                INSERT INTO sponsor_video_requests 
-                                (request_id, user_id, sponsor_name, trx_id_10digit, bank_details_used, video_link, video_file_path, status, created_at)
+                                INSERT INTO sponsor_video_requests (request_id, user_id, sponsor_name, trx_id_10digit, bank_details_used, video_link, video_file_path, status, created_at)
                                 VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
-                            """, (req_id, st.session_state.user_id, sp_name, clean_trx, selected_channel_label, sp_video_url, v_file_path, now_str))
+                            """, (req_id, st.session_state.user_id, sp_name, sp_trx, gw_used_str, sp_link, saved_v_path, now_str))
                             conn.commit()
-                        st.success("✅ Sponsor Video Request Submitted Successfully!")
+                        st.success("✅ Sponsored video request submitted! Admin will verify and publish soon.")
+                        st.rerun()
+                    else:
+                        st.warning("Please complete all required fields and provide a video link or file.")
