@@ -371,10 +371,14 @@ def init_master_database():
                 user_name TEXT,
                 message TEXT,
                 screenshot_path TEXT,
+                reply_text TEXT DEFAULT '',
                 status TEXT DEFAULT 'Unread',
                 created_at TEXT
             );
         """)
+        
+        try: c.execute("ALTER TABLE live_complaints ADD COLUMN reply_text TEXT DEFAULT ''")
+        except sqlite3.OperationalError: pass
         
         default_settings = {
             "app_name": "Global AI Book",
@@ -629,7 +633,6 @@ else:
 
 # 📩 Registered User Live Complaint & Screenshot Submission Box
 with st.sidebar.expander("📩 Submit Live Complaint / Screenshot"):
-    # ইউজার লগইন না থাকলে মেসেজ পাঠাতে দেওয়া হবে না
     if not st.session_state.user_id:
         st.warning("🔒 অভিযোগ বা মেসেজ পাঠাতে অবশ্যই আগে লগইন করুন।")
     else:
@@ -647,7 +650,6 @@ with st.sidebar.expander("📩 Submit Live Complaint / Screenshot"):
                 c_id = str(uuid.uuid4())
                 now_t = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 
-                # লগইন থাকা ইউজারের আসল ID এবং Name নেওয়া হচ্ছে
                 u_id_val = st.session_state.user_id
                 u_name_val = current_user.get('full_name', f"User_{u_id_val[:4]}")
                 
@@ -661,6 +663,23 @@ with st.sidebar.expander("📩 Submit Live Complaint / Screenshot"):
                 st.sidebar.success("✅ Complaint sent successfully!")
             else:
                 st.sidebar.warning("Please provide message details or attach a screenshot.")
+
+        st.markdown("---")
+        st.markdown("##### 📩 Inbox: Owner Responses / Replies")
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT * FROM live_complaints WHERE user_id = ? ORDER BY created_at DESC", (st.session_state.user_id,))
+            my_complaints = c.fetchall()
+            
+        if my_complaints:
+            for mc in my_complaints:
+                st.caption(f"📅 Sent: {mc['created_at']}")
+                st.write(f"💬 **Your Message:** {mc['message']}")
+                if mc['reply_text']:
+                    st.success(f"👑 **Owner Reply:** {mc['reply_text']}")
+                else:
+                    st.info("⏳ Waiting for owner reply...")
+                st.markdown("---")
 
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
@@ -1583,7 +1602,6 @@ with tab_feed:
         with o_tab17:
             st.markdown("#### 📩 17th Screen: Live Chat & Complaint Control Panel")
             
-            # WhatsApp visibility control
             st.markdown("##### 🔒 WhatsApp Privacy & Support Button Settings")
             curr_wa_status = get_setting("show_whatsapp_number", "ON")
             col_wa1, col_wa2 = st.columns(2)
@@ -1622,7 +1640,7 @@ with tab_feed:
                     st.success(f"✅ User activated! Recovery code assigned: {generated_act_code}")
 
             st.markdown("---")
-            st.markdown("##### 📥 Live Complaints & Screenshots Box")
+            st.markdown("##### 📥 Live Complaints, Screenshots & Direct User Messaging Engine")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1643,7 +1661,39 @@ with tab_feed:
                     
                     if comp['screenshot_path'] and os.path.exists(comp['screenshot_path']):
                         st.image(comp['screenshot_path'], width=300)
+                    
+                    with get_db_connection() as conn:
+                        c_temp = conn.cursor()
+                        c_temp.execute("SELECT auth_identifier FROM master_app_table WHERE user_id = ?", (comp['user_id'],))
+                        user_auth = c_temp.fetchone()
+                        phone_or_email = user_auth['auth_identifier'] if user_auth else ""
+
+                    clean_phone = ''.join(filter(str.isdigit, phone_or_email))
+                    wa_direct_url = f"https://wa.me/{clean_phone}" if clean_phone else OWNER_WHATSAPP_LINK
+
+                    col_c1, col_c2 = st.columns([1, 1])
+                    with col_c1:
+                        st.markdown(f"""
+                        <a href='{wa_direct_url}' target='_blank' style='display:inline-block; background-color:#25D366; color:white; font-weight:bold; padding:8px 14px; border-radius:6px; text-decoration:none;'>
+                            📞 Call / Direct WhatsApp Message
+                        </a>
+                        """, unsafe_allow_html=True)
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    
+                    with st.form(f"reply_form_{comp['complaint_id']}"):
+                        current_reply = comp['reply_text'] if 'reply_text' in comp.keys() and comp['reply_text'] else ""
+                        reply_msg = st.text_area("Write reply message to this user", value=current_reply, key=f"r_txt_{comp['complaint_id']}")
+                        submit_reply = st.form_submit_button("💬 Send Reply to User Panel")
                         
+                        if submit_reply and reply_msg:
+                            with get_db_connection() as conn:
+                                c = conn.cursor()
+                                c.execute("UPDATE live_complaints SET reply_text = ?, status = 'Replied' WHERE complaint_id = ?", (reply_msg, comp['complaint_id']))
+                                conn.commit()
+                            st.success("✅ Reply sent to User Inbox successfully!")
+                            st.rerun()
+
                     if st.button("🗑️ Delete Complaint", key=f"del_comp_{comp['complaint_id']}"):
                         with get_db_connection() as conn:
                             c = conn.cursor()
