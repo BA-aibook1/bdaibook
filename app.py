@@ -203,19 +203,13 @@ st.markdown("""
     .whatsapp-support-btn {
         background-color: #25D366; color: white !important; font-weight: bold; padding: 10px 18px; border-radius: 8px; text-decoration: none; display: inline-block; margin-top: 5px; box-shadow: 0 4px 10px rgba(37,211,102,0.3);
     }
-    .floating-chat-icon {
-        position: fixed; bottom: 25px; right: 25px; background-color: #25D366; color: white;
-        width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center;
-        justify-content: center; font-size: 28px; box-shadow: 0 4px 15px rgba(37,211,102,0.5);
-        z-index: 99999; text-decoration: none; transition: transform 0.3s ease;
-    }
-    .floating-chat-icon:hover { transform: scale(1.1); color: white; }
     .ad-container { margin-top: 15px; margin-bottom: 15px; padding: 10px; background: #121212; border-radius: 10px; text-align: center; border: 1px dashed #333; }
     .vertical-live-feed-box { max-height: 600px; overflow-y: auto; background: #121316; padding: 15px; border-radius: 12px; border: 2px solid #0064e0; }
     .vertical-live-card { background: #1e2026; border-left: 4px solid #0064e0; padding: 12px; margin-bottom: 15px; border-radius: 8px; color: #fff; }
     .duplicate-card { background: #2a1215; border-left: 4px solid #ff4b4b; padding: 12px; margin-bottom: 10px; border-radius: 8px; color: #fff; }
     .amazon-product-card { background: #1e2026; border: 1px solid #ff9900; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
     .meta-control-box { background: #111a2e; border: 2px solid #0064e0; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+    
     .yt-player-card {
         background: #0f0f0f; border-radius: 16px; overflow: hidden; border: 1px solid #272727; margin-bottom: 25px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
     }
@@ -391,6 +385,7 @@ def init_master_database():
         for k, v in default_settings.items():
             c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)", (k, str(v)))
 
+        # Default WhatsApp Gateway Add (if empty)
         c.execute("SELECT COUNT(*) FROM payment_gateways WHERE provider_name LIKE '%WhatsApp%'")
         if c.fetchone()[0] == 0:
             c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (
@@ -490,18 +485,10 @@ with top_col3:
 if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
 
-# ==========================================
-# 💬 FLOATING CHATBOT ICON
-# ==========================================
-st.markdown(f"""
-<a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='floating-chat-icon' title='চ্যাটবট বা মালিকের সাথে যোগাযোগ করুন (স্ক্রিনশট পাঠান)'>
-    💬
-</a>
-""", unsafe_allow_html=True)
-
+# WhatsApp Direct Support Floating Banner / Sidebar Info
 st.sidebar.markdown(f"""
-<a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='whatsapp-support-btn' style='text-align: center; display: block;'>
-    💬 মালিকের সাথে লাইভ চ্যাট (Help)
+<a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='whatsapp-support-btn'>
+    💬 WhatsApp Support: {OWNER_WHATSAPP_NUMBER}
 </a>
 """, unsafe_allow_html=True)
 st.sidebar.markdown("---")
@@ -771,12 +758,9 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     st.markdown("</div>", unsafe_allow_html=True)
 
 with tab_feed:
-    search_input = st.text_input("🔍 Search Users, Videos, Hashtags or Secret Code...")
+    search_input = st.text_input("🔍 Search Users, Videos, Hashtags...")
     
-    if search_input and search_input.strip() in SECRET_CODES:
-        st.session_state.is_owner_session = True
-        st.toast("✅ Master Owner Access Granted via Search Box!", icon="🔓")
-
+    # 👑 OWNER MASTER CONTROL PANEL
     st.markdown("---")
     if st.session_state.is_owner_session:
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
@@ -796,7 +780,7 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner Master Control Power Panels")
+        st.markdown("### 🎛️ Owner Master Control Power Panels (1 to 17)")
         
         o_tabs = st.tabs([
             "1️⃣ Global Branding", 
@@ -815,7 +799,7 @@ with tab_feed:
             "1️⃣4️⃣ Master Control & Analytics",
             "1️⃣5️⃣ Free Copyright-Free Music Library (Owner Upload)",
             "1️⃣6️⃣ Amazon E-Commerce & Meta Target Hub",
-            "1️⃣7️⃣ WhatsApp Live Chat & Secret Switch"
+            "1️⃣7️⃣ Secret Security Access Switch"
         ])
         
         o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16, o_tab17 = o_tabs
@@ -1349,6 +1333,8 @@ with tab_feed:
 
             st.markdown("---")
             st.markdown("##### 🔍 Google Search Console & AdSense Auto-Verification Setup")
+            st.caption("Pasting Google Console or AdSense verification codes (e.g. `<meta name='google-site-verification' content='...' />`) here will complete site verification automatically across all pages.")
+
             current_saved_ver_code = get_setting("site_verification_code", "")
             input_ver_code = st.text_area("Paste Verification Meta Tag / HTML Snippet Here", value=current_saved_ver_code, height=100)
 
@@ -1546,21 +1532,9 @@ with tab_feed:
                     st.markdown("---")
 
         with o_tab17:
-            st.markdown("#### 💬 ১৭ নম্বর বাটন: হোয়াটসঅ্যাপ লাইভ চ্যাট ও সিক্রেট অ্যাক্সেস (চ্যাটবট আইকন সংযোগ)")
-            st.caption("ইউজাররা সরাসরি চ্যাটবট বা মানুষ আইকনে ক্লিক করে স্ক্রিনশট ও সমস্যা মালিকের কাছে পাঠাতে পারবে:")
+            st.markdown("#### 🔐 17th Screen: Owner Access Control Switch & Security Code")
+            st.caption("কন্ট্রোল প্যানেল এর এক্সেস লগআউট করতে বা নতুন করে ভেরিফাই করতে সিক্রেট বাটন ব্যবহার করুন:")
             
-            st.markdown(f"""
-            <div style='background:#111b21; padding:15px; border-radius:12px; border:2px solid #25D366; text-align:center;'>
-                <h4 style='color:#25D366; margin:0 0 10px 0;'>💬 Direct WhatsApp Chatbot / Support Center</h4>
-                <p style='color:#e9edef; font-size:14px;'>ইউজারদের প্রোফাইল ও ড্যাশবোর্ডে ফোন নাম্বার হাইড করে চ্যাটবট আইকন যুক্ত করা হয়েছে। প্রয়োজনে নিচের বাটনে ক্লিক করুন:</p>
-                <a href='{OWNER_WHATSAPP_LINK}' target='_blank' style='background-color:#25D366; color:white; font-size:16px; font-weight:bold; padding:12px 24px; border-radius:8px; text-decoration:none; display:inline-block; margin-top:5px; box-shadow:0 4px 10px rgba(37,211,102,0.4);'>
-                    💬 Open Chatbot / Live Support ({OWNER_WHATSAPP_NUMBER})
-                </a>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown("---")
-            st.markdown("##### 🔐 Owner Access Control & Security Code")
             sec_input = st.text_input("Enter Secret Owner Key", type="password", key="sec_tab_input")
             col_sec1, col_sec2 = st.columns(2)
             
@@ -1578,13 +1552,23 @@ with tab_feed:
                 st.rerun()
 
     else:
-        pass
+        # If owner session is locked, show 17th Tab authentication box directly
+        st.info("🔒 Owner Control Panel is locked. Open tab 17 below to unlock using Secret Key.")
+        with st.expander("🔐 17. Owner Secret Key Access Window", expanded=True):
+            sec_input_public = st.text_input("Enter Secret Key to Access Owner Panels", type="password", key="sec_public_input")
+            if st.button("🔓 Unlock Master Owner Panel"):
+                if sec_input_public in SECRET_CODES:
+                    st.session_state.is_owner_session = True
+                    st.success("✅ Access Granted!")
+                    st.rerun()
+                else:
+                    st.error("❌ Invalid Secret Key!")
 
     st.markdown("---")
     
     with get_db_connection() as conn:
         c = conn.cursor()
-        if search_input and search_input.strip() not in SECRET_CODES:
+        if search_input:
             q_str = f"%{search_input}%"
             c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
         else:
@@ -1674,73 +1658,284 @@ with tab_profile:
         tick = get_meta_blue_badge() if current_user.get("is_verified") else ""
         st.markdown(f"<div style='display: flex; align-items: center;'><h2>Profile Studio: {current_user.get('full_name', 'User')}</h2>{tick}</div>", unsafe_allow_html=True)
         
-        # Profile Studio Management Section
-        with st.form("profile_update_form"):
-            new_name = st.text_input("Full Name", value=current_user.get('full_name', ''))
-            new_bio = st.text_area("Bio / Description", value=current_user.get('bio', ''))
-            new_address = st.text_input("Address", value=current_user.get('address', ''))
+        profile_path = current_user.get("profile_pic_path")
+        
+        col_p1, col_p2 = st.columns([1, 4])
+        with col_p1:
+            if profile_path and os.path.exists(profile_path):
+                st.image(profile_path, width=120)
+            else:
+                st.markdown("👤")
+        with col_p2:
+            st.write(f"👥 **Real Followers:** {real_followers:,}")
+            st.write(f"**Bio:** {current_user.get('bio', 'No bio added')}")
+
+        with st.expander("⚙️ Edit Profile"):
+            u_name = st.text_input("Name", value=current_user.get("full_name", ""))
+            u_bio = st.text_area("Bio", value=current_user.get("bio") or "")
+            up_prof = st.file_uploader("Upload Profile Picture", type=["jpg", "png", "jpeg"], key="dp_edit")
             
-            up_prof = st.file_uploader("Upload Profile Picture", type=["png", "jpg", "jpeg"])
-            submit_profile = st.form_submit_button("💾 Update Profile")
-            
-            if submit_profile:
-                prof_path = current_user.get('profile_pic_path')
+            if st.button("Save Profile"):
+                p_path = profile_path
                 if up_prof:
-                    prof_path = os.path.join(UPLOAD_DIR, f"prof_{st.session_state.user_id}.png")
-                    with open(prof_path, "wb") as f:
-                        f.write(up_prof.getbuffer())
-                
+                    p_path = os.path.join(UPLOAD_DIR, f"dp_{st.session_state.user_id}.png")
+                    with open(p_path, "wb") as f: f.write(up_prof.getbuffer())
+                    
                 with get_db_connection() as conn:
                     c = conn.cursor()
-                    c.execute("""
-                        UPDATE master_app_table 
-                        SET full_name = ?, bio = ?, address = ?, profile_pic_path = ? 
-                        WHERE user_id = ? AND data_type = 'user'
-                    """, (new_name, new_bio, new_address, prof_path, st.session_state.user_id))
+                    c.execute("UPDATE master_app_table SET full_name = ?, bio = ?, profile_pic_path = ? WHERE user_id = ? AND data_type = 'user'", (u_name, u_bio, p_path, st.session_state.user_id))
+                    c.execute("UPDATE master_app_table SET full_name = ? WHERE user_id = ? AND data_type = 'post'", (u_name, st.session_state.user_id))
                     conn.commit()
-                st.success("✅ Profile updated successfully!")
+                
+                save_to_internal_vault({
+                    "record_id": st.session_state.user_id,
+                    "data_type": "user",
+                    "user_id": st.session_state.user_id,
+                    "full_name": u_name,
+                    "bio": u_bio,
+                    "profile_pic_path": p_path
+                })
+                
+                st.success("Profile Picture and Info Updated Successfully!")
                 st.rerun()
 
-with tab_monetization:
-    st.markdown("### 🌍 Global Monetization & Video Boost Center")
-    st.info("Monetize your videos and boost your posts to reach a global audience instantly.")
-    
-    m_sub1, m_sub2 = st.tabs(["💰 Apply for Monetization", "🚀 Boost Post Plan"])
-    
-    with m_sub1:
-        with st.form("monetization_form_user"):
-            bank_details = st.text_area("Bank Details / Mobile Banking Info (bKash/Nagad/Bank)")
-            sub_m = st.form_submit_button("📤 Submit Monetization Application")
-            if sub_m and bank_details:
-                if st.session_state.user_id:
-                    mon_id = str(uuid.uuid4())
-                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    with get_db_connection() as conn:
-                        c = conn.cursor()
-                        c.execute("INSERT INTO monetization_requests VALUES (?, ?, ?, ?, 'Pending', ?)", (
-                            mon_id, st.session_state.user_id, real_followers, bank_details, now_str
-                        ))
-                        conn.commit()
-                    st.success("✅ Application submitted successfully! Owner will review soon.")
-                else:
-                    st.warning("Please login first!")
+        st.markdown("---")
+        st.markdown("### 📤 High-Speed Smart Video Processing & Auto-Compression Center")
+        
+        if get_setting("lock_upload") == "ON":
+            st.error("🚫 Video Upload System is temporarily disabled by Owner.")
+        else:
+            post_type = st.selectbox("Format / Category", [
+                "short", 
+                "long", 
+                "mahfil", 
+                "movie", 
+                "picture"
+            ])
+            
+            if get_setting("daily_limit_mode") == "ON":
+                current_cnt = get_user_today_upload_count(st.session_state.user_id, post_type)
+                limit_max = 1 if post_type in ["short", "long", "mahfil", "movie"] else 10
+                st.info(f"⚠️ **Daily Guidelines Active:** You have uploaded **{current_cnt}/{limit_max}** {post_type} post(s) today.")
 
-    with m_sub2:
-        with st.form("boost_post_form_user"):
-            post_id_to_boost = st.text_input("Enter Post ID to Boost")
-            boost_plan = st.selectbox("Select Plan", ["Standard Boost ($5)", "Pro Viral Boost ($15)", "Mega Global Reach ($30)"])
-            trx_info = st.text_input("Transaction ID / Payment Proof Info")
-            sub_b = st.form_submit_button("🔥 Send Boost Request")
-            if sub_b and post_id_to_boost:
-                if st.session_state.user_id:
-                    boost_id = str(uuid.uuid4())
-                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            title = st.text_input("Title")
+            desc = st.text_area("Description")
+            p_tags = st.text_input("Hashtags")
+            
+            use_live_camera = st.checkbox("📸 Use Live Camera Instead of File Upload")
+            
+            if use_live_camera:
+                uploaded_media = st.camera_input("📷 Capture Live Photo via Camera")
+            else:
+                uploaded_media = st.file_uploader("Media File (Supports Up To 10 GB Video/Movies/Media)", type=["mp4", "jpg", "png", "mov", "mkv", "avi"])
+            
+            if st.button("⚡ Fast Process, Compress & Publish Post"):
+                if uploaded_media and title:
+                    if not use_live_camera:
+                        MAX_FILE_SIZE_MB = 10000 * 1024 * 1024 # Up to 10GB Limit support
+                        if uploaded_media.size > MAX_FILE_SIZE_MB:
+                            st.error("🚫 File size cannot exceed 10 GB!")
+                            st.stop()
+                            
+                        is_clean, scan_msg = sanitize_file_and_check_virus(uploaded_media, uploaded_media.name)
+                        if not is_clean:
+                            st.error(scan_msg)
+                            st.stop()
+
+                    if get_setting("daily_limit_mode") == "ON":
+                        today_count = get_user_today_upload_count(st.session_state.user_id, post_type)
+                        if post_type in ["short", "long", "mahfil", "movie"] and today_count >= 1:
+                            st.error(f"🚫 Limit Exceeded! You can only upload 1 {post_type.upper()} video per 24 hours.")
+                            st.stop()
+                        elif post_type == "picture" and today_count >= 10:
+                            st.error("🚫 Limit Exceeded! You can only upload 10 Pictures/Posts per 24 hours.")
+                            st.stop()
+
+                    if any(w in (title + " " + desc).lower() for w in BANNED_KEYWORDS):
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+                            c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, st.session_state.user_id))
+                            conn.commit()
+                        st.error("🚫 Inappropriate Content Detected! Account suspended.")
+                        st.rerun()
+
+                    ext = ".png" if use_live_camera else os.path.splitext(uploaded_media.name)[1]
+                    m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{ext}")
+                    
+                    with st.spinner("⏳ Chunking file to server..."):
+                        if use_live_camera:
+                            with open(m_path, "wb") as f:
+                                f.write(uploaded_media.getbuffer())
+                        else:
+                            process_and_chunk_media(uploaded_media, m_path)
+
+                    if ext.lower() in ['.mp4', '.mkv', '.mov', '.avi']:
+                        with st.spinner("🚀 Auto-Compressing large video size for Fast Streaming..."):
+                            auto_compress_video(m_path)
+
+                    if ext.lower() in ['.jpg', '.jpeg', '.png']:
+                        is_safe, msg = check_image_safety_with_ai(m_path)
+                        if not is_safe:
+                            if os.path.exists(m_path):
+                                os.remove(m_path)
+                            st.error("🚫 Google AI Auto-Moderation: Inappropriate content detected in image! Post rejected.")
+                            st.stop()
+
+                    rec_id = str(uuid.uuid4())
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    post_data_map = {
+                        "record_id": rec_id,
+                        "data_type": "post",
+                        "user_id": st.session_state.user_id,
+                        "full_name": current_user.get("full_name", "User"),
+                        "is_verified": current_user.get("is_verified", 1),
+                        "title": title,
+                        "content": desc,
+                        "tags": p_tags,
+                        "media_path": m_path,
+                        "post_category": post_type,
+                        "views_count": 1,
+                        "likes_count": 0,
+                        "created_at": now
+                    }
+
                     with get_db_connection() as conn:
                         c = conn.cursor()
-                        c.execute("INSERT INTO boost_requests VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)", (
-                            boost_id, st.session_state.user_id, post_id_to_boost, boost_plan, "10", trx_info, "WhatsApp/Direct", now_str
-                        ))
+                        c.execute("""
+                            INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, tags, media_path, post_category, views_count, likes_count, created_at)
+                            VALUES (?, 'post', ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?)
+                        """, (rec_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), title, desc, p_tags, m_path, post_type, now))
                         conn.commit()
-                    st.success("✅ Boost request submitted successfully!")
-                else:
-                    st.warning("Please login first!")
+                        
+                    save_to_internal_vault(post_data_map)
+                    st.success("🎉 Fast Compression Complete & Video Published Successfully!")
+                    st.rerun()
+
+with tab_monetization:
+    st.markdown("### 💸 Worldwide Monetization & Video Boost Center")
+    
+    mon_status = current_user.get("monetization_status", "Not Eligible")
+    
+    if mon_status == "Approved":
+        st.success(f"🎉 **Monetization Active & Approved!**")
+        st.metric("Estimated Earning Balance", "$1,250.00 USD")
+    elif real_followers >= 1000:
+        st.success(f"🎉 **You are eligible for Monetization!**")
+        with st.expander("📝 Apply for Monetization Payout"):
+            bank_info_input = st.text_area("Enter Your Bank Account / Mobile Banking Details for Payouts")
+            if st.button("Submit Monetization Application"):
+                if bank_info_input:
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO monetization_requests (mon_id, user_id, followers_count, bank_info, created_at)
+                            VALUES (?, ?, ?, ?, ?)
+                        """, (str(uuid.uuid4()), st.session_state.user_id, real_followers, bank_info_input, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                        conn.commit()
+                    st.success("Application Submitted!")
+    else:
+        st.info(f"📈 **Monetization Progress:** {real_followers}/1,000 Real Followers needed.")
+
+    st.markdown("---")
+    st.markdown("### 💼 Third-Party Sponsor & Video Payment Panel")
+
+    # 🔒 LOGIN CHECK FOR SPONSORS / BOOSTER API
+    if not st.session_state.user_id:
+        st.warning("🔒 আপনি স্পন্সর ভিডিও আপলোড করার আগে অনুগ্রহ করে একটি আইডি খুলুন বা সাইন আপ / লগইন করুন। আইডি খোলা ছাড়া স্পন্সর ভিডিও আপডেট করা যাবে না।")
+        st.info("👈 সাইডবারে গিয়ে ফোন নম্বর বা ইমেইল দিয়ে সহজেই লগইন বা সাইন আপ করতে পারেন।")
+    else:
+        with st.expander("📥 Submit Sponsored Video & Payment Info", expanded=True):
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
+                active_gateways = c.fetchall()
+
+            gw_options = {}
+            if active_gateways:
+                gw_options = {f"[{gw['method_type']}] {gw['provider_name']}": gw for gw in active_gateways}
+                selected_gw_sp_name = st.selectbox("Select Payment Channel", list(gw_options.keys()), key="sp_gw_select")
+                selected_gw_sp = gw_options[selected_gw_sp_name]
+                
+                st.info(f"💳 **Official Transfer Details:**\n```\n{selected_gw_sp['account_details']}\n```")
+
+            with st.form("sponsor_video_submit_form"):
+                sp_name = st.text_input("Your Name / Company Name", value=current_user.get('full_name', ''))
+                trx_10 = st.text_input("Enter Exactly 10-Digit Transaction ID (TrxID / Ref Code)", max_chars=10)
+                
+                sp_video_url = st.text_input("Video Link (YouTube / Facebook / Direct URL)")
+                sp_video_file = st.file_uploader("OR Upload Video File Direct", type=["mp4", "mov", "mkv"])
+                
+                submit_sp_btn = st.form_submit_button("🚀 Submit to Owner for Approval")
+
+                if submit_sp_btn:
+                    clean_trx = trx_10.strip()
+                    if len(clean_trx) != 10:
+                        st.error("❌ Invalid Transaction ID! Reference/TrxID code must be exactly 10 characters long.")
+                    elif not (sp_video_url or sp_video_file):
+                        st.error("❌ Please provide either a video URL link or upload a video file!")
+                    else:
+                        v_file_path = ""
+                        if sp_video_file:
+                            v_file_path = os.path.join(UPLOAD_DIR, f"sp_{uuid.uuid4()}.mp4")
+                            with open(v_file_path, "wb") as f:
+                                f.write(sp_video_file.getbuffer())
+
+                        req_id = str(uuid.uuid4())
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        selected_channel_label = selected_gw_sp_name if active_gateways else "Direct Payment"
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO sponsor_video_requests 
+                                (request_id, user_id, sponsor_name, trx_id_10digit, bank_details_used, video_link, video_file_path, status, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+                            """, (req_id, st.session_state.user_id, sp_name, clean_trx, selected_channel_label, sp_video_url, v_file_path, now_str))
+                            conn.commit()
+                            
+                        st.success("✅ Payment info and video submitted successfully!")
+
+    st.markdown("---")
+    st.markdown("### 🔥 Boost Your Video / Post (Dynamic Payment Gateways)")
+    
+    if not st.session_state.user_id:
+        st.warning("Please login to boost posts.")
+    else:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT record_id, title FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
+            user_posts = c.fetchall()
+        
+        if not user_posts:
+            st.info("You haven't uploaded any posts yet to boost.")
+        elif not active_gateways:
+            st.error("No active payment methods found. Please contact admin.")
+        else:
+            post_options = {p["title"]: p["record_id"] for p in user_posts}
+            selected_title = st.selectbox("Select Post to Boost", list(post_options.keys()))
+            selected_post_id = post_options[selected_title]
+            
+            boost_plan = st.selectbox("Select Boost Package", [
+                "Basic - 5,000 Views ($5)",
+                "Pro - 20,000 Views ($15)",
+                "VIP Unlimited - 100,000 Views ($50)"
+            ])
+            
+            if active_gateways:
+                selected_gw_b_name = st.selectbox("Select Payment Method for Boost", list(gw_options.keys()), key="boost_gw_select")
+                selected_gw_b = gw_options[selected_gw_b_name]
+                st.info(f"💳 Send Payment To:\n```\n{selected_gw_b['account_details']}\n```")
+                
+                trx_input = st.text_input("Enter TrxID / Payment Ref Info")
+                if st.button("Submit Boost Request"):
+                    if trx_input:
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, status, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+                            """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, "Paid", trx_input, selected_gw_b_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                            conn.commit()
+                        st.success("Boost request submitted to owner for verification!")
