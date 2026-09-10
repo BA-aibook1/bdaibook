@@ -19,7 +19,6 @@ SECRET_CODES = [NEW_OWNER_SECRET_KEY]
 
 OWNER_NAME = "Sohel Rana"
 OWNER_WHATSAPP_NUMBER = "+8801722003172"
-# WhatsApp chat direct link without call feature option
 OWNER_WHATSAPP_LINK = "https://api.whatsapp.com/send?phone=8801722003172&text=Hello%20Owner,%20I%20want%20to%20chat%20regarding%20the%20app"
 
 # ==========================================
@@ -391,6 +390,7 @@ def init_master_database():
             "lock_upload": "OFF",
             "daily_limit_mode": "OFF",
             "lock_login": "OFF",
+            "live_chat_system_status": "ON",
             "logo_path": "",
             "adsense_client_id": "ca-pub-0000000000000000",
             "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b></div>""",
@@ -665,7 +665,9 @@ with st.sidebar.expander("💬 Chat Support & Screenshot Box"):
         comp_img = st.file_uploader("Upload Issue Screenshot", type=["png", "jpg", "jpeg"], key="user_comp_img")
         
         if st.button("🚀 Send Message"):
-            if comp_msg or comp_img:
+            if get_setting("live_chat_system_status", "ON") == "OFF":
+                st.sidebar.error("🔴 চ্যাট সিস্টেম বন্ধ রয়েছে। মেসেজ পাঠানো সম্ভব নয়।")
+            elif comp_msg or comp_img:
                 img_p = ""
                 if comp_img:
                     img_p = os.path.join(UPLOAD_DIR, f"comp_{uuid.uuid4()}.png")
@@ -895,7 +897,7 @@ with tab_feed:
             "1️⃣4️⃣ Master Control & Analytics",
             "1️⃣5️⃣ Free Copyright-Free Music Library (Owner Upload)",
             "1️⃣6️⃣ Amazon E-Commerce & Meta Target Hub",
-            "1️⃣7️⃣ Live Chat & Complaints Hub"
+            "1️⃣7️⃣ Live Chat & WhatsApp Engine"
         ])
         
         o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16, o_tab17 = o_tabs
@@ -1631,23 +1633,44 @@ with tab_feed:
                     st.markdown("---")
 
         with o_tab17:
-            st.markdown("#### 👤 17th Screen: Profile Verification & WhatsApp Live Chat Engine")
-            st.caption("মালিক এখান থেকে ব্যবহারকারীদের প্রোফাইল ভেরিফিকেশন এবং ওয়াটসঅ্যাপ চ্যাট/স্ক্রিনশট ইনবক্স সরাসরি নিয়ন্ত্রণ করতে পারবেন।")
+            st.markdown("#### 👤 17th Screen: Live Chat & WhatsApp Engine")
+            st.caption("মালিক এখান থেকে ইউজারদের সাথে সরাসরি চ্যাট আদান-প্রদান নিয়ন্ত্রণ করতে পারবেন।")
             
-            p17_sub1, p17_sub2 = st.tabs(["💬 live WhatsApp Chat & Screenshot Inbox", "✔️ Profile Verification Status"])
+            # --- 1. Chat Switch ON / OFF Button ---
+            current_chat_status = get_setting("live_chat_system_status", "ON")
             
-            # --- Sub Tab 1: Live WhatsApp Messaging Engine ---
-            with p17_sub1:
-                st.markdown("##### 📩 ইউজারদের মেসেজ ও স্ক্রিনশট আদান-প্রদান কন্ট্রোল প্যানেল")
-                st.info("📱 WhatsApp Direct Support Number: **01722003172** (Calling disabled, Chat & Screenshot exchange active)")
-                
+            col_sw1, col_sw2 = st.columns([1, 3])
+            with col_sw1:
+                if current_chat_status == "ON":
+                    if st.button("💬 Chat System: ON", key="toggle_chat_btn", use_container_width=True):
+                        set_setting("live_chat_system_status", "OFF")
+                        st.rerun()
+                else:
+                    if st.button("🚫 Chat System: OFF", key="toggle_chat_btn", use_container_width=True):
+                        set_setting("live_chat_system_status", "ON")
+                        st.rerun()
+            
+            with col_sw2:
+                if current_chat_status == "ON":
+                    st.success("✅ চ্যাট সিস্টেম চালু আছে (ইউজাররা মেসেজ ও স্ক্রিনশট পাঠাতে পারছে)")
+                else:
+                    st.error("🔴 চ্যাট সিস্টেম বন্ধ আছে (ইউজারদের মেসেজিং সুবিধা সাময়িক স্থগিত)")
+
+            st.markdown("---")
+            
+            # --- 2. Live Message & Screenshot Exchange Hub ---
+            st.markdown("##### 📩 চ্যাট আদান-প্রদান ও ইনবক্স")
+            
+            if current_chat_status == "OFF":
+                st.warning("⚠️ চ্যাট বন্ধ থাকায় নতুন কোনো মেসেজ প্রসেস হচ্ছে না।")
+            else:
                 with get_db_connection() as conn:
                     c = conn.cursor()
                     c.execute("SELECT * FROM live_complaints ORDER BY created_at DESC")
                     all_chat_msgs = c.fetchall()
 
                 if not all_chat_msgs:
-                    st.success("🎉 বর্তমানে কোনো নতুন মেসেজ বা স্ক্রিনশট পেন্ডিং নেই।")
+                    st.info("🎉 কোনো নতুন মেসেজ বা স্ক্রিনশট পেন্ডিং নেই।")
                 else:
                     for msg in all_chat_msgs:
                         m_id = msg['complaint_id']
@@ -1656,36 +1679,34 @@ with tab_feed:
                         m_text = msg['message']
                         m_img = msg['screenshot_path']
                         m_reply = dict(msg).get('reply_text', '')
-                        m_status = msg['status']
                         m_time = msg['created_at']
                         
                         st.markdown(f"""
-                        <div style='background: #18191a; padding: 15px; border-radius: 12px; border-left: 5px solid #25D366; margin-bottom: 15px;'>
-                            <div style='display:flex; justify-content: space-between;'>
-                                <b>👤 Sender: {u_name}</b> <span style='color:#888; font-size:12px;'>(ID: {u_id[:8]}...) | ⏱️ {m_time}</span>
-                            </div>
-                            <p style='margin-top:10px; font-size:15px; color:#fff;'>💬 <b>Message:</b> {m_text}</p>
+                        <div style='background: #18191a; padding: 12px; border-radius: 10px; border-left: 4px solid #25D366; margin-bottom: 10px;'>
+                            <b>👤 {u_name}</b> <small style='color:#888;'>(ID: {u_id[:8]}... | {m_time})</small><br>
+                            <span style='font-size:15px;'>💬 {m_text}</span>
                         </div>
                         """, unsafe_allow_html=True)
                         
                         if m_img and os.path.exists(m_img):
-                            st.image(m_img, caption="📸 User Attached Screenshot", width=320)
+                            st.image(m_img, caption="📸 সংযুক্ত স্ক্রিনশট", width=300)
                             
                         if m_reply:
-                            st.success(f"👑 **Owner Reply Sent:** {m_reply}")
+                            st.info(f"👑 **আপনার পাঠানো রিপ্লাই:** {m_reply}")
                         
-                        with st.form(key=f"owner_reply_form_{m_id}"):
-                            reply_input = st.text_input("ইউজারকে রিপ্লাই লিখুন...", value=m_reply, key=f"r_inp_{m_id}")
-                            col_rep1, col_rep2 = st.columns(2)
-                            submit_reply = col_rep1.form_submit_button("📤 Send Reply to User")
-                            delete_chat = col_rep2.form_submit_button("🗑️ Delete Chat")
+                        # Direct Reply Form
+                        with st.form(key=f"direct_chat_form_{m_id}"):
+                            reply_input = st.text_input("রিপ্লাই লিখুন...", value=m_reply, key=f"r_inp_{m_id}")
+                            c_btn1, c_btn2 = st.columns(2)
+                            submit_reply = c_btn1.form_submit_button("📤 Send Reply")
+                            delete_chat = c_btn2.form_submit_button("🗑️ Delete")
                             
-                            if submit_reply:
+                            if submit_reply and reply_input:
                                 with get_db_connection() as conn:
                                     c = conn.cursor()
                                     c.execute("UPDATE live_complaints SET reply_text = ?, status = 'Replied' WHERE complaint_id = ?", (reply_input, m_id))
                                     conn.commit()
-                                st.success("✅ রিপ্লাই সফলভাবে ইউজারের ইনবক্সে পাঠানো হয়েছে!")
+                                st.success("✅ রিপ্লাই পাঠানো হয়েছে!")
                                 st.rerun()
                                 
                             if delete_chat:
@@ -1693,44 +1714,9 @@ with tab_feed:
                                     c = conn.cursor()
                                     c.execute("DELETE FROM live_complaints WHERE complaint_id = ?", (m_id,))
                                     conn.commit()
-                                st.warning("🗑️ চ্যাট ডিলিট করা হয়েছে।")
+                                st.warning("🗑️ চ্যাট মুছে ফেলা হয়েছে।")
                                 st.rerun()
                         st.markdown("---")
-
-            # --- Sub Tab 2: Profile & Verification Engine ---
-            with p17_sub2:
-                with get_db_connection() as conn:
-                    c = conn.cursor()
-                    c.execute("SELECT user_id, full_name, auth_identifier, is_verified, bio FROM master_app_table WHERE data_type = 'user'")
-                    all_users_p17 = c.fetchall()
-
-                if not all_users_p17:
-                    st.info("কোনো রেজিষ্টার্ড ব্যবহারকারী পাওয়া যায়নি।")
-                else:
-                    for u17 in all_users_p17:
-                        u17_dict = dict(u17)
-                        u_id = u17_dict['user_id']
-                        
-                        with st.expander(f"👤 {u17_dict['full_name']} ({u17_dict['auth_identifier']})"):
-                            st.write(f"**ইউজার আইডি:** `{u_id}`")
-                            
-                            v_col1, v_col2 = st.columns(2)
-                            
-                            is_v = u17_dict.get('is_verified', 0) == 1
-                            new_v = v_col1.checkbox("মেটা ব্লু ভেরিফাইড ব্যাজ (Meta Blue Badge)", value=is_v, key=f"v_cb_{u_id}")
-                            new_name = v_col2.text_input("প্রোফাইল নাম পরিবর্তন", value=u17_dict['full_name'], key=f"v_name_{u_id}")
-                            
-                            if st.button("💾 প্রোফাইল স্ট্যাটাস সংরক্ষণ করুন", key=f"save_p17_{u_id}"):
-                                with get_db_connection() as conn:
-                                    c = conn.cursor()
-                                    c.execute("""
-                                        UPDATE master_app_table 
-                                        SET full_name = ?, is_verified = ? 
-                                        WHERE user_id = ?
-                                    """, (new_name, 1 if new_v else 0, u_id))
-                                    conn.commit()
-                                st.success(f"✅ {new_name}-এর প্রোফাইল সফলভাবে আপডেট করা হয়েছে!")
-                                st.rerun()
 
     else:
         with get_db_connection() as conn:
@@ -2054,7 +2040,7 @@ with tab_monetization:
                                 VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
                             """, (req_id, st.session_state.user_id, sp_name, sp_trx, gw_used_str, sp_link, saved_v_path, now_str))
                             conn.commit()
-                        st.success("✅ Sponsored video request submitted! Admin will verify and publish soon.")
+                        st.success("✅ Sponsored video submitted! Pending approval by Owner.")
                         st.rerun()
                     else:
-                        st.warning("Please complete all required fields and provide a video link or file.")
+                        st.warning("Please fill all required details!")
