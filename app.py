@@ -184,7 +184,7 @@ def auto_restore_from_internal_vault():
                     pass
     return restored_count
 
-# CUSTOM CSS DESIGN
+# CUSTOM CSS DESIGN WITH BEAUTIFUL WATERMARK
 st.markdown("""
 <style>
     .block-container { padding-top: 1rem !important; }
@@ -198,10 +198,14 @@ st.markdown("""
     }
     .video-watermark-wrapper { position: relative; border-radius: 12px; overflow: hidden; }
     .video-watermark-badge {
-        position: absolute; top: 12px; right: 15px; background: rgba(0, 100, 224, 0.85);
-        color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 99; pointer-events: none; backdrop-filter: blur(4px);
+        position: absolute; top: 15px; right: 15px;
+        background: linear-gradient(135deg, rgba(0, 100, 224, 0.9), rgba(0, 200, 255, 0.8));
+        color: #ffffff; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 800;
+        letter-spacing: 0.5px; z-index: 99; pointer-events: none; backdrop-filter: blur(6px);
+        border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        display: flex; align-items: center; gap: 5px;
     }
-    .tiktok-container { max-width: 380px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 2px solid #222; background: #000; }
+    .tiktok-container { max-width: 380px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 2px solid #222; background: #000; position: relative; }
     .announcement-box {
         background: linear-gradient(90deg, #16222f 0%, #0064e0 100%); color: white; padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 15px; font-weight: bold; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
     }
@@ -802,20 +806,27 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
 
     media_path = post.get("media_path")
     
+    # BEAUTIFUL WATERMARK OVERLAY PLACEMENT
+    watermark_html = "<div class='video-watermark-badge'>🏠 BDAIBOOK 1</div>"
+    
     if media_path:
         if media_path.startswith("http://") or media_path.startswith("https://"):
+            st.markdown(f"<div class='video-watermark-wrapper'>{watermark_html}", unsafe_allow_html=True)
             st.video(media_path)
+            st.markdown("</div>", unsafe_allow_html=True)
         elif os.path.exists(media_path):
-            st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
             if cat == "picture":
+                st.markdown(f"<div class='video-watermark-wrapper'>{watermark_html}", unsafe_allow_html=True)
                 st.image(media_path, use_container_width=True)
+                st.markdown("</div>", unsafe_allow_html=True)
             elif cat == "short":
-                st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
+                st.markdown(f"<div class='tiktok-container'>{watermark_html}", unsafe_allow_html=True)
                 st.video(media_path)
                 st.markdown("</div>", unsafe_allow_html=True)
             else:
+                st.markdown(f"<div class='video-watermark-wrapper'>{watermark_html}", unsafe_allow_html=True)
                 st.video(media_path)
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown("</div>", unsafe_allow_html=True)
 
     if ads_enabled and ads_html:
         st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
@@ -1091,14 +1102,21 @@ with tab_feed:
                     </div>
                     """, unsafe_allow_html=True)
                     
+                    watermark_html = "<div class='video-watermark-badge'>🏠 BDAIBOOK 1</div>"
                     if lp['media_path']:
                         if lp['media_path'].startswith("http"):
+                            st.markdown(f"<div class='video-watermark-wrapper'>{watermark_html}", unsafe_allow_html=True)
                             st.video(lp['media_path'])
+                            st.markdown("</div>", unsafe_allow_html=True)
                         elif os.path.exists(lp['media_path']):
                             if lp['post_category'] == 'picture':
+                                st.markdown(f"<div class='video-watermark-wrapper'>{watermark_html}", unsafe_allow_html=True)
                                 st.image(lp['media_path'], width=300)
+                                st.markdown("</div>", unsafe_allow_html=True)
                             else:
+                                st.markdown(f"<div class='video-watermark-wrapper'>{watermark_html}", unsafe_allow_html=True)
                                 st.video(lp['media_path'])
+                                st.markdown("</div>", unsafe_allow_html=True)
 
                     if ads_enabled and ads_html:
                         st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
