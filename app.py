@@ -184,7 +184,7 @@ def auto_restore_from_internal_vault():
                     pass
     return restored_count
 
-# CUSTOM CSS DESIGN WITH BEAUTIFUL WATERMARK
+# CUSTOM CSS DESIGN WITH PERFECT WATERMARK OVERLAY
 st.markdown("""
 <style>
     .block-container { padding-top: 1rem !important; }
@@ -196,15 +196,36 @@ st.markdown("""
     .fb-post-card {
         background: #18191a; padding: 20px; border-radius: 14px; margin-bottom: 20px; border: 1px solid #2f3031; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
-    .video-watermark-wrapper { position: relative; border-radius: 12px; overflow: hidden; }
-    .video-watermark-badge {
-        position: absolute; top: 15px; right: 15px;
-        background: linear-gradient(135deg, rgba(0, 100, 224, 0.9), rgba(0, 200, 255, 0.8));
-        color: #ffffff; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 800;
-        letter-spacing: 0.5px; z-index: 99; pointer-events: none; backdrop-filter: blur(6px);
-        border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        display: flex; align-items: center; gap: 5px;
+    
+    /* PERFECT WATERPROOF WATERMARK SYSTEM */
+    .video-watermark-wrapper { 
+        position: relative !important; 
+        border-radius: 12px; 
+        overflow: hidden; 
+        display: inline-block;
+        width: 100%;
     }
+    .video-watermark-badge {
+        position: absolute !important;
+        top: 15px !important;
+        right: 15px !important;
+        background: linear-gradient(135deg, rgba(0, 100, 224, 0.9), rgba(0, 200, 255, 0.8)) !important;
+        color: #ffffff !important;
+        padding: 6px 14px !important;
+        border-radius: 20px !important;
+        font-size: 12px !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.5px !important;
+        z-index: 9999 !important;
+        pointer-events: none !important;
+        backdrop-filter: blur(6px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 5px !important;
+    }
+    
     .tiktok-container { max-width: 380px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 2px solid #222; background: #000; position: relative; }
     .announcement-box {
         background: linear-gradient(90deg, #16222f 0%, #0064e0 100%); color: white; padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 15px; font-weight: bold; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
@@ -806,7 +827,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
 
     media_path = post.get("media_path")
     
-    # BEAUTIFUL WATERMARK OVERLAY PLACEMENT
+    # WATERPROOF WATERMARK OVERLAY IMPLEMENTATION
     watermark_html = "<div class='video-watermark-badge'>🏠 BDAIBOOK 1</div>"
     
     if media_path:
@@ -2059,24 +2080,4 @@ with tab_monetization:
                         st.success("✅ Sponsored video submitted! Pending approval by Owner.")
                         st.rerun()
                     else:
-                        st.warning("Please fill all required details!").video-watermark-badge {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background: linear-gradient(135deg, rgba(0, 100, 224, 0.9), rgba(0, 200, 255, 0.8));
-    color: #ffffff;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.5px;
-    z-index: 99;
-    pointer-events: none;
-    backdrop-filter: blur(6px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
+                        st.warning("Please fill all required details!")
