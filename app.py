@@ -19,7 +19,8 @@ SECRET_CODES = [NEW_OWNER_SECRET_KEY]
 
 OWNER_NAME = "Sohel Rana"
 OWNER_WHATSAPP_NUMBER = "+8801722003172"
-OWNER_WHATSAPP_LINK = "https://wa.me/8801722003172"
+# WhatsApp chat direct link without call feature option
+OWNER_WHATSAPP_LINK = "https://api.whatsapp.com/send?phone=8801722003172&text=Hello%20Owner,%20I%20want%20to%20chat%20regarding%20the%20app"
 
 # ==========================================
 # GOOGLE VISION AI AUTO-MODERATION ENGINE
@@ -206,12 +207,7 @@ st.markdown("""
         background: linear-gradient(90deg, #16222f 0%, #0064e0 100%); color: white; padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 15px; font-weight: bold; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
     }
     .whatsapp-support-btn {
-        background-color: #25D366; color: white !important; font-weight: bold; padding: 10px 18px; border-radius: 8px; text-decoration: none; display: inline-block; margin-top: 5px; box-shadow: 0 4px 10px rgba(37,211,102,0.3);
-    }
-    .call-incoming-card {
-        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-        border: 2px solid #00d2ff; padding: 18px; border-radius: 15px; color: #fff;
-        margin-bottom: 20px; box-shadow: 0 8px 20px rgba(0,210,255,0.4); text-align: center;
+        background-color: #25D366; color: white !important; font-weight: bold; padding: 10px 18px; border-radius: 8px; text-decoration: none; display: inline-block; margin-top: 5px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); text-align: center; width: 100%;
     }
     .ad-container { margin-top: 15px; margin-bottom: 15px; padding: 10px; background: #121212; border-radius: 10px; text-align: center; border: 1px dashed #333; }
     .vertical-live-feed-box { max-height: 600px; overflow-y: auto; background: #121316; padding: 15px; border-radius: 12px; border: 2px solid #0064e0; }
@@ -386,17 +382,6 @@ def init_master_database():
             );
         """)
         
-        # IN-APP SERVER CALLING SYSTEM TABLE
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS active_calls (
-                call_id TEXT PRIMARY KEY,
-                user_id TEXT,
-                user_name TEXT,
-                status TEXT DEFAULT 'Ringing',
-                created_at TEXT
-            );
-        """)
-        
         try: c.execute("ALTER TABLE live_complaints ADD COLUMN reply_text TEXT DEFAULT ''")
         except sqlite3.OperationalError: pass
         
@@ -426,9 +411,9 @@ def init_master_database():
         if c.fetchone()[0] == 0:
             c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (
                 str(uuid.uuid4()),
-                "Mobile Banking / Support",
-                "WhatsApp Payment & Helpline",
-                f"WhatsApp Direct Contact\nArtist / Admin: {OWNER_NAME}"
+                "WhatsApp Chat Support",
+                "WhatsApp Direct Chat",
+                f"WhatsApp Direct Chat ONLY (No Call)\nArtist / Admin: {OWNER_NAME}\nNumber: {OWNER_WHATSAPP_NUMBER}"
             ))
 
         conn.commit()
@@ -520,47 +505,6 @@ site_logo_path = get_setting("logo_path")
 app_name = get_setting("app_name", "Global AI Book")
 announcement = get_setting("owner_announcement", "")
 
-# ==========================================
-# IN-APP CALL NOTIFICATION SYSTEM (OWNER SIDE)
-# ==========================================
-if st.session_state.is_owner_session:
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT * FROM active_calls WHERE status = 'Ringing' ORDER BY created_at DESC LIMIT 1")
-        ringing_call = c.fetchone()
-        
-    if ringing_call:
-        # Ringing Sound Effect using HTML5
-        components.html("""
-            <audio autoplay loop>
-                <source src="https://www.soundjay.com/phone/phone-calling-1.mp3" type="audio/mpeg">
-            </audio>
-        """, height=0, width=0)
-        
-        st.markdown(f"""
-        <div class="call-incoming-card">
-            <h2 style="margin:0;">📲 In-App Incoming Call...</h2>
-            <p style="font-size:18px; margin: 10px 0;">Caller: <b>{ringing_call['user_name']}</b> (ID: {ringing_call['user_id'][:8]}...)</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        c_acc1, c_acc2 = st.columns(2)
-        if c_acc1.button("✅ Accept Call & Chat", key="accept_call_btn"):
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("UPDATE active_calls SET status = 'Accepted' WHERE call_id = ?", (ringing_call['call_id'],))
-                conn.commit()
-            st.success("Call Accepted! Opening Messaging Hub Panel 17...")
-            st.rerun()
-            
-        if c_acc2.button("❌ Decline Call", key="decline_call_btn"):
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("UPDATE active_calls SET status = 'Declined' WHERE call_id = ?", (ringing_call['call_id'],))
-                conn.commit()
-            st.warning("Call Rejected!")
-            st.rerun()
-
 top_col1, top_col2, top_col3 = st.columns([1, 3, 1])
 with top_col1:
     if site_logo_path and os.path.exists(site_logo_path):
@@ -581,7 +525,7 @@ show_whatsapp = get_setting("show_whatsapp_number", "ON") == "ON"
 if show_whatsapp:
     st.sidebar.markdown(f"""
     <a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='whatsapp-support-btn'>
-        💬 Live Support
+        💬 WhatsApp Chat Support (No Call)
     </a>
     """, unsafe_allow_html=True)
     st.sidebar.markdown("---")
@@ -705,40 +649,22 @@ else:
         st.session_state.otp_code = None
         st.rerun()
 
-# Live Complaint & Screenshot Submission Box
-with st.sidebar.expander("📩 Submit Live Complaint / Screenshot"):
+# Live Complaint & Screenshot Submission Box (Chat System Only)
+with st.sidebar.expander("💬 Chat Support & Screenshot Box"):
     if not st.session_state.user_id:
-        st.warning("🔒 অভিযোগ বা মেসেজ পাঠাতে অবশ্যই আগে লগইন করুন।")
+        st.warning("🔒 চ্যাট বা মেসেজ পাঠাতে অবশ্যই আগে লগইন করুন।")
     else:
-        # In-App Calling Button for Users
-        if st.button("📞 Call Owner / Live Support", key="user_initiate_call_btn"):
-            call_id = str(uuid.uuid4())
-            now_t = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            u_name_val = current_user.get('full_name', f"User_{st.session_state.user_id[:4]}")
-            
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("INSERT INTO active_calls (call_id, user_id, user_name, status, created_at) VALUES (?, ?, ?, 'Ringing', ?)",
-                          (call_id, st.session_state.user_id, u_name_val, now_t))
-                conn.commit()
-            st.sidebar.info("🔔 Calling Server Owner... Please wait for owner response.")
-
-        # Check call status for user
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT status FROM active_calls WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", (st.session_state.user_id,))
-            my_last_call = c.fetchone()
-            if my_last_call:
-                if my_last_call['status'] == 'Accepted':
-                    st.sidebar.success("✅ Owner Accepted Your Call! Send message or screenshots below.")
-                elif my_last_call['status'] == 'Declined':
-                    st.sidebar.error("❌ Call Declined by Owner.")
+        st.markdown(f"""
+        <a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='whatsapp-support-btn'>
+            📱 WhatsApp Direct Chat Box
+        </a>
+        """, unsafe_allow_html=True)
 
         st.markdown("---")
         comp_msg = st.text_area("Type your message or issue here...", key="user_comp_text")
         comp_img = st.file_uploader("Upload Issue Screenshot", type=["png", "jpg", "jpeg"], key="user_comp_img")
         
-        if st.button("🚀 Send Complaint"):
+        if st.button("🚀 Send Message"):
             if comp_msg or comp_img:
                 img_p = ""
                 if comp_img:
@@ -759,12 +685,12 @@ with st.sidebar.expander("📩 Submit Live Complaint / Screenshot"):
                         VALUES (?, ?, ?, ?, ?, '', 'Unread', ?)
                     """, (c_id, u_id_val, u_name_val, comp_msg, img_p, now_t))
                     conn.commit()
-                st.sidebar.success("✅ Complaint sent successfully!")
+                st.sidebar.success("✅ Message sent successfully!")
             else:
                 st.sidebar.warning("Please provide message details or attach a screenshot.")
 
         st.markdown("---")
-        st.markdown("##### 📩 Inbox: Owner Responses / Replies")
+        st.markdown("##### 📩 Inbox: Owner Chat Replies")
         with get_db_connection() as conn:
             c = conn.cursor()
             c.execute("SELECT * FROM live_complaints WHERE user_id = ? ORDER BY created_at DESC", (st.session_state.user_id,))
@@ -1040,7 +966,7 @@ with tab_feed:
             with st.form("add_new_payment_method"):
                 m_type = st.selectbox("Method Type", ["WhatsApp Support / Direct", "Mobile Banking", "Bank Transfer (Foreign)", "Bank Transfer (Local)", "Crypto / International"])
                 p_name = st.text_input("Provider / Bank Name", value="WhatsApp / Direct Contact")
-                p_details = st.text_area("Account Details / Support Info", value=f"Live Support Channel\nArtist Name: {OWNER_NAME}")
+                p_details = st.text_area("Account Details / Support Info", value=f"Live Support Channel\nArtist Name: {OWNER_NAME}\nWhatsApp: {OWNER_WHATSAPP_NUMBER}")
                 submit_gw = st.form_submit_button("➕ Add New Payment Method")
                 
                 if submit_gw and p_name and p_details:
@@ -1745,7 +1671,7 @@ with tab_feed:
                     st.success(f"✅ User activated! Recovery code assigned: {generated_act_code}")
 
             st.markdown("---")
-            st.markdown("##### 📥 Live Complaints, Screenshots & Direct User Messaging Engine")
+            st.markdown("##### 📥 Live Chat Messages, Screenshots & Direct User Messaging Engine")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1753,12 +1679,12 @@ with tab_feed:
                 complaints = c.fetchall()
 
             if not complaints:
-                st.info("No new live complaints recorded.")
+                st.info("No new live chat messages recorded.")
             else:
                 for comp in complaints:
                     comp_dict = dict(comp)
                     st.markdown(f"""
-                    <div style='background:#1e2026; padding:12px; border-radius:8px; margin-bottom:10px; border-left:4px solid #ff4b4b;'>
+                    <div style='background:#1e2026; padding:12px; border-radius:8px; margin-bottom:10px; border-left:4px solid #0064e0;'>
                         <b>User:</b> {comp_dict.get('user_name', 'User')} ({comp_dict.get('user_id', '')[:8]}...)<br>
                         <b>Message:</b> {comp_dict.get('message', '')}<br>
                         <small style='color:#888;'>Time: {comp_dict.get('created_at', '')}</small>
@@ -1775,13 +1701,13 @@ with tab_feed:
                         phone_or_email = user_auth['auth_identifier'] if user_auth else ""
 
                     clean_phone = ''.join(filter(str.isdigit, phone_or_email))
-                    wa_direct_url = f"https://wa.me/{clean_phone}" if clean_phone else OWNER_WHATSAPP_LINK
+                    wa_direct_url = f"https://api.whatsapp.com/send?phone={clean_phone}&text=Hello" if clean_phone else OWNER_WHATSAPP_LINK
 
                     col_c1, col_c2 = st.columns([1, 1])
                     with col_c1:
                         st.markdown(f"""
                         <a href='{wa_direct_url}' target='_blank' style='display:inline-block; background-color:#25D366; color:white; font-weight:bold; padding:8px 14px; border-radius:6px; text-decoration:none;'>
-                            📞 Direct Contact
+                            💬 Reply via WhatsApp Chat (No Call)
                         </a>
                         """, unsafe_allow_html=True)
                     
@@ -1800,10 +1726,9 @@ with tab_feed:
                             st.success("✅ Reply sent to User Inbox successfully!")
                             st.rerun()
 
-                    if st.button("🗑️ Delete Complaint", key=f"del_comp_{comp_dict['complaint_id']}"):
+                    if st.button("🗑️ Delete Chat Message", key=f"del_comp_{comp_dict['complaint_id']}"):
                         with get_db_connection() as conn:
                             c = conn.cursor()
-                            c.execute("DELETE FROM master_app_table WHERE record_id = ?", (comp_dict['complaint_id'],))
                             c.execute("DELETE FROM live_complaints WHERE complaint_id = ?", (comp_dict['complaint_id'],))
                             conn.commit()
                         st.rerun()
@@ -2137,48 +2062,4 @@ with tab_monetization:
                                 VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
                             """, (req_id, st.session_state.user_id, sp_name, clean_trx, selected_channel_label, sp_video_url, v_file_path, now_str))
                             conn.commit()
-                            
-                        st.success("✅ Payment info and video submitted successfully!")
-
-    st.markdown("---")
-    st.markdown("### 🔥 Boost Your Video / Post (Dynamic Payment Gateways)")
-    
-    if not st.session_state.user_id:
-        st.warning("Please login to boost posts.")
-    else:
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT record_id, title FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
-            user_posts = c.fetchall()
-        
-        if not user_posts:
-            st.info("You haven't uploaded any posts yet to boost.")
-        elif not active_gateways:
-            st.error("No active payment methods found. Please contact admin.")
-        else:
-            post_options = {p["title"]: p["record_id"] for p in user_posts}
-            selected_title = st.selectbox("Select Post to Boost", list(post_options.keys()))
-            selected_post_id = post_options[selected_title]
-            
-            boost_plan = st.selectbox("Select Boost Package", [
-                "Basic - 5,000 Views ($5)",
-                "Pro - 20,000 Views ($15)",
-                "VIP Unlimited - 100,000 Views ($50)"
-            ])
-            
-            if active_gateways:
-                selected_gw_b_name = st.selectbox("Select Payment Method for Boost", list(gw_options.keys()), key="boost_gw_select")
-                selected_gw_b = gw_options[selected_gw_b_name]
-                st.info(f"💳 Send Payment To:\n```\n{selected_gw_b['account_details']}\n```")
-                
-                trx_input = st.text_input("Enter TrxID / Payment Ref Info")
-                if st.button("Submit Boost Request"):
-                    if trx_input:
-                        with get_db_connection() as conn:
-                            c = conn.cursor()
-                            c.execute("""
-                                INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, status, created_at)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
-                            """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, "Paid", trx_input, selected_gw_b_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-                            conn.commit()
-                        st.success("Boost request submitted to owner for verification!")
+                        st.success("✅ Sponsor Video Request Submitted Successfully!")
