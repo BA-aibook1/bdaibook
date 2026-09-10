@@ -363,6 +363,18 @@ def init_master_database():
                 created_at TEXT
             );
         """)
+
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS live_complaints (
+                complaint_id TEXT PRIMARY KEY,
+                user_id TEXT,
+                user_name TEXT,
+                message TEXT,
+                screenshot_path TEXT,
+                status TEXT DEFAULT 'Unread',
+                created_at TEXT
+            );
+        """)
         
         default_settings = {
             "app_name": "Global AI Book",
@@ -379,7 +391,8 @@ def init_master_database():
             "site_verification_code": "",
             "is_global_meta_active": "true",
             "meta_mode": "SELECTED_USERS",
-            "owner_whatsapp": OWNER_WHATSAPP_NUMBER
+            "owner_whatsapp": OWNER_WHATSAPP_NUMBER,
+            "show_whatsapp_number": "ON"
         }
         
         for k, v in default_settings.items():
@@ -485,13 +498,15 @@ with top_col3:
 if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
 
-# WhatsApp Direct Support Floating Banner / Sidebar Info
-st.sidebar.markdown(f"""
-<a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='whatsapp-support-btn'>
-    💬 WhatsApp Support: {OWNER_WHATSAPP_NUMBER}
-</a>
-""", unsafe_allow_html=True)
-st.sidebar.markdown("---")
+# WhatsApp Hide/Show Toggle Control
+show_whatsapp = get_setting("show_whatsapp_number", "ON") == "ON"
+if show_whatsapp:
+    st.sidebar.markdown(f"""
+    <a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='whatsapp-support-btn'>
+        💬 WhatsApp Support: {OWNER_WHATSAPP_NUMBER}
+    </a>
+    """, unsafe_allow_html=True)
+    st.sidebar.markdown("---")
 
 real_followers = 0
 current_user = {}
@@ -611,6 +626,35 @@ else:
         st.session_state.is_owner_session = False
         st.session_state.otp_code = None
         st.rerun()
+
+# 📩 User Live Complaint & Screenshot Submission Box
+with st.sidebar.expander("📩 জমা দিন লাইভ অভিযোগ / স্ক্রিনশট"):
+    comp_msg = st.text_area("আপনার সমস্যা বা অভিযোগ লিখুন...", key="user_comp_text")
+    comp_img = st.file_uploader("অভিযোগের স্ক্রিনশট দিন", type=["png", "jpg", "jpeg"], key="user_comp_img")
+    
+    if st.button("🚀 পাঠান (Send Complaint)"):
+        if comp_msg or comp_img:
+            img_p = ""
+            if comp_img:
+                img_p = os.path.join(UPLOAD_DIR, f"comp_{uuid.uuid4()}.png")
+                with open(img_p, "wb") as f:
+                    f.write(comp_img.getbuffer())
+            
+            c_id = str(uuid.uuid4())
+            now_t = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            u_id_val = st.session_state.user_id if st.session_state.user_id else "GUEST"
+            u_name_val = current_user.get('full_name', 'Guest User')
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("""
+                    INSERT INTO live_complaints (complaint_id, user_id, user_name, message, screenshot_path, status, created_at)
+                    VALUES (?, ?, ?, ?, ?, 'Unread', ?)
+                """, (c_id, u_id_val, u_name_val, comp_msg, img_p, now_t))
+                conn.commit()
+            st.sidebar.success("✅ অভিযোগ সফলভাবে পাঠানো হয়েছে!")
+        else:
+            st.sidebar.warning("কিছু বিবরণ বা স্ক্রিনশট নির্বাচন করুন।")
 
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
@@ -780,7 +824,7 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner Master Control Power Panels (1 to 16)")
+        st.markdown("### 🎛️ Owner Master Control Power Panels (1 to 17)")
         
         o_tabs = st.tabs([
             "1️⃣ Global Branding", 
@@ -798,10 +842,11 @@ with tab_feed:
             "1️⃣3️⃣ Master Vault & Auto-Backup",
             "1️⃣4️⃣ Master Control & Analytics",
             "1️⃣5️⃣ Free Copyright-Free Music Library (Owner Upload)",
-            "1️⃣6️⃣ Amazon E-Commerce & Meta Target Hub"
+            "1️⃣6️⃣ Amazon E-Commerce & Meta Target Hub",
+            "1️⃣7️⃣ Live Chat & Complaints Hub"
         ])
         
-        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16 = o_tabs
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16, o_tab17 = o_tabs
         
         with o_tab1:
             st.markdown("#### 🖼️ Global Branding & Logo")
@@ -1526,6 +1571,54 @@ with tab_feed:
                         with get_db_connection() as conn:
                             c = conn.cursor()
                             c.execute("DELETE FROM amazon_products WHERE product_id = ?", (ap['product_id'],))
+                            conn.commit()
+                        st.rerun()
+                    st.markdown("---")
+
+        with o_tab17:
+            st.markdown("#### 📩 17th Screen: Live Chat & Complaint Control Panel")
+            
+            # WhatsApp visibility control
+            st.markdown("##### 🔒 WhatsApp Privacy & Visibility")
+            curr_wa_status = get_setting("show_whatsapp_number", "ON")
+            col_wa1, col_wa2 = st.columns(2)
+            
+            if curr_wa_status == "ON":
+                if col_wa1.button("🔴 Hide WhatsApp Number Globally"):
+                    set_setting("show_whatsapp_number", "OFF")
+                    st.rerun()
+            else:
+                if col_wa2.button("🟢 Show WhatsApp Number"):
+                    set_setting("show_whatsapp_number", "ON")
+                    st.rerun()
+
+            st.markdown("---")
+            st.markdown("##### 📥 Live Complaints & Screenshots Box")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM live_complaints ORDER BY created_at DESC")
+                complaints = c.fetchall()
+
+            if not complaints:
+                st.info("কোনো নতুন অভিযোগ নেই।")
+            else:
+                for comp in complaints:
+                    st.markdown(f"""
+                    <div style='background:#1e2026; padding:12px; border-radius:8px; margin-bottom:10px; border-left:4px solid #ff4b4b;'>
+                        <b>User:</b> {comp['user_name']} ({comp['user_id'][:8]}...)<br>
+                        <b>Message:</b> {comp['message']}<br>
+                        <small style='color:#888;'>Time: {comp['created_at']}</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if comp['screenshot_path'] and os.path.exists(comp['screenshot_path']):
+                        st.image(comp['screenshot_path'], width=300)
+                        
+                    if st.button("🗑️ Delete Complaint", key=f"del_comp_{comp['complaint_id']}"):
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("DELETE FROM live_complaints WHERE complaint_id = ?", (comp['complaint_id'],))
                             conn.commit()
                         st.rerun()
                     st.markdown("---")
