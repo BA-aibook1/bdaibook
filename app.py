@@ -17,7 +17,7 @@ import streamlit.components.v1 as components
 NEW_OWNER_SECRET_KEY = os.getenv("OWNER_SECRET", "S$s123456789112233BDAIBOOK@MDSOHELRANA")
 SECRET_CODES = [NEW_OWNER_SECRET_KEY]
 
-# Owner Contact Details (WhatsApp Number Updated)
+# Owner Contact Details
 OWNER_NAME = "Sohel Rana"
 OWNER_WHATSAPP_NUMBER = "+8801722003172"
 OWNER_WHATSAPP_LINK = "https://wa.me/8801722003172"
@@ -176,7 +176,7 @@ def auto_restore_from_internal_vault():
                     pass
     return restored_count
 
-# PROFESSIONAL YOUTUBE & FACEBOOK STYLE CUSTOM CSS DESIGN
+# CUSTOM CSS DESIGN
 st.markdown("""
 <style>
     .block-container { padding-top: 1rem !important; }
@@ -405,7 +405,7 @@ def init_master_database():
                 str(uuid.uuid4()),
                 "Mobile Banking / Support",
                 "WhatsApp Payment & Helpline",
-                f"WhatsApp No: {OWNER_WHATSAPP_NUMBER}\nArtist / Admin: {OWNER_NAME}"
+                f"WhatsApp Direct Contact\nArtist / Admin: {OWNER_NAME}"
             ))
 
         conn.commit()
@@ -498,12 +498,12 @@ with top_col3:
 if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
 
-# WhatsApp Hide/Show Toggle Control
+# Phone Number Hidden from WhatsApp Support Button to Protect Privacy
 show_whatsapp = get_setting("show_whatsapp_number", "ON") == "ON"
 if show_whatsapp:
     st.sidebar.markdown(f"""
     <a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='whatsapp-support-btn'>
-        💬 WhatsApp Support: {OWNER_WHATSAPP_NUMBER}
+        💬 Live Support
     </a>
     """, unsafe_allow_html=True)
     st.sidebar.markdown("---")
@@ -627,12 +627,12 @@ else:
         st.session_state.otp_code = None
         st.rerun()
 
-# 📩 User Live Complaint & Screenshot Submission Box
-with st.sidebar.expander("📩 জমা দিন লাইভ অভিযোগ / স্ক্রিনশট"):
-    comp_msg = st.text_area("আপনার সমস্যা বা অভিযোগ লিখুন...", key="user_comp_text")
-    comp_img = st.file_uploader("অভিযোগের স্ক্রিনশট দিন", type=["png", "jpg", "jpeg"], key="user_comp_img")
+# 📩 English User Live Complaint & Screenshot Submission Box
+with st.sidebar.expander("📩 Submit Live Complaint / Screenshot"):
+    comp_msg = st.text_area("Type your message or issue here...", key="user_comp_text")
+    comp_img = st.file_uploader("Upload Issue Screenshot", type=["png", "jpg", "jpeg"], key="user_comp_img")
     
-    if st.button("🚀 পাঠান (Send Complaint)"):
+    if st.button("🚀 Send Complaint"):
         if comp_msg or comp_img:
             img_p = ""
             if comp_img:
@@ -652,9 +652,9 @@ with st.sidebar.expander("📩 জমা দিন লাইভ অভিযো�
                     VALUES (?, ?, ?, ?, ?, 'Unread', ?)
                 """, (c_id, u_id_val, u_name_val, comp_msg, img_p, now_t))
                 conn.commit()
-            st.sidebar.success("✅ অভিযোগ সফলভাবে পাঠানো হয়েছে!")
+            st.sidebar.success("✅ Complaint sent successfully!")
         else:
-            st.sidebar.warning("কিছু বিবরণ বা স্ক্রিনশট নির্বাচন করুন।")
+            st.sidebar.warning("Please provide message details or attach a screenshot.")
 
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
@@ -914,7 +914,7 @@ with tab_feed:
             with st.form("add_new_payment_method"):
                 m_type = st.selectbox("Method Type", ["WhatsApp Support / Direct", "Mobile Banking", "Bank Transfer (Foreign)", "Bank Transfer (Local)", "Crypto / International"])
                 p_name = st.text_input("Provider / Bank Name", value="WhatsApp / Direct Contact")
-                p_details = st.text_area("Account Details / WhatsApp Info", value=f"WhatsApp No: {OWNER_WHATSAPP_NUMBER}\nArtist Name: {OWNER_NAME}")
+                p_details = st.text_area("Account Details / Support Info", value=f"Live Support Channel\nArtist Name: {OWNER_NAME}")
                 submit_gw = st.form_submit_button("➕ Add New Payment Method")
                 
                 if submit_gw and p_name and p_details:
@@ -1390,7 +1390,6 @@ with tab_feed:
             st.markdown("---")
             st.markdown("##### 🎵 Master Configuration")
             st.text_input("Default Master Admin Name", value=OWNER_NAME, disabled=True)
-            st.text_input("Saved WhatsApp Number", value=OWNER_WHATSAPP_NUMBER, disabled=True)
             st.success("✅ Copyright and title settings are synchronized with artist Sohel Rana in the database.")
 
             if st.button("🚀 Run System Optimization & Sync"):
@@ -1579,18 +1578,42 @@ with tab_feed:
             st.markdown("#### 📩 17th Screen: Live Chat & Complaint Control Panel")
             
             # WhatsApp visibility control
-            st.markdown("##### 🔒 WhatsApp Privacy & Visibility")
+            st.markdown("##### 🔒 WhatsApp Privacy & Support Button Settings")
             curr_wa_status = get_setting("show_whatsapp_number", "ON")
             col_wa1, col_wa2 = st.columns(2)
             
             if curr_wa_status == "ON":
-                if col_wa1.button("🔴 Hide WhatsApp Number Globally"):
+                if col_wa1.button("🔴 Disable Live Support Button"):
                     set_setting("show_whatsapp_number", "OFF")
                     st.rerun()
             else:
-                if col_wa2.button("🟢 Show WhatsApp Number"):
+                if col_wa2.button("🟢 Enable Live Support Button"):
                     set_setting("show_whatsapp_number", "ON")
                     st.rerun()
+
+            st.markdown("---")
+            st.markdown("##### 🔑 Auto Activation & Password System")
+            st.caption("Generate activation/recovery code for users directly from Panel 17:")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT user_id, full_name, auth_identifier FROM master_app_table WHERE data_type = 'user'")
+                all_u_p17 = c.fetchall()
+
+            if all_u_p17:
+                u_dict_p17 = {f"{u['full_name']} ({u['auth_identifier']})": u['user_id'] for u in all_u_p17}
+                sel_u_label = st.selectbox("Select Target User to Activate / Send Code", list(u_dict_p17.keys()), key="p17_u_select")
+                target_u_id = u_dict_p17[sel_u_label]
+                
+                generated_act_code = str(random.randint(100000, 999999))
+                st.info(f"Generated Code: **{generated_act_code}**")
+                
+                if st.button("⚡ Activate & Assign Recovery Code Automatically"):
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("UPDATE master_app_table SET recovery_code = ?, is_verified = 1 WHERE user_id = ?", (generated_act_code, target_u_id))
+                        conn.commit()
+                    st.success(f"✅ User activated! Recovery code assigned: {generated_act_code}")
 
             st.markdown("---")
             st.markdown("##### 📥 Live Complaints & Screenshots Box")
@@ -1601,7 +1624,7 @@ with tab_feed:
                 complaints = c.fetchall()
 
             if not complaints:
-                st.info("কোনো নতুন অভিযোগ নেই।")
+                st.info("No new live complaints recorded.")
             else:
                 for comp in complaints:
                     st.markdown(f"""
@@ -1899,10 +1922,9 @@ with tab_monetization:
     st.markdown("---")
     st.markdown("### 💼 Third-Party Sponsor & Video Payment Panel")
 
-    # 🔒 LOGIN CHECK FOR SPONSORS / BOOSTER API
     if not st.session_state.user_id:
-        st.warning("🔒 আপনি স্পন্সর ভিডিও আপলোড করার আগে অনুগ্রহ করে একটি আইডি খুলুন বা সাইন আপ / লগইন করুন। আইডি খোলা ছাড়া স্পন্সর ভিডিও আপডেট করা যাবে না।")
-        st.info("👈 সাইডবারে গিয়ে ফোন নম্বর বা ইমেইল দিয়ে সহজেই লগইন বা সাইন আপ করতে পারেন।")
+        st.warning("🔒 Please login or sign up before submitting sponsored videos.")
+        st.info("👈 Use the login section in the sidebar to enter email/phone.")
     else:
         with st.expander("📥 Submit Sponsored Video & Payment Info", expanded=True):
             with get_db_connection() as conn:
