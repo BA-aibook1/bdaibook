@@ -17,7 +17,6 @@ import streamlit.components.v1 as components
 NEW_OWNER_SECRET_KEY = os.getenv("OWNER_SECRET", "S$s123456789112233BDAIBOOK@MDSOHELRANA")
 SECRET_CODES = [NEW_OWNER_SECRET_KEY]
 
-# Owner Contact Details
 OWNER_NAME = "Sohel Rana"
 OWNER_WHATSAPP_NUMBER = "+8801722003172"
 OWNER_WHATSAPP_LINK = "https://wa.me/8801722003172"
@@ -69,7 +68,7 @@ def sanitize_file_and_check_virus(file_obj, filename):
     return True, "Clean"
 
 def process_and_chunk_media(file_obj, target_path):
-    CHUNK_SIZE = 4 * 1024 * 1024  # High speed 4MB Chunking
+    CHUNK_SIZE = 4 * 1024 * 1024  
     file_obj.seek(0)
     
     with open(target_path, "wb") as f:
@@ -125,7 +124,7 @@ LOCAL_DB_FILE = "global_ai_book_master.db"
 BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
 def get_db_connection():
-    conn = sqlite3.connect(LOCAL_DB_FILE, check_same_thread=False, timeout=15)
+    conn = sqlite3.connect(LOCAL_DB_FILE, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -185,9 +184,6 @@ st.markdown("""
         background-color: #0f0f0f; z-index: 99999; border-bottom: 1px solid #272727;
     }
     img { border-radius: 12px; }
-    .profile-avatar-img {
-        border-radius: 50% !important; object-fit: cover !important; border: 2px solid #0064e0 !important; width: 50px; height: 50px;
-    }
     .fb-post-card {
         background: #18191a; padding: 20px; border-radius: 14px; margin-bottom: 20px; border: 1px solid #2f3031; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
@@ -209,7 +205,6 @@ st.markdown("""
     .duplicate-card { background: #2a1215; border-left: 4px solid #ff4b4b; padding: 12px; margin-bottom: 10px; border-radius: 8px; color: #fff; }
     .amazon-product-card { background: #1e2026; border: 1px solid #ff9900; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
     .meta-control-box { background: #111a2e; border: 2px solid #0064e0; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
-    
     .yt-player-card {
         background: #0f0f0f; border-radius: 16px; overflow: hidden; border: 1px solid #272727; margin-bottom: 25px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
     }
@@ -377,6 +372,7 @@ def init_master_database():
             );
         """)
         
+        # Ensure reply_text exists firmly
         try: c.execute("ALTER TABLE live_complaints ADD COLUMN reply_text TEXT DEFAULT ''")
         except sqlite3.OperationalError: pass
         
@@ -402,7 +398,6 @@ def init_master_database():
         for k, v in default_settings.items():
             c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)", (k, str(v)))
 
-        # Default WhatsApp Gateway Add (if empty)
         c.execute("SELECT COUNT(*) FROM payment_gateways WHERE provider_name LIKE '%WhatsApp%'")
         if c.fetchone()[0] == 0:
             c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (
@@ -417,17 +412,23 @@ def init_master_database():
 init_master_database()
 
 def get_setting(key, default=""):
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT value FROM site_settings WHERE key = ?", (key,))
-        row = c.fetchone()
-        return row["value"] if row else default
+    try:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT value FROM site_settings WHERE key = ?", (key,))
+            row = c.fetchone()
+            return row["value"] if row else default
+    except Exception:
+        return default
 
 def set_setting(key, value):
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", (key, str(value)))
-        conn.commit()
+    try:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", (key, str(value)))
+            conn.commit()
+    except Exception:
+        pass
 
 site_ver_code = get_setting("site_verification_code")
 if site_ver_code:
@@ -443,21 +444,27 @@ def get_meta_blue_badge():
     </svg>"""
 
 def increment_views(post_id):
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        c.execute("UPDATE master_app_table SET views_count = views_count + 1 WHERE record_id = ?", (post_id,))
-        conn.commit()
+    try:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("UPDATE master_app_table SET views_count = views_count + 1 WHERE record_id = ?", (post_id,))
+            conn.commit()
+    except Exception:
+        pass
 
 def get_user_today_upload_count(user_id, category):
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        twenty_four_hours_ago = (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
-        c.execute("""
-            SELECT COUNT(*) as cnt FROM master_app_table 
-            WHERE data_type = 'post' AND user_id = ? AND post_category = ? AND created_at >= ?
-        """, (user_id, category, twenty_four_hours_ago))
-        res = c.fetchone()
-        return res["cnt"] if res else 0
+    try:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            twenty_four_hours_ago = (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+            c.execute("""
+                SELECT COUNT(*) as cnt FROM master_app_table 
+                WHERE data_type = 'post' AND user_id = ? AND post_category = ? AND created_at >= ?
+            """, (user_id, category, twenty_four_hours_ago))
+            res = c.fetchone()
+            return res["cnt"] if res else 0
+    except Exception:
+        return 0
 
 def check_user_meta_bluetooth_permission(user_id):
     is_global_active = get_setting("is_global_meta_active", "true") == "true"
@@ -470,12 +477,15 @@ def check_user_meta_bluetooth_permission(user_id):
     elif meta_mode == "ALL":
         return True
     elif meta_mode == "SELECTED_USERS":
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT meta_bluetooth_permission FROM master_app_table WHERE user_id = ? AND data_type = 'user'", (user_id,))
-            res = c.fetchone()
-            if res and res["meta_bluetooth_permission"] == 1:
-                return True
+        try:
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT meta_bluetooth_permission FROM master_app_table WHERE user_id = ? AND data_type = 'user'", (user_id,))
+                res = c.fetchone()
+                if res and res["meta_bluetooth_permission"] == 1:
+                    return True
+        except Exception:
+            return False
     return False
 
 if "user_id" not in st.session_state: st.session_state.user_id = None
@@ -502,7 +512,6 @@ with top_col3:
 if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
 
-# Phone Number Hidden from WhatsApp Support Button to Protect Privacy
 show_whatsapp = get_setting("show_whatsapp_number", "ON") == "ON"
 if show_whatsapp:
     st.sidebar.markdown(f"""
@@ -631,7 +640,7 @@ else:
         st.session_state.otp_code = None
         st.rerun()
 
-# 📩 Registered User Live Complaint & Screenshot Submission Box
+# Live Complaint & Screenshot Submission Box
 with st.sidebar.expander("📩 Submit Live Complaint / Screenshot"):
     if not st.session_state.user_id:
         st.warning("🔒 অভিযোগ বা মেসেজ পাঠাতে অবশ্যই আগে লগইন করুন।")
@@ -656,8 +665,8 @@ with st.sidebar.expander("📩 Submit Live Complaint / Screenshot"):
                 with get_db_connection() as conn:
                     c = conn.cursor()
                     c.execute("""
-                        INSERT INTO live_complaints (complaint_id, user_id, user_name, message, screenshot_path, status, created_at)
-                        VALUES (?, ?, ?, ?, ?, 'Unread', ?)
+                        INSERT INTO live_complaints (complaint_id, user_id, user_name, message, screenshot_path, reply_text, status, created_at)
+                        VALUES (?, ?, ?, ?, ?, '', 'Unread', ?)
                     """, (c_id, u_id_val, u_name_val, comp_msg, img_p, now_t))
                     conn.commit()
                 st.sidebar.success("✅ Complaint sent successfully!")
@@ -675,8 +684,9 @@ with st.sidebar.expander("📩 Submit Live Complaint / Screenshot"):
             for mc in my_complaints:
                 st.caption(f"📅 Sent: {mc['created_at']}")
                 st.write(f"💬 **Your Message:** {mc['message']}")
-                if mc['reply_text']:
-                    st.success(f"👑 **Owner Reply:** {mc['reply_text']}")
+                reply_val = dict(mc).get('reply_text', '')
+                if reply_val:
+                    st.success(f"👑 **Owner Reply:** {reply_val}")
                 else:
                     st.info("⏳ Waiting for owner reply...")
                 st.markdown("---")
@@ -730,7 +740,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                 badge_html = "<span class='yt-badge'>▶ YouTube HD Video</span> "
                 
             st.markdown(f"<div style='display: flex; align-items: center; flex-wrap: wrap;'>{badge_html}<b>{author_name}</b>{tick} <span style='color:orange; margin-left: 6px;'>{boost_badge}</span></div>", unsafe_allow_html=True)
-            st.caption(f"👥 Followers: {author_followers:,} | Category: {post.get('post_category').upper()}")
+            st.caption(f"👥 Followers: {author_followers:,} | Category: {str(post.get('post_category')).upper()}")
         
     with col_h2:
         if st.session_state.user_id and st.session_state.user_id != post.get("user_id"):
@@ -1055,7 +1065,7 @@ with tab_feed:
                             <span>👤 <b>{lp['full_name']}</b> (ID: {lp['user_id'][:8]}...)</span>
                             <span style='color:#888; font-size:12px;'>⏱️ {lp['created_at']}</span>
                         </div>
-                        <p style='margin: 8px 0; font-size:15px;'><b>{lp['title']}</b> - <span style='color:#0064e0;'>[{lp['post_category'].upper()}]</span></p>
+                        <p style='margin: 8px 0; font-size:15px;'><b>{lp['title']}</b> - <span style='color:#0064e0;'>[{str(lp['post_category']).upper()}]</span></p>
                         <p style='color:#ccc; font-size:13px;'>{lp['content'] if lp['content'] else ''}</p>
                     </div>
                     """, unsafe_allow_html=True)
@@ -1107,7 +1117,8 @@ with tab_feed:
                 for u in all_registered_users:
                     with st.expander(f"👤 {u['full_name']} ({u['auth_identifier']})"):
                         st.write(f"**User ID:** `{u['user_id']}`")
-                        st.write(f"**Current Recovery Code:** `{u['recovery_code'] if u['recovery_code'] else 'Not Set'}`")
+                        rec_val = dict(u).get('recovery_code', '')
+                        st.write(f"**Current Recovery Code:** `{rec_val if rec_val else 'Not Set'}`")
                         
                         col_r1, col_r2 = st.columns(2)
                         new_rec = col_r1.text_input("New Recovery Code", key=f"nrec_{u['user_id']}")
@@ -1402,7 +1413,7 @@ with tab_feed:
 
             st.markdown("---")
             st.markdown("##### 🔍 Google Search Console & AdSense Auto-Verification Setup")
-            st.caption("Pasting Google Console or AdSense verification codes (e.g. `<meta name='google-site-verification' content='...' />`) here will complete site verification automatically across all pages.")
+            st.caption("Pasting Google Console or AdSense verification codes here will complete site verification automatically across all pages.")
 
             current_saved_ver_code = get_setting("site_verification_code", "")
             input_ver_code = st.text_area("Paste Verification Meta Tag / HTML Snippet Here", value=current_saved_ver_code, height=100)
@@ -1651,20 +1662,21 @@ with tab_feed:
                 st.info("No new live complaints recorded.")
             else:
                 for comp in complaints:
+                    comp_dict = dict(comp)
                     st.markdown(f"""
                     <div style='background:#1e2026; padding:12px; border-radius:8px; margin-bottom:10px; border-left:4px solid #ff4b4b;'>
-                        <b>User:</b> {comp['user_name']} ({comp['user_id'][:8]}...)<br>
-                        <b>Message:</b> {comp['message']}<br>
-                        <small style='color:#888;'>Time: {comp['created_at']}</small>
+                        <b>User:</b> {comp_dict.get('user_name', 'User')} ({comp_dict.get('user_id', '')[:8]}...)<br>
+                        <b>Message:</b> {comp_dict.get('message', '')}<br>
+                        <small style='color:#888;'>Time: {comp_dict.get('created_at', '')}</small>
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    if comp['screenshot_path'] and os.path.exists(comp['screenshot_path']):
-                        st.image(comp['screenshot_path'], width=300)
+                    if comp_dict.get('screenshot_path') and os.path.exists(comp_dict['screenshot_path']):
+                        st.image(comp_dict['screenshot_path'], width=300)
                     
                     with get_db_connection() as conn:
                         c_temp = conn.cursor()
-                        c_temp.execute("SELECT auth_identifier FROM master_app_table WHERE user_id = ?", (comp['user_id'],))
+                        c_temp.execute("SELECT auth_identifier FROM master_app_table WHERE user_id = ?", (comp_dict.get('user_id'),))
                         user_auth = c_temp.fetchone()
                         phone_or_email = user_auth['auth_identifier'] if user_auth else ""
 
@@ -1681,23 +1693,23 @@ with tab_feed:
                     
                     st.markdown("<br>", unsafe_allow_html=True)
                     
-                    with st.form(f"reply_form_{comp['complaint_id']}"):
-                        current_reply = comp['reply_text'] if 'reply_text' in comp.keys() and comp['reply_text'] else ""
-                        reply_msg = st.text_area("Write reply message to this user", value=current_reply, key=f"r_txt_{comp['complaint_id']}")
+                    with st.form(f"reply_form_{comp_dict['complaint_id']}"):
+                        current_reply = comp_dict.get('reply_text', '')
+                        reply_msg = st.text_area("Write reply message to this user", value=current_reply, key=f"r_txt_{comp_dict['complaint_id']}")
                         submit_reply = st.form_submit_button("💬 Send Reply to User Panel")
                         
                         if submit_reply and reply_msg:
                             with get_db_connection() as conn:
                                 c = conn.cursor()
-                                c.execute("UPDATE live_complaints SET reply_text = ?, status = 'Replied' WHERE complaint_id = ?", (reply_msg, comp['complaint_id']))
+                                c.execute("UPDATE live_complaints SET reply_text = ?, status = 'Replied' WHERE complaint_id = ?", (reply_msg, comp_dict['complaint_id']))
                                 conn.commit()
                             st.success("✅ Reply sent to User Inbox successfully!")
                             st.rerun()
 
-                    if st.button("🗑️ Delete Complaint", key=f"del_comp_{comp['complaint_id']}"):
+                    if st.button("🗑️ Delete Complaint", key=f"del_comp_{comp_dict['complaint_id']}"):
                         with get_db_connection() as conn:
                             c = conn.cursor()
-                            c.execute("DELETE FROM live_complaints WHERE complaint_id = ?", (comp['complaint_id'],))
+                            c.execute("DELETE FROM live_complaints WHERE complaint_id = ?", (comp_dict['complaint_id'],))
                             conn.commit()
                         st.rerun()
                     st.markdown("---")
@@ -1869,7 +1881,7 @@ with tab_profile:
             if st.button("⚡ Fast Process, Compress & Publish Post"):
                 if uploaded_media and title:
                     if not use_live_camera:
-                        MAX_FILE_SIZE_MB = 10000 * 1024 * 1024 # Up to 10GB Limit support
+                        MAX_FILE_SIZE_MB = 10000 * 1024 * 1024 
                         if uploaded_media.size > MAX_FILE_SIZE_MB:
                             st.error("🚫 File size cannot exceed 10 GB!")
                             st.stop()
