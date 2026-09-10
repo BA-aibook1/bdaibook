@@ -134,14 +134,23 @@ def save_to_internal_vault(data_dict):
         day = now.day
         target_dir = PERIOD_1_DIR if 1 <= day <= 15 else PERIOD_2_DIR
         
-        file_id = str(uuid.uuid4())[:8]
-        file_name = f"vault_{now.strftime('%Y%m%d_%H%M%S')}_{file_id}.json"
+        record_id = data_dict.get("record_id", str(uuid.uuid4())[:8])
+        file_name = f"vault_{record_id}.json"
         file_path = os.path.join(target_dir, file_name)
         
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data_dict, f, ensure_ascii=False, indent=4)
     except Exception:
         pass
+
+def delete_from_vault(record_id):
+    for folder in [PERIOD_1_DIR, PERIOD_2_DIR]:
+        file_path = os.path.join(folder, f"vault_{record_id}.json")
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
 
 def auto_restore_from_internal_vault():
     restored_count = 0
@@ -372,7 +381,6 @@ def init_master_database():
             );
         """)
         
-        # Ensure reply_text exists firmly
         try: c.execute("ALTER TABLE live_complaints ADD COLUMN reply_text TEXT DEFAULT ''")
         except sqlite3.OperationalError: pass
         
@@ -778,6 +786,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                     c = conn.cursor()
                     c.execute("DELETE FROM master_app_table WHERE record_id = ?", (post["record_id"],))
                     conn.commit()
+                delete_from_vault(post["record_id"])
                 st.success("Post deleted!")
                 st.rerun()
 
@@ -1011,12 +1020,14 @@ with tab_feed:
                     if col_cp2.button("🗑️ Delete", key=f"ow_del_{p['record_id']}"):
                         c.execute("DELETE FROM master_app_table WHERE record_id = ?", (p['record_id'],))
                         conn.commit()
+                        delete_from_vault(p['record_id'])
                         st.rerun()
                     if col_cp3.button("🚫 Block User", key=f"ow_sus_{p['record_id']}"):
                         sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
                         c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, p['user_id']))
                         c.execute("DELETE FROM master_app_table WHERE record_id = ?", (p['record_id'],))
                         conn.commit()
+                        delete_from_vault(p['record_id'])
                         st.rerun()
 
         with o_tab7:
@@ -1090,6 +1101,7 @@ with tab_feed:
                             c = conn.cursor()
                             c.execute("DELETE FROM master_app_table WHERE record_id = ?", (lp['record_id'],))
                             conn.commit()
+                        delete_from_vault(lp['record_id'])
                         st.rerun()
                         
                     if col_act2.button("🚫 Ban User", key=f"v_ban_{lp['record_id']}"):
