@@ -1625,341 +1625,282 @@ with tab_feed:
                 submit_p = st.form_submit_button("🛒 Save Product to Marketplace")
                 if submit_p and p_title and p_link:
                     prod_id = str(uuid.uuid4())
-                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     with get_db_connection() as conn:
                         c = conn.cursor()
-                        c.execute("""
-                            INSERT INTO amazon_products (product_id, title, price, affiliate_link, image_url, category, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """, (prod_id, p_title, p_price, p_link, p_image, p_category, now_str))
+                        c.execute("INSERT INTO amazon_products VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                                  (prod_id, p_title, p_price, p_link, p_image, p_category, now))
                         conn.commit()
-                    st.success("✅ Amazon product added to store!")
+                    st.success("✅ Amazon Product added successfully!")
                     st.rerun()
 
-            st.markdown("---")
-            st.markdown("##### 📦 Active Amazon Products Listing")
-            
+            st.markdown("##### 🛍️ Existing Amazon Products")
             with get_db_connection() as conn:
                 c = conn.cursor()
                 c.execute("SELECT * FROM amazon_products ORDER BY created_at DESC")
-                amz_products = c.fetchall()
-
-            if not amz_products:
-                st.info("No Amazon products added yet.")
-            else:
-                for ap in amz_products:
+                prods = c.fetchall()
+                for prod in prods:
                     st.markdown(f"""
                     <div class='amazon-product-card'>
-                        <div style='display:flex; justify-content:space-between; align-items:center;'>
-                            <div>
-                                <h4 style='margin:0; color:#ff9900;'>🛒 {ap['title']}</h4>
-                                <p style='margin:5px 0 0 0; color:#fff;'>Price: <b>{ap['price']}</b> | Category: <i>{ap['category']}</i></p>
-                            </div>
-                            <a href='{ap['affiliate_link']}' target='_blank' style='background:#ff9900; color:#000; padding:8px 12px; text-decoration:none; border-radius:6px; font-weight:bold;'>Buy / View on Amazon</a>
-                        </div>
+                        <h4>{prod['title']} - {prod['price']}</h4>
+                        <p>Category: {prod['category']}</p>
+                        <a href="{prod['affiliate_link']}" target="_blank">View Item</a>
                     </div>
                     """, unsafe_allow_html=True)
-                    
-                    if ap['image_url']:
-                        st.image(ap['image_url'], width=150)
-                        
-                    if st.button("🗑️ Remove Product", key=f"del_amz_{ap['product_id']}"):
+                    if st.button("🗑️ Remove Product", key=f"del_prod_{prod['product_id']}"):
                         with get_db_connection() as conn:
                             c = conn.cursor()
-                            c.execute("DELETE FROM amazon_products WHERE product_id = ?", (ap['product_id'],))
+                            c.execute("DELETE FROM amazon_products WHERE product_id = ?", (prod['product_id'],))
                             conn.commit()
                         st.rerun()
-                    st.markdown("---")
 
         with o_tab17:
-            st.markdown("#### 👤 17th Screen: Live Chat & WhatsApp Engine")
-            st.caption("মালিক এখান থেকে ইউজারদের সাথে সরাসরি চ্যাট আদান-প্রদান নিয়ন্ত্রণ করতে পারবেন।")
+            st.markdown("#### 💬 17th Screen: Live Chat & WhatsApp Engine Control")
+            curr_chat_status = get_setting("live_chat_system_status", "ON")
+            st.write(f"Live Chat System: **{'ACTIVE' if curr_chat_status == 'ON' else 'DISABLED'}**")
             
-            # --- 1. Chat Switch ON / OFF Button ---
-            current_chat_status = get_setting("live_chat_system_status", "ON")
-            
-            col_sw1, col_sw2 = st.columns([1, 3])
-            with col_sw1:
-                if current_chat_status == "ON":
-                    if st.button("💬 Chat System: ON", key="toggle_chat_btn", use_container_width=True):
-                        set_setting("live_chat_system_status", "OFF")
-                        st.rerun()
-                else:
-                    if st.button("🚫 Chat System: OFF", key="toggle_chat_btn", use_container_width=True):
-                        set_setting("live_chat_system_status", "ON")
-                        st.rerun()
-            
-            with col_sw2:
-                if current_chat_status == "ON":
-                    st.success("✅ চ্যাট সিস্টেম চালু আছে (ইউজাররা মেসেজ ও স্ক্রিনশট পাঠাতে পারছে)")
-                else:
-                    st.error("🔴 চ্যাট সিস্টেম বন্ধ আছে (ইউজারদের মেসেজিং সুবিধা সাময়িক স্থগিত)")
-
-            st.markdown("---")
-            
-            # --- 2. Live Message & Screenshot Exchange Hub ---
-            st.markdown("##### 📩 চ্যাট আদান-প্রদান ও ইনবক্স")
-            
-            if current_chat_status == "OFF":
-                st.warning("⚠️ চ্যাট সিস্টেম বর্তমানে বন্ধ রাখা হয়েছে।")
-            else:
-                with get_db_connection() as conn:
-                    c = conn.cursor()
-                    c.execute("SELECT * FROM live_complaints ORDER BY created_at DESC")
-                    complaints = c.fetchall()
-
-                if not complaints:
-                    st.info("কোনো নতুন মেসেজ পাওয়া যায়নি।")
-                else:
-                    for comp in complaints:
-                        with st.expander(f"✉️ {comp['user_name']} ({comp['created_at']}) - [{comp['status']}]"):
-                            st.write(f"**ইউজার আইড:** `{comp['user_id']}`")
-                            st.write(f"💬 **মেসেজ:** {comp['message']}")
-                            
-                            if comp['screenshot_path'] and os.path.exists(comp['screenshot_path']):
-                                st.image(comp['screenshot_path'], caption="সংযুক্ত স্ক্রিনশট", width=300)
-                            
-                            reply_inp = st.text_area("রিপ্লাই লিখুন...", value=comp['reply_text'], key=f"rep_txt_{comp['complaint_id']}")
-                            
-                            col_rep1, col_rep2 = st.columns(2)
-                            if col_rep1.button("📤 উত্তর পাঠান", key=f"send_rep_{comp['complaint_id']}"):
-                                with get_db_connection() as conn:
-                                    c = conn.cursor()
-                                    c.execute("UPDATE live_complaints SET reply_text = ?, status = 'Replied' WHERE complaint_id = ?", (reply_inp, comp['complaint_id']))
-                                    conn.commit()
-                                st.success("উত্তর পাঠানো হয়েছে!")
-                                st.rerun()
-                                
-                            if col_rep2.button("🗑️ মুছে ফেলুন", key=f"del_comp_{comp['complaint_id']}"):
-                                with get_db_connection() as conn:
-                                    c = conn.cursor()
-                                    c.execute("DELETE FROM live_complaints WHERE complaint_id = ?", (comp['complaint_id'],))
-                                    conn.commit()
-                                st.rerun()
-
-    # Normal Public Feed Listing
-    else:
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            if search_input:
-                c.execute("""
-                    SELECT * FROM master_app_table 
-                    WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR tags LIKE ? OR full_name LIKE ?) 
-                    ORDER BY is_boosted DESC, created_at DESC
-                """, (f"%{search_input}%", f"%{search_input}%", f"%{search_input}%", f"%{search_input}%"))
-            else:
-                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC")
-            
-            feed_posts = c.fetchall()
-
-        ads_enabled = get_setting("show_ads") == "ON"
-        ads_html = get_setting("adsense_script")
-
-        if not feed_posts:
-            st.info("No feed content available right now.")
-        else:
-            for post in feed_posts:
-                render_post_card(post, ads_enabled, ads_html, prefix="public")
-
-# ==========================================
-# TAB 2: PROFILE & CONTENT STUDIO
-# ==========================================
-with tab_profile:
-    if not st.session_state.user_id:
-        st.warning("🔒 Please login from sidebar to access Profile & Studio.")
-    else:
-        st.subheader("👤 Profile Studio & Upload Management")
-        
-        # Profile Picture & Information Updates
-        with st.expander("✏️ Update Profile Details"):
-            p_name = st.text_input("Full Name", value=current_user.get("full_name", ""))
-            p_bio = st.text_area("Bio", value=current_user.get("bio", ""))
-            p_pic = st.file_uploader("Upload Profile Picture", type=["png", "jpg", "jpeg"])
-            
-            if st.button("💾 Save Profile Changes"):
-                p_pic_path = current_user.get("profile_pic_path", "")
-                if p_pic:
-                    p_pic_path = os.path.join(UPLOAD_DIR, f"avatar_{st.session_state.user_id}.png")
-                    with open(p_pic_path, "wb") as f:
-                        f.write(p_pic.getbuffer())
-                
-                with get_db_connection() as conn:
-                    c = conn.cursor()
-                    c.execute("""
-                        UPDATE master_app_table 
-                        SET full_name = ?, bio = ?, profile_pic_path = ? 
-                        WHERE user_id = ? AND data_type = 'user'
-                    """, (p_name, p_bio, p_pic_path, st.session_state.user_id))
-                    conn.commit()
-                st.success("Profile Updated!")
+            c_col1, c_col2 = st.columns(2)
+            if c_col1.button("🟢 Enable Chat System"):
+                set_setting("live_chat_system_status", "ON")
+                st.rerun()
+            if c_col2.button("🔴 Disable Chat System"):
+                set_setting("live_chat_system_status", "OFF")
                 st.rerun()
 
-        st.markdown("---")
-        st.markdown("### 📤 Upload New Content")
-        
-        if get_setting("lock_upload") == "ON":
-            st.error("🚫 Content uploading is temporarily locked by system owner.")
+            st.markdown("---")
+            st.markdown("##### 📩 User Support Messages & Complaint Inbox")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM live_complaints ORDER BY created_at DESC")
+                complaints = c.fetchall()
+
+            if not complaints:
+                st.info("No customer messages yet.")
+            else:
+                for cmp in complaints:
+                    with st.expander(f"📩 Message from {cmp['user_name']} ({cmp['created_at']}) - Status: {cmp['status']}"):
+                        st.write(f"**User ID:** {cmp['user_id']}")
+                        st.write(f"**Message:** {cmp['message']}")
+                        if cmp['screenshot_path'] and os.path.exists(cmp['screenshot_path']):
+                            st.image(cmp['screenshot_path'], width=300)
+                        
+                        reply_input = st.text_area("Write Reply to User", value=cmp['reply_text'], key=f"rep_{cmp['complaint_id']}")
+                        if st.button("📤 Send Reply", key=f"btn_rep_{cmp['complaint_id']}"):
+                            with get_db_connection() as conn:
+                                c = conn.cursor()
+                                c.execute("UPDATE live_complaints SET reply_text = ?, status = 'Replied' WHERE complaint_id = ?", (reply_input, cmp['complaint_id']))
+                                conn.commit()
+                            st.success("Reply sent to user inbox!")
+                            st.rerun()
+
+    # Public Live Feed Content Display
+    st.markdown("### 📰 Public Live Streams & Feeds")
+    ads_enabled = get_setting("show_ads") == "ON"
+    ads_html = get_setting("adsense_script")
+
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        if search_input and search_input.strip() not in SECRET_CODES:
+            s_query = f"%{search_input.strip()}%"
+            c.execute("""
+                SELECT * FROM master_app_table 
+                WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR tags LIKE ? OR full_name LIKE ?)
+                ORDER BY is_boosted DESC, created_at DESC
+            """, (s_query, s_query, s_query, s_query))
         else:
-            cat_choice = st.selectbox("Select Content Type", ["general", "picture", "short", "long", "mahfil", "movie"])
+            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC")
+        
+        feed_posts = c.fetchall()
+
+    if not feed_posts:
+        st.info("No posts available right now.")
+    else:
+        for p_item in feed_posts:
+            render_post_card(dict(p_item), ads_enabled, ads_html, prefix="main_feed")
+
+# ==========================================
+# 3. TAB 2: PROFILE & STUDIO (UPLOAD ENGINE)
+# ==========================================
+with tab_profile:
+    st.markdown("## 👤 User Profile & Creator Studio")
+    if not st.session_state.user_id:
+        st.warning("🔒 Please Login from the sidebar to access your Profile and Creator Studio!")
+    else:
+        u_id = st.session_state.user_id
+        
+        st.markdown("### 📤 Upload New Media Content")
+        if get_setting("lock_upload") == "ON":
+            st.error("🚫 Media Uploads are currently locked by Owner for maintenance.")
+        else:
+            upload_cat = st.selectbox("Select Upload Category", [
+                "general (Text/Standard)", 
+                "picture (Photo)", 
+                "short (Reels/TikTok Short)", 
+                "long (YouTube/Long Video)", 
+                "mahfil (Islamic Stream)", 
+                "movie (HD Movie)"
+            ])
+            clean_cat = upload_cat.split(" ")[0]
+
+            # Daily limit check
+            daily_mode = get_setting("daily_limit_mode", "OFF")
+            user_today_count = get_user_today_upload_count(u_id, clean_cat)
             
-            # Check Daily Upload Limits
-            if get_setting("daily_limit_mode") == "ON":
-                up_cnt = get_user_today_upload_count(st.session_state.user_id, cat_choice)
-                st.info(f"📊 Your Uploads in last 24h for '{cat_choice}': {up_cnt}")
-
-            u_title = st.text_input("Title / Heading")
-            u_content = st.text_area("Description / Details")
-            u_tags = st.text_input("Hashtags (e.g. #news #tech)")
-            u_media = st.file_uploader("Upload Media File (Video or Image)", type=["mp4", "mov", "avi", "png", "jpg", "jpeg"])
-            u_external_url = st.text_input("OR Paste External Video / Stream Direct URL")
-
-            if st.button("🚀 Publish Post"):
-                if u_title or u_media or u_external_url:
-                    media_target_path = ""
+            if daily_mode == "ON" and user_today_count >= 5:
+                st.warning("⚠️ Daily limit reached! You can upload up to 5 posts per category in 24 hours.")
+            else:
+                with st.form("user_post_upload_form", clear_on_submit=True):
+                    p_title = st.text_input("Post Title")
+                    p_content = st.text_area("Post Description / Message")
+                    p_tags = st.text_input("Hashtags (e.g. #trending #bdaibook)")
+                    p_media_url = st.text_input("Direct Media URL (Optional)")
+                    p_file = st.file_uploader("Upload File (Photo/Video)", type=["png", "jpg", "jpeg", "mp4", "mov", "avi", "mkv"])
                     
-                    if u_media:
-                        is_safe, virus_msg = sanitize_file_and_check_virus(u_media, u_media.name)
-                        if not is_safe:
-                            st.error(virus_msg)
-                            st.stop()
+                    submit_post = st.form_submit_button("🚀 Publish Post")
 
-                        file_ext = os.path.splitext(u_media.name)[1]
-                        media_target_path = os.path.join(UPLOAD_DIR, f"media_{uuid.uuid4()}{file_ext}")
-                        process_and_chunk_media(u_media, media_target_path)
-
-                        # Auto Compress Videos
-                        if file_ext.lower() in ['.mp4', '.mov', '.avi']:
-                            auto_compress_video(media_target_path)
+                    if submit_post:
+                        if not p_title and not p_content and not p_file and not p_media_url:
+                            st.error("Please provide at least a Title, Description, File, or Link!")
+                        else:
+                            final_media_path = p_media_url.strip() if p_media_url else ""
                             
-                        # Vision AI Safety Check
-                        if file_ext.lower() in ['.png', '.jpg', '.jpeg']:
-                            is_ai_safe, ai_msg = check_image_safety_with_ai(media_target_path)
-                            if not is_ai_safe:
-                                os.remove(media_target_path)
-                                st.error(f"🚫 AI Content Shield: {ai_msg}")
-                                st.stop()
-                    elif u_external_url:
-                        media_target_path = u_external_url
+                            if p_file:
+                                is_clean, sec_msg = sanitize_file_and_check_virus(p_file, p_file.name)
+                                if not is_clean:
+                                    st.error(sec_msg)
+                                    st.stop()
+                                
+                                file_ext = os.path.splitext(p_file.name)[1].lower()
+                                saved_filename = f"{uuid.uuid4()}{file_ext}"
+                                target_save_path = os.path.join(UPLOAD_DIR, saved_filename)
+                                
+                                process_and_chunk_media(p_file, target_save_path)
+                                
+                                # AI Image Safety Check
+                                if file_ext in ['.png', '.jpg', '.jpeg']:
+                                    is_safe, ai_msg = check_image_safety_with_ai(target_save_path)
+                                    if not is_safe:
+                                        os.remove(target_save_path)
+                                        st.error(f"🚫 File rejected: {ai_msg}")
+                                        st.stop()
 
-                    rec_id = str(uuid.uuid4())
-                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                # Auto video compression
+                                if file_ext in ['.mp4', '.mov', '.avi', '.mkv']:
+                                    auto_compress_video(target_save_path)
 
-                    post_map = {
-                        "record_id": rec_id,
-                        "data_type": "post",
-                        "user_id": st.session_state.user_id,
-                        "full_name": current_user.get("full_name", "User"),
-                        "is_verified": current_user.get("is_verified", 1),
-                        "title": u_title,
-                        "content": u_content,
-                        "tags": u_tags,
-                        "media_path": media_target_path,
-                        "post_category": cat_choice,
-                        "created_at": now_str
-                    }
+                                final_media_path = target_save_path
 
-                    with get_db_connection() as conn:
-                        c = conn.cursor()
-                        c.execute("""
-                            INSERT INTO master_app_table 
-                            (record_id, data_type, user_id, full_name, is_verified, title, content, tags, media_path, post_category, created_at)
-                            VALUES (?, 'post', ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (
-                            rec_id, st.session_state.user_id, current_user.get("full_name", "User"),
-                            current_user.get("is_verified", 1), u_title, u_content, u_tags,
-                            media_target_path, cat_choice, now_str
-                        ))
-                        conn.commit()
+                            rec_id = str(uuid.uuid4())
+                            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-                    save_to_internal_vault(post_map)
-                    st.success("🎉 Content Published Successfully!")
-                    st.rerun()
-                else:
-                    st.warning("Please provide title or select media content to publish.")
+                            post_data = {
+                                "record_id": rec_id,
+                                "data_type": "post",
+                                "user_id": u_id,
+                                "full_name": current_user.get("full_name", "User"),
+                                "is_verified": current_user.get("is_verified", 1),
+                                "title": p_title,
+                                "content": p_content,
+                                "tags": p_tags,
+                                "media_path": final_media_path,
+                                "post_category": clean_cat,
+                                "likes_count": 0,
+                                "views_count": 0,
+                                "is_boosted": 0,
+                                "created_at": now_str
+                            }
+
+                            with get_db_connection() as conn:
+                                c = conn.cursor()
+                                c.execute("""
+                                    INSERT INTO master_app_table 
+                                    (record_id, data_type, user_id, full_name, is_verified, title, content, tags, media_path, post_category, created_at)
+                                    VALUES (?, 'post', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """, (rec_id, u_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), p_title, p_content, p_tags, final_media_path, clean_cat, now_str))
+                                conn.commit()
+
+                            save_to_internal_vault(post_data)
+                            st.success("🎉 Content Published Successfully!")
+                            st.rerun()
 
         st.markdown("---")
-        st.markdown("### 📽️ Your Uploaded Content Studio")
+        st.markdown("### 📋 Your Uploaded Content Studio")
         with get_db_connection() as conn:
             c = conn.cursor()
-            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND user_id = ? ORDER BY created_at DESC", (st.session_state.user_id,))
+            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND user_id = ? ORDER BY created_at DESC", (u_id,))
             my_posts = c.fetchall()
 
         if not my_posts:
-            st.info("You haven't uploaded any content yet.")
+            st.info("You haven't posted anything yet.")
         else:
             for mp in my_posts:
-                render_post_card(mp, False, "", prefix="studio")
+                render_post_card(dict(mp), ads_enabled=False, ads_html="", prefix="my_studio")
 
 # ==========================================
-# TAB 3: MONETIZATION & BOOST
+# 4. TAB 3: GLOBAL MONETIZATION & BOOST
 # ==========================================
 with tab_monetization:
-    st.subheader("🌍 Creator Monetization & Video Boost Center")
-    
-    col_m1, col_m2 = st.columns(2)
-    
-    with col_m1:
-        st.markdown("#### 🔥 Boost Video Reach")
-        st.caption("Increase your video impressions and target new audiences.")
+    st.markdown("## 🌍 Global Monetization & Post Boost Center")
+    if not st.session_state.user_id:
+        st.warning("🔒 Please Login to access Monetization and Boosting features!")
+    else:
+        u_id = st.session_state.user_id
         
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT record_id, title FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id if st.session_state.user_id else '',))
-            usr_posts_for_boost = c.fetchall()
-
-        if not st.session_state.user_id:
-            st.warning("Please login to boost posts.")
-        elif not usr_posts_for_boost:
-            st.info("No posts available to boost. Upload a video first.")
-        else:
-            post_opts = {p["title"] or f"Post ID: {p['record_id']}": p["record_id"] for p in usr_posts_for_boost}
-            sel_post_title = st.selectbox("Select Post to Boost", list(post_opts.keys()))
-            b_plan = st.selectbox("Select Boost Package Plan", ["Basic (1,000 Views - $5)", "Pro (5,000 Views - $20)", "Ultra (20,000 Views - $75)"])
-            b_method = st.text_input("Payment Gateway Used", placeholder="e.g. Bkash / Nagad / Bank")
-            b_trx = st.text_input("Transaction ID (TrxID)")
-
-            if st.button("🚀 Submit Boost Request"):
-                if b_trx:
-                    b_id = str(uuid.uuid4())
-                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    with get_db_connection() as conn:
-                        c = conn.cursor()
-                        c.execute("""
-                            INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, status, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
-                        """, (b_id, st.session_state.user_id, post_opts[sel_post_title], b_plan, b_plan.split("-")[1].strip(), b_trx, b_method, now_str))
-                        conn.commit()
-                    st.success("✅ Boost Request Submitted! Pending Owner Verification.")
-                else:
-                    st.warning("Please provide valid Transaction ID.")
-
-    with col_m2:
-        st.markdown("#### 💰 Apply for Content Monetization")
-        st.caption("Earn money based on video views and engagements.")
+        col_mon1, col_mon2 = st.columns(2)
         
-        if not st.session_state.user_id:
-            st.warning("Please login to check monetization status.")
-        else:
-            mon_status = current_user.get("monetization_status", "Not Eligible")
-            st.info(f"Current Status: **{mon_status}**")
+        with col_mon1:
+            st.markdown("### 💰 Partner Monetization Program")
+            st.write(f"Current Status: **{current_user.get('monetization_status', 'Not Eligible')}**")
+            st.write(f"Real Followers: **{real_followers:,} / 1,000 required**")
             
-            st.write(f"👥 Real Followers: **{real_followers} / 1,000 Required**")
-            
-            m_bank = st.text_area("Payout Bank Details / Mobile Wallet Info", placeholder="Account Title, Bank Name, Account Number, Branch...")
-            
-            if st.button("📝 Apply for Monetization"):
-                if real_followers < 1000:
-                    st.error("❌ Minimum 1,000 real followers required to apply.")
-                elif not m_bank:
-                    st.warning("Please fill in payout bank details.")
-                else:
-                    m_req_id = str(uuid.uuid4())
-                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    with get_db_connection() as conn:
-                        c = conn.cursor()
-                        c.execute("""
-                            INSERT INTO monetization_requests (mon_id, user_id, followers_count, bank_info, status, created_at)
-                            VALUES (?, ?, ?, ?, 'Pending', ?)
-                        """, (m_req_id, st.session_state.user_id, real_followers, m_bank, now_str))
-                        conn.commit()
-                    st.success("✅ Monetization Application Submitted!")
+            with st.form("monetization_apply_form"):
+                bank_info = st.text_area("Payout Details (bKash/Nagad/Bank/PayPal)")
+                submit_mon = st.form_submit_button("🚀 Apply for Monetization")
+                if submit_mon:
+                    if real_followers < 1000:
+                        st.error("❌ Minimum 1,000 real followers required to apply!")
+                    elif not bank_info:
+                        st.error("Please provide payout bank/wallet details.")
+                    else:
+                        mon_id = str(uuid.uuid4())
+                        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("INSERT INTO monetization_requests VALUES (?, ?, ?, ?, 'Pending', ?)",
+                                      (mon_id, u_id, real_followers, bank_info, now))
+                            conn.commit()
+                        st.success("✅ Application submitted! Pending Owner review.")
+
+        with col_mon2:
+            st.markdown("### 🔥 Boost Post Visibility")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT record_id, title FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (u_id,))
+                user_posts_for_boost = c.fetchall()
+
+            if not user_posts_for_boost:
+                st.info("Upload a post first to submit a boost request.")
+            else:
+                post_dict = {p['title'] if p['title'] else p['record_id']: p['record_id'] for p in user_posts_for_boost}
+                
+                with st.form("boost_request_form"):
+                    selected_post_title = st.selectbox("Select Post to Boost", list(post_dict.keys()))
+                    boost_plan = st.selectbox("Boost Plan", ["Standard (1,000 Reach - $5)", "Pro (5,000 Reach - $20)", "Ultra VIP (20,000 Reach - $50)"])
+                    pay_method = st.selectbox("Payment Method Used", ["bKash / Nagad", "Bank Transfer", "Crypto / Binance"])
+                    trx_info = st.text_input("Transaction ID / Proof")
+                    
+                    submit_boost = st.form_submit_button("🔥 Submit Boost Request")
+                    if submit_boost:
+                        if not trx_info:
+                            st.error("Please enter your Payment Transaction ID!")
+                        else:
+                            b_id = str(uuid.uuid4())
+                            p_id = post_dict[selected_post_title]
+                            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            
+                            with get_db_connection() as conn:
+                                c = conn.cursor()
+                                c.execute("INSERT INTO boost_requests VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)",
+                                          (b_id, u_id, p_id, boost_plan, boost_plan.split("-")[-1].strip(), trx_info, pay_method, now))
+                                conn.commit()
+                            st.success("✅ Boost request submitted for Owner approval!")
