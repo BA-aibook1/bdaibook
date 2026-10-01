@@ -149,6 +149,8 @@ st.markdown("""
     .amazon-product-card { background: #1e2026; border: 1px solid #ff9900; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
     .meta-control-box { background: #111a2e; border: 2px solid #0064e0; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
     .msg-box-owner { background: #1b2838; border: 1px solid #0064e0; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
+    .chat-bubble-self { background: #0064e0; color: white; padding: 10px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; float: right; clear: both; }
+    .chat-bubble-other { background: #2f3031; color: white; padding: 10px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; float: left; clear: both; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -371,7 +373,7 @@ def hash_pass(pwd):
 
 def get_meta_blue_badge():
     return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block; flex-shrink: 0;">
-        <path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.05 1.273 2.42 2.148 4 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-1.05 2.148-2.42 2.148-4z"/>
+        <path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58 875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.05 1.273 2.42 2.148 4 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-1.05 2.148-2.42 2.148-4z"/>
         <path fill="#ffffff" d="M10.2 16.2l-3.5-3.5 1.4-1.4 2.1 2.1 5.7-5.7 1.4 1.4-7.1 7.1z"/>
     </svg>"""
 
@@ -557,7 +559,13 @@ else:
         st.session_state.otp_code = None
         st.rerun()
 
-tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
+# ইউজারদের জন্য নতুন '💬 Messages & Chat' ট্যাব যুক্ত করা হলো
+tab_feed, tab_profile, tab_messages, tab_monetization = st.tabs([
+    "📺 Public Live Feed", 
+    "👤 Profile & Studio", 
+    "💬 Messages & Chat", 
+    "🌍 Global Monetization & Boost"
+])
 
 def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     increment_views(post["record_id"])
@@ -611,7 +619,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     if post.get("tags"): st.markdown(f"<span style='color:#0064e0;'>{post['tags']}</span>", unsafe_allow_html=True)
 
     if st.session_state.user_id and st.session_state.user_id == post.get("user_id"):
-        with st.expander("✏️️ Edit or Delete Post"):
+        with st.expander("✏ Edit or Delete Post"):
             new_title = st.text_input("Edit Title", value=post.get("title", ""), key=f"et_{prefix}_{post['record_id']}")
             new_content = st.text_area("Edit Description", value=post.get("content", ""), key=f"ec_{prefix}_{post['record_id']}")
             
@@ -1784,6 +1792,121 @@ with tab_profile:
                     save_to_internal_vault(post_data_map)
                     st.success("Published Successfully!")
                     st.rerun()
+
+# ==========================================
+# 3. NEW USER MESSAGES & CHAT TAB IMPLEMENTATION
+# ==========================================
+with tab_messages:
+    st.markdown("### 💬 User Message System & Direct Chat")
+    
+    if not st.session_state.user_id:
+        st.warning("🔒 মেসেজ পাঠাতে বা দেখতে অনুগ্রহ করে প্রথমে লগইন করুন।")
+    else:
+        chat_sub_tab1, chat_sub_tab2 = st.tabs(["📩 Send Message & Chat", "📤 Upload File Directly to Owner"])
+        
+        with chat_sub_tab1:
+            st.markdown("#### 💬 ইউজারদের সাথে মেসেজ/ছবি আদান-প্রদান")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT user_id, full_name FROM master_app_table WHERE data_type = 'user' AND user_id != ?", (st.session_state.user_id,))
+                all_chat_users = c.fetchall()
+            
+            user_dict = {f"{u['full_name']} (ID: {u['user_id'][:6]}...)": u['user_id'] for u in all_chat_users}
+            
+            if not user_dict:
+                st.info("বর্তমানে মেসেজ পাঠানোর জন্য অন্য কোনো নিবন্ধিত ইউজার নেই।")
+            else:
+                selected_recip_label = st.selectbox("কার কাছে মেসেজ পাঠাতে চান সিলেক্ট করুন:", list(user_dict.keys()), key="user_chat_recip_select")
+                target_recip_id = user_dict[selected_recip_label]
+                
+                # চ্যাট হিস্টোরি প্রদর্শন
+                st.markdown("##### 📜 Chat History")
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("""
+                        SELECT * FROM user_messages 
+                        WHERE (sender_id = ? AND receiver_id = ?) 
+                           OR (sender_id = ? AND receiver_id = ?)
+                        ORDER BY created_at ASC
+                    """, (st.session_state.user_id, target_recip_id, target_recip_id, st.session_state.user_id))
+                    chat_history = c.fetchall()
+                
+                if not chat_history:
+                    st.caption("এখনো পর্যন্ত কোনো কথোপকথন হয়নি। প্রথম মেসেজ পাঠান!")
+                else:
+                    for ch in chat_history:
+                        is_me = (ch['sender_id'] == st.session_state.user_id)
+                        bubble_class = "chat-bubble-self" if is_me else "chat-bubble-other"
+                        sender_label = "You" if is_me else "User"
+                        
+                        st.markdown(f"""
+                        <div class='{bubble_class}'>
+                            <small style='color:#ddd;'><b>{sender_label}</b> • {ch['created_at']}</small><br>
+                            {ch['message']}
+                        </div>
+                        <div style='clear:both;'></div>
+                        """, unsafe_allow_html=True)
+                        
+                        if ch['media_path'] and os.path.exists(ch['media_path']):
+                            if ch['media_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
+                                st.image(ch['media_path'], width=200)
+                            elif ch['media_path'].lower().endswith('.mp4'):
+                                st.video(ch['media_path'])
+                
+                st.markdown("---")
+                u_msg_text = st.text_area("আপনার মেসেজ টাইপ করুন", key="user_tab_msg_input")
+                u_msg_media = st.file_uploader("ছবি বা মিডিয়া যুক্ত করুন (অপশনাল)", type=["png", "jpg", "jpeg", "mp4"], key="user_tab_msg_media")
+                
+                if st.button("🚀 Send Message", key="user_tab_send_msg_btn"):
+                    if u_msg_text or u_msg_media:
+                        m_path = ""
+                        if u_msg_media:
+                            m_path = os.path.join(UPLOAD_DIR, f"msg_{uuid.uuid4()}_{u_msg_media.name}")
+                            with open(m_path, "wb") as f:
+                                f.write(u_msg_media.getbuffer())
+                        
+                        msg_id = str(uuid.uuid4())
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO user_messages (msg_id, sender_id, receiver_id, message, media_path, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            """, (msg_id, st.session_state.user_id, target_recip_id, u_msg_text, m_path, now_str))
+                            conn.commit()
+                        st.success("✅ মেসেজ সফলভাবে পাঠানো হয়েছে!")
+                        st.rerun()
+
+        with chat_sub_tab2:
+            st.markdown("#### 📤 2. Upload Photo / File directly to Owner (মালিকের কাছে তথ্য বা ফাইল জমা দিন)")
+            with st.form("user_tab_owner_upload_form"):
+                upload_note = st.text_area("মালিকের জন্য নোট বা বার্তা")
+                owner_file = st.file_uploader("ছবি বা ফাইল সিলেক্ট করুন", type=["jpg", "png", "jpeg", "mp4", "pdf"])
+                submit_to_owner = st.form_submit_button("📤 Submit File to Owner Vault")
+                
+                if submit_to_owner:
+                    if owner_file:
+                        f_path = os.path.join(UPLOAD_DIR, f"owner_vault_{uuid.uuid4()}_{owner_file.name}")
+                        with open(f_path, "wb") as f:
+                            f.write(owner_file.getbuffer())
+                            
+                        u_name = current_user.get("full_name", "User")
+                        u_id = st.session_state.user_id
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO owner_uploads (upload_id, user_id, user_name, note, file_path, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            """, (str(uuid.uuid4()), u_id, u_name, upload_note, f_path, now_str))
+                            conn.commit()
+                        st.success("✅ ফাইল এবং নোট সফলভাবে সরাসরি মালিকের সিকিউর ভল্টে জমা হয়েছে!")
+                        st.rerun()
+                    else:
+                        st.error("অনুগ্রহ করে একটি ছবি বা ফাইল নির্বাচন করুন।")
 
 with tab_monetization:
     st.markdown("### 💸 Worldwide Monetization & Video Boost Center")
