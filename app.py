@@ -1116,7 +1116,7 @@ with tab_feed:
                     <div class='vertical-live-card'>
                         <div style='display:flex; justify-content:space-between;'>
                             <span>👤 <b>{lp['full_name']}</b> (ID: {lp['user_id'][:8]}...)</span>
-                            <span style='color:#888; font-size:12px;'>⏱️ {lp['created_at']}</span>
+                            <span style='color:#888; font-size:12px;'>⏱️️ {lp['created_at']}</span>
                         </div>
                         <p style='margin: 8px 0; font-size:15px;'><b>{lp['title']}</b> - <span style='color:#0064e0;'>[{str(lp['post_category']).upper()}]</span></p>
                         <p style='color:#ccc; font-size:13px;'>{lp['content'] if lp['content'] else ''}</p>
@@ -1334,7 +1334,7 @@ with tab_feed:
                                 ban_status = "<span style='color:red;'>[BANNED]</span>" if is_banned else "<span style='color:green;'>[ACTIVE]</span>"
                                 
                                 col_d_u1.write(f"👤 **{u_dup['full_name']}** ({u_dup['user_id'][:8]}...) {ban_status}")
-                                col_d_u2.write(f"⏱️ {u_dup['created_at']}")
+                                col_d_u2.write(f"⏱️️ {u_dup['created_at']}")
                                 
                                 if not is_banned:
                                     if col_d_u3.button("🚫 Ban This Account", key=f"ban_dup_{u_dup['user_id']}"):
@@ -1675,7 +1675,6 @@ with tab_feed:
             st.markdown("#### 👤 17th Screen: Live Chat & WhatsApp Engine")
             st.caption("মালিক এখান থেকে ইউজারদের সাথে সরাসরি চ্যাট আদান-প্রদান নিয়ন্ত্রণ করতে পারবেন।")
             
-            # --- 1. Chat Switch ON / OFF Button ---
             current_chat_status = get_setting("live_chat_system_status", "ON")
             
             col_sw1, col_sw2 = st.columns([1, 3])
@@ -1696,8 +1695,6 @@ with tab_feed:
                     st.error("🔴 চ্যাট সিস্টেম বন্ধ আছে (ইউজারদের মেসেজিং সুবিধা সাময়িক স্থগিত)")
 
             st.markdown("---")
-            
-            # --- 2. Live Message & Screenshot Exchange Hub ---
             st.markdown("##### 📩 চ্যাট আদান-প্রদান ও ইনবক্স")
             
             if current_chat_status == "OFF":
@@ -1733,7 +1730,6 @@ with tab_feed:
                         if m_reply:
                             st.info(f"👑 **আপনার পাঠানো রিপ্লাই:** {m_reply}")
                         
-                        # Clean direct reply box
                         reply_input = st.text_input("রিপ্লাই লিখুন...", value=m_reply, key=f"r_inp_{m_id}")
                         c_btn1, c_btn2 = st.columns(2)
                         
