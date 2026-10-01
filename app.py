@@ -559,7 +559,6 @@ else:
         st.session_state.otp_code = None
         st.rerun()
 
-# ইউজারদের জন্য নতুন '💬 Messages & Chat' ট্যাব যুক্ত করা হলো
 tab_feed, tab_profile, tab_messages, tab_monetization = st.tabs([
     "📺 Public Live Feed", 
     "👤 Profile & Studio", 
@@ -632,7 +631,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                 st.success("Post updated successfully!")
                 st.rerun()
                 
-            if col_ed2.button("🗑️ Delete Post", key=f"del_{prefix}_{post['record_id']}"):
+            if col_ed2.button("🗑️️ Delete Post", key=f"del_{prefix}_{post['record_id']}"):
                 with get_db_connection() as conn:
                     c = conn.cursor()
                     c.execute("DELETE FROM master_app_table WHERE record_id = ?", (post["record_id"],))
@@ -732,11 +731,11 @@ with tab_feed:
             "8️⃣ Live Monitor Feed",
             "9️⃣ User Recovery & Management",
             "🔟 Sponsor Video Approvals",
-            "1️⃣1️⃣ Darjeeling Master Rules",
+            "1️⃣1️⃣ System Optimization",
             "1️⃣2️⃣ Anti-Duplicate Account Switch",
             "1️⃣3️⃣ Master Vault & Auto-Backup",
-            "1️⃣4️⃣ Lalmonirhat Master Control & Analytics",
-            "1️⃣5️⃣ Free Copyright-Free Music Library (Owner Upload)",
+            "1️⃣4️⃣ Control & Analytics",
+            "1️⃣5️⃣ Free Copyright-Free Music Library",
             "1️⃣6️⃣ Amazon E-Commerce & Meta Target Hub",
             "1️⃣7️⃣ Message & Direct Owner Upload Hub"
         ])
@@ -1350,7 +1349,7 @@ with tab_feed:
             st.markdown("---")
             st.markdown("##### 🔘 Select Meta & Bluetooth Mode (3 Target Buttons)")
             
-            b_col1, b_col2, b_col3 = b_cols = st.columns(3)
+            b_col1, b_col2, b_col3 = st.columns(3)
             
             if b_col1.button("🌐 1. Meta All (সবার জন্য)", use_container_width=True):
                 set_setting("meta_mode", "ALL")
@@ -1794,7 +1793,7 @@ with tab_profile:
                     st.rerun()
 
 # ==========================================
-# 3. NEW USER MESSAGES & CHAT TAB IMPLEMENTATION
+# 3. USER MESSAGES & CHAT TAB IMPLEMENTATION
 # ==========================================
 with tab_messages:
     st.markdown("### 💬 User Message System & Direct Chat")
