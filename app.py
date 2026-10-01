@@ -148,6 +148,7 @@ st.markdown("""
     .duplicate-card { background: #2a1215; border-left: 4px solid #ff4b4b; padding: 12px; margin-bottom: 10px; border-radius: 8px; color: #fff; }
     .amazon-product-card { background: #1e2026; border: 1px solid #ff9900; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
     .meta-control-box { background: #111a2e; border: 2px solid #0064e0; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+    .msg-box-owner { background: #1b2838; border: 1px solid #0064e0; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -301,6 +302,28 @@ def init_master_database():
                 created_at TEXT
             );
         """)
+
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS user_messages (
+                msg_id TEXT PRIMARY KEY,
+                sender_id TEXT,
+                receiver_id TEXT,
+                message TEXT,
+                media_path TEXT,
+                created_at TEXT
+            );
+        """)
+
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS owner_uploads (
+                upload_id TEXT PRIMARY KEY,
+                user_id TEXT,
+                user_name TEXT,
+                note TEXT,
+                file_path TEXT,
+                created_at TEXT
+            );
+        """)
         
         default_settings = {
             "app_name": "BD AI Book",
@@ -347,7 +370,6 @@ def hash_pass(pwd):
     return hashlib.sha256(pwd.encode()).hexdigest()
 
 def get_meta_blue_badge():
-    # অরিজিনাল ও নিখুঁত মেটা/ফেসবুক ভেরিফাইড ব্লু ব্যাজ (Scalloped SVG Shape)
     return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block; flex-shrink: 0;">
         <path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.05 1.273 2.42 2.148 4 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-1.05 2.148-2.42 2.148-4z"/>
         <path fill="#ffffff" d="M10.2 16.2l-3.5-3.5 1.4-1.4 2.1 2.1 5.7-5.7 1.4 1.4-7.1 7.1z"/>
@@ -589,7 +611,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     if post.get("tags"): st.markdown(f"<span style='color:#0064e0;'>{post['tags']}</span>", unsafe_allow_html=True)
 
     if st.session_state.user_id and st.session_state.user_id == post.get("user_id"):
-        with st.expander("✏️ Edit or Delete Post"):
+        with st.expander("✏️️ Edit or Delete Post"):
             new_title = st.text_input("Edit Title", value=post.get("title", ""), key=f"et_{prefix}_{post['record_id']}")
             new_content = st.text_area("Edit Description", value=post.get("content", ""), key=f"ec_{prefix}_{post['record_id']}")
             
@@ -689,7 +711,7 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner Master Control Power Panels (1 to 16)")
+        st.markdown("### 🎛️ Owner Master Control Power Panels (1 to 17)")
         
         o_tabs = st.tabs([
             "1️⃣ Global Branding", 
@@ -707,10 +729,11 @@ with tab_feed:
             "1️⃣3️⃣ Master Vault & Auto-Backup",
             "1️⃣4️⃣ Lalmonirhat Master Control & Analytics",
             "1️⃣5️⃣ Free Copyright-Free Music Library (Owner Upload)",
-            "1️⃣6️⃣ Amazon E-Commerce & Meta Target Hub"
+            "1️⃣6️⃣ Amazon E-Commerce & Meta Target Hub",
+            "1️⃣7️⃣ Message & Direct Owner Upload Hub"
         ])
         
-        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16 = o_tabs
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16, o_tab17 = o_tabs
         
         with o_tab1:
             st.markdown("#### 🖼️ Global Branding & Logo")
@@ -1435,6 +1458,130 @@ with tab_feed:
                             conn.commit()
                         st.rerun()
                     st.markdown("---")
+
+        with o_tab17:
+            st.markdown("#### 💬 17th Screen: Message System, Owner Direct Upload & Communication Center")
+            st.caption("মেসেজ আদান-প্রদান, মালিকের নিকট ফাইল জমা প্রদান এবং ওনার প্যানেল থেকে বার্তা/ফটো পাঠাল কেন্দ্র।")
+            
+            # --- SECTION 1: USER-TO-USER MESSAGE SYSTEM ---
+            st.markdown("##### 📩 1. Direct Message Exchange System (মেসেজ আদান-প্রদান)")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT user_id, full_name FROM master_app_table WHERE data_type = 'user'")
+                all_chat_users = c.fetchall()
+            
+            user_dict = {f"{u['full_name']} ({u['user_id'][:6]}...)": u['user_id'] for u in all_chat_users}
+            
+            if user_dict:
+                selected_recip_label = st.selectbox("Select User to Message", list(user_dict.keys()), key="msg_recip_select")
+                target_recip_id = user_dict[selected_recip_label]
+                
+                msg_text = st.text_area("Type Your Message", key="user_msg_input")
+                msg_media = st.file_uploader("Attach Photo/Media (Optional)", type=["png", "jpg", "jpeg", "mp4"], key="user_msg_media")
+                
+                if st.button("🚀 Send Message", key="send_msg_btn"):
+                    if msg_text or msg_media:
+                        m_path = ""
+                        if msg_media:
+                            m_path = os.path.join(UPLOAD_DIR, f"msg_{uuid.uuid4()}_{msg_media.name}")
+                            with open(m_path, "wb") as f:
+                                f.write(msg_media.getbuffer())
+                        
+                        msg_id = str(uuid.uuid4())
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        sender_id = st.session_state.user_id or "OWNER"
+                        
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO user_messages (msg_id, sender_id, receiver_id, message, media_path, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            """, (msg_id, sender_id, target_recip_id, msg_text, m_path, now_str))
+                            conn.commit()
+                        st.success("✅ Message sent successfully!")
+                        st.rerun()
+
+            st.markdown("---")
+            # --- SECTION 2: UPLOAD TO OWNER VAULT ---
+            st.markdown("##### 📤 2. Upload Photo / File directly to Owner (মালিকের এখানে জমা দিন)")
+            with st.form("owner_upload_vault_form"):
+                upload_note = st.text_area("Note / Message for Owner")
+                owner_file = st.file_uploader("Upload Photo/Media to Owner Vault", type=["jpg", "png", "jpeg", "mp4", "pdf"])
+                submit_to_owner = st.form_submit_button("📤 Submit File to Owner Vault")
+                
+                if submit_to_owner:
+                    if owner_file:
+                        f_path = os.path.join(UPLOAD_DIR, f"owner_vault_{uuid.uuid4()}_{owner_file.name}")
+                        with open(f_path, "wb") as f:
+                            f.write(owner_file.getbuffer())
+                            
+                        u_name = current_user.get("full_name", "Anonymous/Guest")
+                        u_id = st.session_state.user_id or "GUEST"
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO owner_uploads (upload_id, user_id, user_name, note, file_path, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            """, (str(uuid.uuid4()), u_id, u_name, upload_note, f_path, now_str))
+                            conn.commit()
+                        st.success("✅ File and details submitted directly to Owner Vault!")
+                        st.rerun()
+                    else:
+                        st.error("Please upload a photo or file first.")
+
+            st.markdown("---")
+            # --- SECTION 3: OWNER DIRECT MEDIA PUBLISHER & INBOX CONTROL ---
+            st.markdown("##### 👑 3. Owner Direct Media Upload & Received Vault Inbox")
+            st.caption("মালিকের নিজস্ব ডাইরেক্ট পাবলিশার ও জমা হওয়া ফাইল পর্যবেক্ষণ কেন্দ্র:")
+            
+            with st.expander("📬 View Items Uploaded by Users to Owner Vault", expanded=True):
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("SELECT * FROM owner_uploads ORDER BY created_at DESC")
+                    vault_items = c.fetchall()
+                
+                if not vault_items:
+                    st.info("No files received in Owner Vault yet.")
+                else:
+                    for vi in vault_items:
+                        st.markdown(f"""
+                        <div class='msg-box-owner'>
+                            <b>Uploaded By:</b> {vi['user_name']} (ID: {vi['user_id'][:8]}...)<br>
+                            <b>Note:</b> {vi['note'] or 'No note provided'}<br>
+                            <small style='color:#888;'>Time: {vi['created_at']}</small>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if vi['file_path'] and os.path.exists(vi['file_path']):
+                            if vi['file_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
+                                st.image(vi['file_path'], width=250)
+                            elif vi['file_path'].lower().endswith('.mp4'):
+                                st.video(vi['file_path'])
+                        st.markdown("---")
+
+            with st.expander("💬 Owner Message Center & Message History"):
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("SELECT * FROM user_messages ORDER BY created_at DESC LIMIT 20")
+                    all_messages = c.fetchall()
+                
+                if not all_messages:
+                    st.info("No messages found.")
+                else:
+                    for msg in all_messages:
+                        st.markdown(f"""
+                        <div class='msg-box-owner'>
+                            <b>From:</b> `{msg['sender_id'][:8]}` ➡️ <b>To:</b> `{msg['receiver_id'][:8]}`<br>
+                            <b>Message:</b> {msg['message']}<br>
+                            <small style='color:#888;'>Time: {msg['created_at']}</small>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if msg['media_path'] and os.path.exists(msg['media_path']):
+                            if msg['media_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
+                                st.image(msg['media_path'], width=200)
+                            elif msg['media_path'].lower().endswith('.mp4'):
+                                st.video(msg['media_path'])
 
     else:
         with get_db_connection() as conn:
