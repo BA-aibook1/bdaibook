@@ -5,21 +5,15 @@ import hashlib
 import random
 import json
 import base64
-import time
-import subprocess
 from datetime import datetime, timedelta
 import streamlit as st
 import streamlit.components.v1 as components
 
 # ==========================================
-# 0. SECURITY, OWNER & CONTACT CONFIGURATION
+# 0. SECURITY & ENVIRONMENT CONFIGURATION
 # ==========================================
 NEW_OWNER_SECRET_KEY = os.getenv("OWNER_SECRET", "S$s123456789112233BDAIBOOK@MDSOHELRANA")
 SECRET_CODES = [NEW_OWNER_SECRET_KEY]
-
-OWNER_NAME = "Sohel Rana"
-OWNER_WHATSAPP_NUMBER = "+8801722003172"
-OWNER_WHATSAPP_LINK = "https://api.whatsapp.com/send?phone=8801722003172&text=Hello%20Owner,%20I%20want%20to%20chat%20regarding%20the%20app"
 
 # ==========================================
 # GOOGLE VISION AI AUTO-MODERATION ENGINE
@@ -50,60 +44,10 @@ def check_image_safety_with_ai(image_path):
         return True, f"AI Check Skipped/Error: {str(e)}"
 
 # ==========================================
-# ADVANCED SECURITY & AUTOMATIC COMPRESSION ENGINE
-# ==========================================
-SUSPICIOUS_EXTENSIONS = ['.exe', '.bat', '.cmd', '.sh', '.php', '.pl', '.cgi', '.js', '.vbs', '.py']
-
-def sanitize_file_and_check_virus(file_obj, filename):
-    ext = os.path.splitext(filename)[1].lower()
-    if ext in SUSPICIOUS_EXTENSIONS:
-        return False, "🚫 Malicious/Executable File Threat Detected! File blocked for server safety."
-    
-    content_header = file_obj.read(1024)
-    file_obj.seek(0)
-    
-    if b'<?php' in content_header or b'eval(' in content_header or b'system(' in content_header:
-        return False, "🚫 Malicious Payload Script Detected inside media file!"
-        
-    return True, "Clean"
-
-def process_and_chunk_media(file_obj, target_path):
-    CHUNK_SIZE = 4 * 1024 * 1024  
-    file_obj.seek(0)
-    
-    with open(target_path, "wb") as f:
-        while True:
-            chunk = file_obj.read(CHUNK_SIZE)
-            if not chunk:
-                break
-            f.write(chunk)
-    return True
-
-def auto_compress_video(input_path):
-    try:
-        temp_output = input_path + "_compressed.mp4"
-        command = [
-            'ffmpeg', '-y', '-i', input_path,
-            '-vcodec', 'libx264',
-            '-crf', '28',
-            '-preset', 'ultrafast',
-            '-acodec', 'aac',
-            '-b:a', '128k',
-            temp_output
-        ]
-        res = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if res.returncode == 0 and os.path.exists(temp_output):
-            os.replace(temp_output, input_path)
-            return True
-        return False
-    except Exception:
-        return False
-
-# ==========================================
 # 1. PAGE SETUP & STORAGE DIRECTORY
 # ==========================================
 st.set_page_config(
-    page_title="Global AI Book",
+    page_title="BD AI Book",
     page_icon="📖",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -120,11 +64,11 @@ PERIOD_2_DIR = os.path.join(AUTO_VAULT_BASE, "days_16_to_30")
 os.makedirs(PERIOD_1_DIR, exist_ok=True)
 os.makedirs(PERIOD_2_DIR, exist_ok=True)
 
-LOCAL_DB_FILE = "global_ai_book_master.db"
+LOCAL_DB_FILE = "bd_ai_book_master.db"
 BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 
 def get_db_connection():
-    conn = sqlite3.connect(LOCAL_DB_FILE, check_same_thread=False, timeout=30)
+    conn = sqlite3.connect(LOCAL_DB_FILE, check_same_thread=False, timeout=10)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -134,23 +78,14 @@ def save_to_internal_vault(data_dict):
         day = now.day
         target_dir = PERIOD_1_DIR if 1 <= day <= 15 else PERIOD_2_DIR
         
-        record_id = data_dict.get("record_id", str(uuid.uuid4())[:8])
-        file_name = f"vault_{record_id}.json"
+        file_id = str(uuid.uuid4())[:8]
+        file_name = f"vault_{now.strftime('%Y%m%d_%H%M%S')}_{file_id}.json"
         file_path = os.path.join(target_dir, file_name)
         
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data_dict, f, ensure_ascii=False, indent=4)
     except Exception:
         pass
-
-def delete_from_vault(record_id):
-    for folder in [PERIOD_1_DIR, PERIOD_2_DIR]:
-        file_path = os.path.join(folder, f"vault_{record_id}.json")
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except Exception:
-                pass
 
 def auto_restore_from_internal_vault():
     restored_count = 0
@@ -184,67 +119,35 @@ def auto_restore_from_internal_vault():
                     pass
     return restored_count
 
-# CUSTOM CSS DESIGN WITH PERFECT WATERMARK OVERLAY
 st.markdown("""
 <style>
     .block-container { padding-top: 1rem !important; }
     div[data-testid="stHeader"] {
         position: fixed; top: 0; left: 0; width: 100%;
-        background-color: #0f0f0f; z-index: 99999; border-bottom: 1px solid #272727;
+        background-color: #0e1117; z-index: 99999; border-bottom: 1px solid #222;
     }
     img { border-radius: 12px; }
+    .stImage > img {
+        border-radius: 50% !important; object-fit: cover !important; border: 2px solid #0064e0 !important;
+    }
     .fb-post-card {
-        background: #18191a; padding: 20px; border-radius: 14px; margin-bottom: 20px; border: 1px solid #2f3031; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        background: #18191a; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #2f3031;
     }
-    
-    /* PERFECT WATERPROOF WATERMARK SYSTEM */
-    .video-watermark-wrapper { 
-        position: relative !important; 
-        border-radius: 12px; 
-        overflow: hidden; 
-        display: inline-block;
-        width: 100%;
-    }
+    .video-watermark-wrapper { position: relative; }
     .video-watermark-badge {
-        position: absolute !important;
-        top: 15px !important;
-        right: 15px !important;
-        background: linear-gradient(135deg, rgba(0, 100, 224, 0.9), rgba(0, 200, 255, 0.8)) !important;
-        color: #ffffff !important;
-        padding: 6px 14px !important;
-        border-radius: 20px !important;
-        font-size: 12px !important;
-        font-weight: 800 !important;
-        letter-spacing: 0.5px !important;
-        z-index: 9999 !important;
-        pointer-events: none !important;
-        backdrop-filter: blur(6px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.3) !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 5px !important;
+        position: absolute; top: 12px; right: 15px; background: rgba(0, 100, 224, 0.85);
+        color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 99; pointer-events: none;
     }
-    
-    .tiktok-container { max-width: 380px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 2px solid #222; background: #000; position: relative; }
+    .tiktok-container { max-width: 380px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 2px solid #222; background: #000; }
     .announcement-box {
-        background: linear-gradient(90deg, #16222f 0%, #0064e0 100%); color: white; padding: 12px; border-radius: 10px; text-align: center; margin-bottom: 15px; font-weight: bold; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 10px; border-radius: 10px; text-align: center; margin-bottom: 10px; font-weight: bold; font-size: 13px;
     }
-    .whatsapp-support-btn {
-        background-color: #25D366; color: white !important; font-weight: bold; padding: 10px 18px; border-radius: 8px; text-decoration: none; display: inline-block; margin-top: 5px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); text-align: center; width: 100%;
-    }
-    .ad-container { margin-top: 15px; margin-bottom: 15px; padding: 10px; background: #121212; border-radius: 10px; text-align: center; border: 1px dashed #333; }
+    .ad-container { margin-top: 15px; margin-bottom: 15px; padding: 8px; background: #0e0e10; border-radius: 8px; text-align: center; }
     .vertical-live-feed-box { max-height: 600px; overflow-y: auto; background: #121316; padding: 15px; border-radius: 12px; border: 2px solid #0064e0; }
     .vertical-live-card { background: #1e2026; border-left: 4px solid #0064e0; padding: 12px; margin-bottom: 15px; border-radius: 8px; color: #fff; }
     .duplicate-card { background: #2a1215; border-left: 4px solid #ff4b4b; padding: 12px; margin-bottom: 10px; border-radius: 8px; color: #fff; }
     .amazon-product-card { background: #1e2026; border: 1px solid #ff9900; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
     .meta-control-box { background: #111a2e; border: 2px solid #0064e0; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
-    .yt-player-card {
-        background: #0f0f0f; border-radius: 16px; overflow: hidden; border: 1px solid #272727; margin-bottom: 25px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-    }
-    .yt-badge { background: #ff0000; color: #fff; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px; }
-    .mahfil-badge { background: #008055; color: #fff; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px; }
-    .movie-badge { background: #e50914; color: #fff; font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -290,14 +193,20 @@ def init_master_database():
             );
         """)
         
-        try: c.execute("ALTER TABLE master_app_table ADD COLUMN recovery_code TEXT")
-        except sqlite3.OperationalError: pass
+        try:
+            c.execute("ALTER TABLE master_app_table ADD COLUMN recovery_code TEXT")
+        except sqlite3.OperationalError:
+            pass
 
-        try: c.execute("ALTER TABLE master_app_table ADD COLUMN user_status TEXT DEFAULT 'REAL'")
-        except sqlite3.OperationalError: pass
+        try:
+            c.execute("ALTER TABLE master_app_table ADD COLUMN user_status TEXT DEFAULT 'REAL'")
+        except sqlite3.OperationalError:
+            pass
 
-        try: c.execute("ALTER TABLE master_app_table ADD COLUMN meta_bluetooth_permission INTEGER DEFAULT 0")
-        except sqlite3.OperationalError: pass
+        try:
+            c.execute("ALTER TABLE master_app_table ADD COLUMN meta_bluetooth_permission INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
 
         c.execute("""
             CREATE TABLE IF NOT EXISTS boost_requests (
@@ -392,77 +301,43 @@ def init_master_database():
                 created_at TEXT
             );
         """)
-
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS live_complaints (
-                complaint_id TEXT PRIMARY KEY,
-                user_id TEXT,
-                user_name TEXT,
-                message TEXT,
-                screenshot_path TEXT,
-                reply_text TEXT DEFAULT '',
-                status TEXT DEFAULT 'Unread',
-                created_at TEXT
-            );
-        """)
-        
-        try: c.execute("ALTER TABLE live_complaints ADD COLUMN reply_text TEXT DEFAULT ''")
-        except sqlite3.OperationalError: pass
         
         default_settings = {
-            "app_name": "Global AI Book",
-            "owner_announcement": "Welcome to Global AI Book - Next-Gen Social & Media Platform!",
+            "app_name": "BD AI Book",
+            "owner_announcement": "Welcome to BD AI Book - Next-Gen Social & Media Platform!",
             "lock_upload": "OFF",
             "daily_limit_mode": "OFF",
             "lock_login": "OFF",
-            "live_chat_system_status": "ON",
             "logo_path": "",
             "adsense_client_id": "ca-pub-0000000000000000",
-            "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b></div>""",
+            "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
             "show_ads": "ON",
             "global_notify_msg": "System Active Globally",
             "auto_duplicate_detector": "ON",
             "site_verification_code": "",
             "is_global_meta_active": "true",
-            "meta_mode": "SELECTED_USERS",
-            "owner_whatsapp": OWNER_WHATSAPP_NUMBER,
-            "show_whatsapp_number": "ON"
+            "meta_mode": "SELECTED_USERS"
         }
         
         for k, v in default_settings.items():
             c.execute("INSERT OR IGNORE INTO site_settings (key, value) VALUES (?, ?)", (k, str(v)))
-
-        c.execute("SELECT COUNT(*) FROM payment_gateways WHERE provider_name LIKE '%WhatsApp%'")
-        if c.fetchone()[0] == 0:
-            c.execute("INSERT INTO payment_gateways VALUES (?, ?, ?, ?, 1)", (
-                str(uuid.uuid4()),
-                "WhatsApp Chat Support",
-                "WhatsApp Direct Chat",
-                f"WhatsApp Direct Chat ONLY (No Call)\nArtist / Admin: {OWNER_NAME}\nNumber: {OWNER_WHATSAPP_NUMBER}"
-            ))
 
         conn.commit()
 
 init_master_database()
 
 def get_setting(key, default=""):
-    try:
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT value FROM site_settings WHERE key = ?", (key,))
-            row = c.fetchone()
-            return row["value"] if row else default
-    except Exception:
-        return default
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT value FROM site_settings WHERE key = ?", (key,))
+        row = c.fetchone()
+        return row["value"] if row else default
 
 def set_setting(key, value):
-    try:
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", (key, str(value)))
-            conn.commit()
-    except Exception:
-        pass
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", (key, str(value)))
+        conn.commit()
 
 site_ver_code = get_setting("site_verification_code")
 if site_ver_code:
@@ -472,33 +347,28 @@ def hash_pass(pwd):
     return hashlib.sha256(pwd.encode()).hexdigest()
 
 def get_meta_blue_badge():
-    return """<svg viewBox="0 0 24 24" fill="#0866FF" width="18" height="18" style="vertical-align: middle; margin-left: 4px; margin-right: 4px; display: inline-block; flex-shrink: 0;">
-        <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.05 1.273 2.42 2.148 4 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-1.05 2.148-2.42 2.148-4z"/>
-        <path fill="#FFFFFF" d="M10.2 16.2l-3.7-3.7 1.4-1.4 2.3 2.3 5.3-5.3 1.4 1.4z"/>
+    # অরিজিনাল ও নিখুঁত মেটা/ফেসবুক ভেরিফাইড ব্লু ব্যাজ (Scalloped SVG Shape)
+    return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block; flex-shrink: 0;">
+        <path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.05 1.273 2.42 2.148 4 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-1.05 2.148-2.42 2.148-4z"/>
+        <path fill="#ffffff" d="M10.2 16.2l-3.5-3.5 1.4-1.4 2.1 2.1 5.7-5.7 1.4 1.4-7.1 7.1z"/>
     </svg>"""
 
 def increment_views(post_id):
-    try:
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute("UPDATE master_app_table SET views_count = views_count + 1 WHERE record_id = ?", (post_id,))
-            conn.commit()
-    except Exception:
-        pass
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("UPDATE master_app_table SET views_count = views_count + 1 WHERE record_id = ?", (post_id,))
+        conn.commit()
 
 def get_user_today_upload_count(user_id, category):
-    try:
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            twenty_four_hours_ago = (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
-            c.execute("""
-                SELECT COUNT(*) as cnt FROM master_app_table 
-                WHERE data_type = 'post' AND user_id = ? AND post_category = ? AND created_at >= ?
-            """, (user_id, category, twenty_four_hours_ago))
-            res = c.fetchone()
-            return res["cnt"] if res else 0
-    except Exception:
-        return 0
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        twenty_four_hours_ago = (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+        c.execute("""
+            SELECT COUNT(*) as cnt FROM master_app_table 
+            WHERE data_type = 'post' AND user_id = ? AND post_category = ? AND created_at >= ?
+        """, (user_id, category, twenty_four_hours_ago))
+        res = c.fetchone()
+        return res["cnt"] if res else 0
 
 def check_user_meta_bluetooth_permission(user_id):
     is_global_active = get_setting("is_global_meta_active", "true") == "true"
@@ -511,23 +381,21 @@ def check_user_meta_bluetooth_permission(user_id):
     elif meta_mode == "ALL":
         return True
     elif meta_mode == "SELECTED_USERS":
-        try:
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT meta_bluetooth_permission FROM master_app_table WHERE user_id = ? AND data_type = 'user'", (user_id,))
-                res = c.fetchone()
-                if res and res["meta_bluetooth_permission"] == 1:
-                    return True
-        except Exception:
-            return False
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT meta_bluetooth_permission FROM master_app_table WHERE user_id = ? AND data_type = 'user'", (user_id,))
+            res = c.fetchone()
+            if res and res["meta_bluetooth_permission"] == 1:
+                return True
     return False
 
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
+if "active_tab" not in st.session_state: st.session_state.active_tab = 0
 
 site_logo_path = get_setting("logo_path")
-app_name = get_setting("app_name", "Global AI Book")
+app_name = get_setting("app_name", "BD AI Book")
 announcement = get_setting("owner_announcement", "")
 
 top_col1, top_col2, top_col3 = st.columns([1, 3, 1])
@@ -541,19 +409,12 @@ with top_col2:
     st.markdown(f"<h3 style='text-align: center; color:#0064e0; margin:0;'>{app_name}</h3>", unsafe_allow_html=True)
 
 with top_col3:
-    st.write("")
+    if st.button("👤 Profile", key="quick_profile_btn"):
+        st.session_state.active_tab = 1
+        st.rerun()
 
 if announcement:
     st.markdown(f"<div class='announcement-box'>📢 {announcement}</div>", unsafe_allow_html=True)
-
-show_whatsapp = get_setting("show_whatsapp_number", "ON") == "ON"
-if show_whatsapp:
-    st.sidebar.markdown(f"""
-    <a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='whatsapp-support-btn'>
-        💬 WhatsApp Chat Support (No Call)
-    </a>
-    """, unsafe_allow_html=True)
-    st.sidebar.markdown("---")
 
 real_followers = 0
 current_user = {}
@@ -565,7 +426,7 @@ if not st.session_state.user_id:
     if login_locked:
         st.sidebar.error("🚫 Login System is temporarily locked by Owner for maintenance!")
     else:
-        auth_input = st.sidebar.text_input("Phone Number or Email")
+        auth_input = st.sidebar.text_input("Phone Number or Gmail")
         auth_pass = st.sidebar.text_input("Password", type="password")
         
         is_recovery_mode = st.sidebar.checkbox("🔑 Account Recovery Mode?")
@@ -594,7 +455,7 @@ if not st.session_state.user_id:
                     st.session_state.otp_code = generated_otp
                     st.sidebar.success(f"🔑 Auto Verification Code: **{generated_otp}**")
                 else:
-                    st.sidebar.warning("Please provide both Email/Phone and Password!")
+                    st.sidebar.warning("Please provide both Gmail/Phone and Password!")
                     
             if st.session_state.otp_code:
                 user_otp = st.sidebar.text_input("Enter 6-Digit OTP Code")
@@ -674,80 +535,15 @@ else:
         st.session_state.otp_code = None
         st.rerun()
 
-# Live Complaint & Screenshot Submission Box (Chat System Only)
-with st.sidebar.expander("💬 Chat Support & Screenshot Box"):
-    if not st.session_state.user_id:
-        st.warning("🔒 Please login first to send messages or screenshots.")
-    else:
-        st.markdown(f"""
-        <a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='whatsapp-support-btn'>
-            📱 WhatsApp Direct Chat Box
-        </a>
-        """, unsafe_allow_html=True)
-
-        st.markdown("---")
-        comp_msg = st.text_area("Type your message or issue here...", key="user_comp_text")
-        comp_img = st.file_uploader("Upload Issue Screenshot", type=["png", "jpg", "jpeg"], key="user_comp_img")
-        
-        if st.button("🚀 Send Message"):
-            if get_setting("live_chat_system_status", "ON") == "OFF":
-                st.sidebar.error("🔴 Chat System is currently disabled. Cannot send message.")
-            elif comp_msg or comp_img:
-                img_p = ""
-                if comp_img:
-                    img_p = os.path.join(UPLOAD_DIR, f"comp_{uuid.uuid4()}.png")
-                    with open(img_p, "wb") as f:
-                        f.write(comp_img.getbuffer())
-                
-                c_id = str(uuid.uuid4())
-                now_t = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                
-                u_id_val = st.session_state.user_id
-                u_name_val = current_user.get('full_name', f"User_{u_id_val[:4]}")
-                
-                with get_db_connection() as conn:
-                    c = conn.cursor()
-                    c.execute("""
-                        INSERT INTO live_complaints (complaint_id, user_id, user_name, message, screenshot_path, reply_text, status, created_at)
-                        VALUES (?, ?, ?, ?, ?, '', 'Unread', ?)
-                    """, (c_id, u_id_val, u_name_val, comp_msg, img_p, now_t))
-                    conn.commit()
-                st.sidebar.success("✅ Message sent successfully!")
-            else:
-                st.sidebar.warning("Please provide message details or attach a screenshot.")
-
-        st.markdown("---")
-        st.markdown("##### 📩 Inbox: Owner Chat Replies")
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT * FROM live_complaints WHERE user_id = ? ORDER BY created_at DESC", (st.session_state.user_id,))
-            my_complaints = c.fetchall()
-            
-        if my_complaints:
-            for mc in my_complaints:
-                st.caption(f"📅 Sent: {mc['created_at']}")
-                st.write(f"💬 **Your Message:** {mc['message']}")
-                reply_val = dict(mc).get('reply_text', '')
-                if reply_val:
-                    st.success(f"👑 **Owner Reply:** {reply_val}")
-                else:
-                    st.info("⏳ Waiting for owner reply...")
-                st.markdown("---")
-
 tab_feed, tab_profile, tab_monetization = st.tabs(["📺 Public Live Feed", "👤 Profile & Studio", "🌍 Global Monetization & Boost"])
 
 def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     increment_views(post["record_id"])
-    cat = post.get("post_category", "general")
-    
-    if cat in ["mahfil", "movie", "long"]:
-        st.markdown("<div class='yt-player-card' style='padding: 20px;'>", unsafe_allow_html=True)
-    else:
-        st.markdown("<div class='fb-post-card'>", unsafe_allow_html=True)
+    st.markdown("<div class='fb-post-card'>", unsafe_allow_html=True)
     
     with get_db_connection() as conn:
         c = conn.cursor()
-        c.execute("SELECT full_name, profile_pic_path, is_verified FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (post.get("user_id"),))
+        c.execute("SELECT profile_pic_path FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (post.get("user_id"),))
         author = c.fetchone()
         
         c.execute("SELECT COUNT(*) as cnt FROM follows WHERE following_id = ?", (post.get("user_id"),))
@@ -759,31 +555,21 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
             c.execute("SELECT * FROM follows WHERE follower_id = ? AND following_id = ?", (st.session_state.user_id, post.get("user_id")))
             if c.fetchone(): is_following = True
 
-    author_name = author["full_name"] if author and author["full_name"] else post.get("full_name", "User")
     author_pic = author["profile_pic_path"] if author and author["profile_pic_path"] and os.path.exists(author["profile_pic_path"]) else None
     
     col_h1, col_h2 = st.columns([3, 2])
     with col_h1:
         col_pic, col_info = st.columns([1, 4])
         with col_pic:
-            if author_pic:
+            if author_pic: 
                 st.image(author_pic, width=50)
             else:
                 st.markdown("👤")
         with col_info:
-            tick = get_meta_blue_badge() if (author and author["is_verified"]) or post.get("is_verified") else ""
+            tick = get_meta_blue_badge() if post.get("is_verified") else ""
             boost_badge = "🔥 [BOOSTED]" if post.get("is_boosted") else ""
-            
-            badge_html = ""
-            if cat == "mahfil":
-                badge_html = "<span class='mahfil-badge'>🕌 Islamic Streams</span> "
-            elif cat == "movie":
-                badge_html = "<span class='movie-badge'>🎬 Full Movie HD</span> "
-            elif cat == "long":
-                badge_html = "<span class='yt-badge'>▶ YouTube HD Video</span> "
-                
-            st.markdown(f"<div style='display: flex; align-items: center; flex-wrap: wrap;'>{badge_html}<b>{author_name}</b>{tick} <span style='color:orange; margin-left: 6px;'>{boost_badge}</span></div>", unsafe_allow_html=True)
-            st.caption(f"👥 Followers: {author_followers:,} | Category: {str(post.get('post_category')).upper()}")
+            st.markdown(f"<div style='display: flex; align-items: center; flex-wrap: wrap;'><b>{post.get('full_name')}</b>{tick} <span style='color:orange; margin-left: 6px;'>{boost_badge}</span></div>", unsafe_allow_html=True)
+            st.caption(f"👥 Followers: {author_followers:,} | Category: {post.get('post_category')}")
         
     with col_h2:
         if st.session_state.user_id and st.session_state.user_id != post.get("user_id"):
@@ -821,33 +607,26 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                     c = conn.cursor()
                     c.execute("DELETE FROM master_app_table WHERE record_id = ?", (post["record_id"],))
                     conn.commit()
-                delete_from_vault(post["record_id"])
                 st.success("Post deleted!")
                 st.rerun()
 
     media_path = post.get("media_path")
-    
-    # WATERPROOF WATERMARK OVERLAY IMPLEMENTATION
-    watermark_html = "<div class='video-watermark-badge'>🏠 BDAIBOOK 1</div>"
+    cat = post.get("post_category", "general")
     
     if media_path:
         if media_path.startswith("http://") or media_path.startswith("https://"):
-            st.markdown(f"<div class='video-watermark-wrapper'>{watermark_html}", unsafe_allow_html=True)
             st.video(media_path)
-            st.markdown("</div>", unsafe_allow_html=True)
         elif os.path.exists(media_path):
+            st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
             if cat == "picture":
-                st.markdown(f"<div class='video-watermark-wrapper'>{watermark_html}", unsafe_allow_html=True)
                 st.image(media_path, use_container_width=True)
-                st.markdown("</div>", unsafe_allow_html=True)
             elif cat == "short":
-                st.markdown(f"<div class='tiktok-container'>{watermark_html}", unsafe_allow_html=True)
+                st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
                 st.video(media_path)
                 st.markdown("</div>", unsafe_allow_html=True)
             else:
-                st.markdown(f"<div class='video-watermark-wrapper'>{watermark_html}", unsafe_allow_html=True)
                 st.video(media_path)
-                st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
     if ads_enabled and ads_html:
         st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
@@ -910,7 +689,7 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner Master Control Power Panels (1 to 17)")
+        st.markdown("### 🎛️ Owner Master Control Power Panels (1 to 16)")
         
         o_tabs = st.tabs([
             "1️⃣ Global Branding", 
@@ -923,20 +702,19 @@ with tab_feed:
             "8️⃣ Live Monitor Feed",
             "9️⃣ User Recovery & Management",
             "🔟 Sponsor Video Approvals",
-            "1️⃣1️⃣ Global Master Rules",
+            "1️⃣1️⃣ Darjeeling Master Rules",
             "1️⃣2️⃣ Anti-Duplicate Account Switch",
             "1️⃣3️⃣ Master Vault & Auto-Backup",
-            "1️⃣4️⃣ Master Control & Analytics",
+            "1️⃣4️⃣ Lalmonirhat Master Control & Analytics",
             "1️⃣5️⃣ Free Copyright-Free Music Library (Owner Upload)",
-            "1️⃣6️⃣ Amazon E-Commerce & Meta Target Hub",
-            "1️⃣7️⃣ Live Chat & WhatsApp Engine"
+            "1️⃣6️⃣ Amazon E-Commerce & Meta Target Hub"
         ])
         
-        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16, o_tab17 = o_tabs
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16 = o_tabs
         
         with o_tab1:
             st.markdown("#### 🖼️ Global Branding & Logo")
-            new_app_name = st.text_input("Header App Name", value=get_setting("app_name", "Global AI Book"))
+            new_app_name = st.text_input("Header App Name", value=get_setting("app_name", "BD AI Book"))
             new_announcement = st.text_area("Global Owner Announcement", value=get_setting("owner_announcement", ""))
             up_logo = st.file_uploader("Change Master Logo", type=["png", "jpg", "jpeg"])
             
@@ -998,9 +776,9 @@ with tab_feed:
         with o_tab4:
             st.markdown("#### 🏦 Dynamic Payment Gateway Control")
             with st.form("add_new_payment_method"):
-                m_type = st.selectbox("Method Type", ["WhatsApp Support / Direct", "Mobile Banking", "Bank Transfer (Foreign)", "Bank Transfer (Local)", "Crypto / International"])
-                p_name = st.text_input("Provider / Bank Name", value="WhatsApp / Direct Contact")
-                p_details = st.text_area("Account Details / Support Info", value=f"Live Support Channel\nArtist Name: {OWNER_NAME}\nWhatsApp: {OWNER_WHATSAPP_NUMBER}")
+                m_type = st.selectbox("Method Type", ["Mobile Banking", "Bank Transfer (Foreign)", "Bank Transfer (BD)", "Crypto / International"])
+                p_name = st.text_input("Provider / Bank Name", placeholder="e.g. Clear Bank / Islami Bank / USDT TRC20")
+                p_details = st.text_area("Account Details / Number", placeholder="e.g. Account No / IBAN / Crypto Address")
                 submit_gw = st.form_submit_button("➕ Add New Payment Method")
                 
                 if submit_gw and p_name and p_details:
@@ -1020,7 +798,7 @@ with tab_feed:
             for gw in gateways:
                 col_g1, col_g2 = st.columns([4, 1])
                 col_g1.write(f"📌 **[{gw['method_type']}] {gw['provider_name']}** —\n```\n{gw['account_details']}\n```")
-                if col_g2.button("🗑️️ Remove", key=f"del_gw_{gw['gateway_id']}"):
+                if col_g2.button("🗑️ Remove", key=f"del_gw_{gw['gateway_id']}"):
                     with get_db_connection() as conn:
                         c = conn.cursor()
                         c.execute("DELETE FROM payment_gateways WHERE gateway_id = ?", (gw['gateway_id'],))
@@ -1062,14 +840,12 @@ with tab_feed:
                     if col_cp2.button("🗑️ Delete", key=f"ow_del_{p['record_id']}"):
                         c.execute("DELETE FROM master_app_table WHERE record_id = ?", (p['record_id'],))
                         conn.commit()
-                        delete_from_vault(p['record_id'])
                         st.rerun()
                     if col_cp3.button("🚫 Block User", key=f"ow_sus_{p['record_id']}"):
                         sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
                         c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, p['user_id']))
                         c.execute("DELETE FROM master_app_table WHERE record_id = ?", (p['record_id'],))
                         conn.commit()
-                        delete_from_vault(p['record_id'])
                         st.rerun()
 
         with o_tab7:
@@ -1116,28 +892,21 @@ with tab_feed:
                     <div class='vertical-live-card'>
                         <div style='display:flex; justify-content:space-between;'>
                             <span>👤 <b>{lp['full_name']}</b> (ID: {lp['user_id'][:8]}...)</span>
-                            <span style='color:#888; font-size:12px;'>⏱ {lp['created_at']}</span>
+                            <span style='color:#888; font-size:12px;'>⏱️ {lp['created_at']}</span>
                         </div>
-                        <p style='margin: 8px 0; font-size:15px;'><b>{lp['title']}</b> - <span style='color:#0064e0;'>[{str(lp['post_category']).upper()}]</span></p>
+                        <p style='margin: 8px 0; font-size:15px;'><b>{lp['title']}</b> - <span style='color:#0064e0;'>[{lp['post_category'].upper()}]</span></p>
                         <p style='color:#ccc; font-size:13px;'>{lp['content'] if lp['content'] else ''}</p>
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    watermark_html = "<div class='video-watermark-badge'>🏠 BDAIBOOK 1</div>"
                     if lp['media_path']:
                         if lp['media_path'].startswith("http"):
-                            st.markdown(f"<div class='video-watermark-wrapper'>{watermark_html}", unsafe_allow_html=True)
                             st.video(lp['media_path'])
-                            st.markdown("</div>", unsafe_allow_html=True)
                         elif os.path.exists(lp['media_path']):
                             if lp['post_category'] == 'picture':
-                                st.markdown(f"<div class='video-watermark-wrapper'>{watermark_html}", unsafe_allow_html=True)
                                 st.image(lp['media_path'], width=300)
-                                st.markdown("</div>", unsafe_allow_html=True)
                             else:
-                                st.markdown(f"<div class='video-watermark-wrapper'>{watermark_html}", unsafe_allow_html=True)
                                 st.video(lp['media_path'])
-                                st.markdown("</div>", unsafe_allow_html=True)
 
                     if ads_enabled and ads_html:
                         st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
@@ -1150,7 +919,6 @@ with tab_feed:
                             c = conn.cursor()
                             c.execute("DELETE FROM master_app_table WHERE record_id = ?", (lp['record_id'],))
                             conn.commit()
-                        delete_from_vault(lp['record_id'])
                         st.rerun()
                         
                     if col_act2.button("🚫 Ban User", key=f"v_ban_{lp['record_id']}"):
@@ -1178,8 +946,7 @@ with tab_feed:
                 for u in all_registered_users:
                     with st.expander(f"👤 {u['full_name']} ({u['auth_identifier']})"):
                         st.write(f"**User ID:** `{u['user_id']}`")
-                        rec_val = dict(u).get('recovery_code', '')
-                        st.write(f"**Current Recovery Code:** `{rec_val if rec_val else 'Not Set'}`")
+                        st.write(f"**Current Recovery Code:** `{u['recovery_code'] if u['recovery_code'] else 'Not Set'}`")
                         
                         col_r1, col_r2 = st.columns(2)
                         new_rec = col_r1.text_input("New Recovery Code", key=f"nrec_{u['user_id']}")
@@ -1262,7 +1029,6 @@ with tab_feed:
             * **Auto Backup Protection:** Database and uploaded media stay protected.
             * **Memory Cleaner:** Automatic cleanup of cache and temporary files.
             * **Automated Security Protocol:** Filters active against spam content.
-            * **Virus & Payload Shield:** Continuous real-time binary scanning on uploads.
             """)
             
             col_d1, col_d2 = st.columns(2)
@@ -1280,7 +1046,7 @@ with tab_feed:
 
         with o_tab12:
             st.markdown("#### 🕵️‍♂️ 12th Screen: Auto-Duplicate Account Detector & Ban Control Switch")
-            st.caption("Live System: Duplicate accounts using the same email or phone will be automatically detected in the backend.")
+            st.caption("লাইভ সিস্টেম: একই জিমেইল বা ফোন দিয়ে একাধিক অ্যাকাউন্ট তৈরি করলে ব্যাকএন্ডে অটোমেটিক ডিটেক্ট হবে।")
             
             curr_dup_switch = get_setting("auto_duplicate_detector", "ON")
             st.write(f"🤖 **Auto-Duplicate Detector Switch:** **{'ACTIVE (ON)' if curr_dup_switch == 'ON' else 'DISABLED (OFF)'}**")
@@ -1334,7 +1100,7 @@ with tab_feed:
                                 ban_status = "<span style='color:red;'>[BANNED]</span>" if is_banned else "<span style='color:green;'>[ACTIVE]</span>"
                                 
                                 col_d_u1.write(f"👤 **{u_dup['full_name']}** ({u_dup['user_id'][:8]}...) {ban_status}")
-                                col_d_u2.write(f"⏱ {u_dup['created_at']}")
+                                col_d_u2.write(f"⏱️ {u_dup['created_at']}")
                                 
                                 if not is_banned:
                                     if col_d_u3.button("🚫 Ban This Account", key=f"ban_dup_{u_dup['user_id']}"):
@@ -1354,7 +1120,7 @@ with tab_feed:
 
         with o_tab13:
             st.markdown("#### 📦 13th Screen: Master Vault, Data Backup & One-Click Restore Engine")
-            st.caption("Auto-save center for posts, images, short videos, broadcasts, and long videos.")
+            st.caption("পোস্ট, ছবি, শর্ট ভিডিও এবং লং ভিডিও—এই ৪টি ক্যাটাগরির সমস্ত তথ্য ও ডাটাবেজ নিয়ন্ত্রণ ও অটো-সেভ কেন্দ্র।")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1366,18 +1132,12 @@ with tab_feed:
                 cnt_short = c.fetchone()["cnt"]
                 c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'long'")
                 cnt_long = c.fetchone()["cnt"]
-                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'mahfil'")
-                cnt_mahfil = c.fetchone()["cnt"]
-                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'movie'")
-                cnt_movie = c.fetchone()["cnt"]
 
-            col_v1, col_v2, col_v3, col_v4, col_v5, col_v6 = st.columns(6)
+            col_v1, col_v2, col_v3, col_v4 = st.columns(4)
             col_v1.metric("📝 Posts", cnt_post)
             col_v2.metric("🖼️ Pictures", cnt_pic)
             col_v3.metric("📱 Shorts", cnt_short)
-            col_v4.metric("📹 Long", cnt_long)
-            col_v5.metric("🕌 Broadcasts", cnt_mahfil)
-            col_v6.metric("🎬 Movies", cnt_movie)
+            col_v4.metric("📹 Long Videos", cnt_long)
 
             st.markdown("---")
             st.markdown("##### ⚙️ 15-Days Internal Auto-Vault Status")
@@ -1419,14 +1179,14 @@ with tab_feed:
                     st.download_button(
                         label="💾 Download Master Database Vault (.json)",
                         data=json_backup,
-                        file_name=f"global_ai_book_vault_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                        file_name=f"bd_ai_book_vault_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
                         mime="application/json"
                     )
                     st.success("✅ Live Master Backup Vault generated successfully!")
 
             st.markdown("---")
             st.markdown("##### 📤 Emergency File Upload Data Restore System")
-            st.caption("If you want to restore by uploading a backup file from another device:")
+            st.caption("যদি অন্য ডিভাইস থেকে ব্যাকআপ ফাইল আপলোড করে রিস্টোর করতে চান:")
             
             uploaded_vault_file = st.file_uploader("Upload Backup JSON Vault File", type=["json"], key="vault_restore_uploader")
             
@@ -1458,7 +1218,7 @@ with tab_feed:
 
         with o_tab14:
             st.markdown("#### 🌟 14th Screen: Master Control & Regional Analytics")
-            st.caption("Regional activities, automated site verification, and special owner control panel.")
+            st.caption("আঞ্চলিক কার্যক্রম, অটো সাইট ভেরিফিকেশন এবং স্পেশাল ওনার কন্ট্রোল প্যানেল।")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1474,7 +1234,7 @@ with tab_feed:
 
             st.markdown("---")
             st.markdown("##### 🔍 Google Search Console & AdSense Auto-Verification Setup")
-            st.caption("Pasting Google Console or AdSense verification codes here will complete site verification automatically across all pages.")
+            st.caption("এখানে গুগল কনসোল বা এডসেন্সের ভেরিফিকেশন কোড (যেমন: `<meta name='google-site-verification' content='...' />`) একবার সেভ করে রাখলে এটি অটোমেটিক সাইট ভেরিফিকেশন সম্পন্ন করবে।")
 
             current_saved_ver_code = get_setting("site_verification_code", "")
             input_ver_code = st.text_area("Paste Verification Meta Tag / HTML Snippet Here", value=current_saved_ver_code, height=100)
@@ -1486,19 +1246,19 @@ with tab_feed:
 
             st.markdown("---")
             st.markdown("##### 🎵 Master Configuration")
-            st.text_input("Default Master Admin Name", value=OWNER_NAME, disabled=True)
-            st.success("✅ Copyright and title settings are synchronized with artist Sohel Rana in the database.")
+            st.text_input("Default Master Admin Name", value="Admin Owner", disabled=True)
+            st.success("✅ Copyright and title settings are synchronized with the database.")
 
             if st.button("🚀 Run System Optimization & Sync"):
                 st.success("✅ Database sync and media index optimization completed successfully!")
 
         with o_tab15:
             st.markdown("#### 🎵 15th Screen: Free Copyright-Free Music Library (Owner Upload)")
-            st.caption("Admin can upload free background music here.")
+            st.caption("অ্যাডমিন এখানে ফ্রি ব্যাকগ্রাউন্ড মিউজিক আপলোড করতে পারবেন।")
             
             with st.form("owner_music_upload_form"):
                 song_title = st.text_input("Song Title / Name")
-                artist_name = st.text_input("Artist Name", value=OWNER_NAME)
+                artist_name = st.text_input("Artist Name", value="Master Studio")
                 song_file = st.file_uploader("Upload Copyright-Free Audio Song (.mp3/.wav)", type=["mp3", "wav"])
                 submit_song = st.form_submit_button("📤 Upload to Free Music Library")
                 
@@ -1532,6 +1292,7 @@ with tab_feed:
         with o_tab16:
             st.markdown("#### 🛒 16th Screen: Amazon E-Commerce & Owner Master Permission Target Hub")
             
+            # --- META & BLUETOOTH OWNER CONTROL PANEL ---
             st.markdown("<div class='meta-control-box'>", unsafe_allow_html=True)
             st.markdown("### ⚡ Owner Master Control Switch (Meta & Bluetooth Permission)")
             
@@ -1558,21 +1319,21 @@ with tab_feed:
             st.markdown("---")
             st.markdown("##### 🔘 Select Meta & Bluetooth Mode (3 Target Buttons)")
             
-            b_col1, b_col2, b_col3 = st.columns(3)
+            b_col1, b_col2, b_col3 = b_cols = st.columns(3)
             
-            if b_col1.button("🌐 1. Meta All (For Everyone)", use_container_width=True):
+            if b_col1.button("🌐 1. Meta All (সবার জন্য)", use_container_width=True):
                 set_setting("meta_mode", "ALL")
                 set_setting("is_global_meta_active", "true")
                 st.success("Mode Set: Meta & Bluetooth feature activated for ALL users automatically!")
                 st.rerun()
 
-            if b_col2.button("🎯 2. Meta Select Target (Selected Users)", use_container_width=True):
+            if b_col2.button("🎯 2. Meta Select Target (নির্দিষ্ট ইউজার)", use_container_width=True):
                 set_setting("meta_mode", "SELECTED_USERS")
                 set_setting("is_global_meta_active", "true")
                 st.info("Mode Set: Only TARGETED / APPROVED real users will get access.")
                 st.rerun()
 
-            if b_col3.button("🚫 3. Meta Block/Off (Globally Disabled)", use_container_width=True):
+            if b_col3.button("🚫 3. Meta Block/Off (সম্পূর্ণ বন্ধ)", use_container_width=True):
                 set_setting("meta_mode", "DISABLED")
                 set_setting("is_global_meta_active", "false")
                 st.error("Mode Set: Meta & Bluetooth feature BLOCKED globally.")
@@ -1597,7 +1358,10 @@ with tab_feed:
                     with st.expander(f"👤 {u_target['full_name']} ({u_target['auth_identifier']}) - Status: [{u_status}]"):
                         col_usr_t1, col_usr_t2, col_usr_t3 = st.columns([2, 2, 2])
                         
+                        # User Status Selection (Real vs Fake)
                         new_usr_status = col_usr_t1.selectbox("User Authenticity", ["REAL", "FAKE"], index=0 if u_status == "REAL" else 1, key=f"st_sel_{u_id}")
+                        
+                        # Bluetooth Switch
                         bt_grant = col_usr_t2.checkbox("Allow Meta Bluetooth Permission", value=u_bt, key=f"bt_cb_{u_id}")
                         
                         if col_usr_t3.button("💾 Save User Permission", key=f"save_perm_{u_id}"):
@@ -1613,6 +1377,7 @@ with tab_feed:
                             st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
+            # --- AMAZON E-COMMERCE SECTION ---
             st.markdown("---")
             st.markdown("##### ➕ Add New Amazon Product")
             with st.form("add_amazon_product_form"):
@@ -1671,86 +1436,6 @@ with tab_feed:
                         st.rerun()
                     st.markdown("---")
 
-        with o_tab17:
-            st.markdown("#### 👤 17th Screen: Live Chat & WhatsApp Engine")
-            st.caption("Owner can control and respond to user messages directly from here.")
-            
-            current_chat_status = get_setting("live_chat_system_status", "ON")
-            
-            col_sw1, col_sw2 = st.columns([1, 3])
-            with col_sw1:
-                if current_chat_status == "ON":
-                    if st.button("💬 Chat System: ON", key="toggle_chat_btn", use_container_width=True):
-                        set_setting("live_chat_system_status", "OFF")
-                        st.rerun()
-                else:
-                    if st.button("🚫 Chat System: OFF", key="toggle_chat_btn", use_container_width=True):
-                        set_setting("live_chat_system_status", "ON")
-                        st.rerun()
-            
-            with col_sw2:
-                if current_chat_status == "ON":
-                    st.success("✅ Chat system active (Users can send messages and screenshots)")
-                else:
-                    st.error("🔴 Chat system disabled (User messaging features paused)")
-
-            st.markdown("---")
-            st.markdown("##### 📩 Live Chat & Inbox Messages")
-            
-            if current_chat_status == "OFF":
-                st.warning("⚠️ Chat system is off. New messages are not being processed.")
-            else:
-                with get_db_connection() as conn:
-                    c = conn.cursor()
-                    c.execute("SELECT * FROM live_complaints ORDER BY created_at DESC")
-                    all_chat_msgs = c.fetchall()
-
-                if not all_chat_msgs:
-                    st.info("🎉 No pending messages or screenshots found.")
-                else:
-                    for msg in all_chat_msgs:
-                        m_id = msg['complaint_id']
-                        u_id = msg['user_id']
-                        u_name = msg['user_name']
-                        m_text = msg['message']
-                        m_img = msg['screenshot_path']
-                        m_reply = dict(msg).get('reply_text', '')
-                        m_time = msg['created_at']
-                        
-                        st.markdown(f"""
-                        <div style='background: #18191a; padding: 12px; border-radius: 10px; border-left: 4px solid #25D366; margin-bottom: 10px;'>
-                            <b>👤 Sender: {u_name}</b> <small style='color:#888;'>(ID: {u_id[:8]}... | {m_time})</small><br>
-                            <span style='font-size:15px;'>💬 {m_text}</span>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        if m_img and os.path.exists(m_img):
-                            st.image(m_img, caption="📸 Attached Screenshot", width=300)
-                            
-                        if m_reply:
-                            st.info(f"👑 **Owner Reply Sent:** {m_reply}")
-                        
-                        reply_input = st.text_input("Type your reply...", value=m_reply, key=f"r_inp_{m_id}")
-                        c_btn1, c_btn2 = st.columns(2)
-                        
-                        if c_btn1.button("📤 Send Reply", key=f"s_btn_{m_id}"):
-                            if reply_input:
-                                with get_db_connection() as conn:
-                                    c = conn.cursor()
-                                    c.execute("UPDATE live_complaints SET reply_text = ?, status = 'Replied' WHERE complaint_id = ?", (reply_input, m_id))
-                                    conn.commit()
-                                st.success("✅ Reply sent successfully!")
-                                st.rerun()
-                                
-                        if c_btn2.button("🗑️ Delete Chat", key=f"d_btn_{m_id}"):
-                            with get_db_connection() as conn:
-                                c = conn.cursor()
-                                c.execute("DELETE FROM live_complaints WHERE complaint_id = ?", (m_id,))
-                                conn.commit()
-                            st.warning("🗑️️ Chat deleted successfully.")
-                            st.rerun()
-                        st.markdown("---")
-
     else:
         with get_db_connection() as conn:
             c = conn.cursor()
@@ -1765,31 +1450,13 @@ with tab_feed:
         ads_enabled = get_setting("show_ads") == "ON"
         ads_html = get_setting("adsense_script")
 
-        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5, sub_feed6, sub_feed7 = st.tabs(["🌐 All Feed", "🕌 Islamic Streams", "🎬 Full Movies", "🛒 Amazon Store", "📱 Reels / Shorts", "🖼️ Photos", "📹 YouTube Style Long"])
+        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5 = st.tabs(["🌐 All Feed", "🛒 Amazon Store", "🎬 Reels / Shorts", "🖼️ Photos", "📹 Long Videos"])
 
         with sub_feed1:
             for post in posts:
                 render_post_card(post, ads_enabled, ads_html, prefix="all")
 
         with sub_feed2:
-            st.markdown("### 🕌 Islamic Streams & Talks")
-            mahfil_posts = [p for p in posts if p.get("post_category") == "mahfil"]
-            if not mahfil_posts:
-                st.info("No Islamic or broadcast streams uploaded yet.")
-            else:
-                for post in mahfil_posts:
-                    render_post_card(post, ads_enabled, ads_html, prefix="mahfil")
-
-        with sub_feed3:
-            st.markdown("### 🎬 Full HD Movies & Theater Releases")
-            movie_posts = [p for p in posts if p.get("post_category") == "movie"]
-            if not movie_posts:
-                st.info("No movie content available right now.")
-            else:
-                for post in movie_posts:
-                    render_post_card(post, ads_enabled, ads_html, prefix="movie")
-
-        with sub_feed4:
             st.markdown("### 🛒 Amazon Marketplace & Featured Products")
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1813,7 +1480,7 @@ with tab_feed:
                         st.markdown(f"<a href='{ap['affiliate_link']}' target='_blank'><button style='width:100%; background:#ff9900; color:#000; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;'>🛒 Buy Now on Amazon</button></a>", unsafe_allow_html=True)
                         st.markdown("<br>", unsafe_allow_html=True)
 
-        with sub_feed5:
+        with sub_feed3:
             short_posts = [p for p in posts if p.get("post_category") == "short"]
             if not short_posts:
                 st.info("No Reels / Short Videos uploaded yet.")
@@ -1821,7 +1488,7 @@ with tab_feed:
                 for post in short_posts:
                     render_post_card(post, ads_enabled, ads_html, prefix="short")
 
-        with sub_feed6:
+        with sub_feed4:
             picture_posts = [p for p in posts if p.get("post_category") == "picture"]
             if not picture_posts:
                 st.info("No Photo posts available.")
@@ -1829,8 +1496,8 @@ with tab_feed:
                 for post in picture_posts:
                     render_post_card(post, ads_enabled, ads_html, prefix="pic")
 
-        with sub_feed7:
-            long_posts = [p for p in posts if p.get("post_category") in ["long", "general"]]
+        with sub_feed5:
+            long_posts = [p for p in posts if p.get("post_category") == "long"]
             if not long_posts:
                 st.info("No Long Videos available.")
             else:
@@ -1851,7 +1518,7 @@ with tab_profile:
             if profile_path and os.path.exists(profile_path):
                 st.image(profile_path, width=120)
             else:
-                st.markdown("👤")
+                st.info("No Profile Pic")
         with col_p2:
             st.write(f"👥 **Real Followers:** {real_followers:,}")
             st.write(f"**Bio:** {current_user.get('bio', 'No bio added')}")
@@ -1869,39 +1536,22 @@ with tab_profile:
                     
                 with get_db_connection() as conn:
                     c = conn.cursor()
-                    c.execute("UPDATE master_app_table SET full_name = ?, bio = ?, profile_pic_path = ? WHERE user_id = ? AND data_type = 'user'", (u_name, u_bio, p_path, st.session_state.user_id))
-                    c.execute("UPDATE master_app_table SET full_name = ? WHERE user_id = ? AND data_type = 'post'", (u_name, st.session_state.user_id))
+                    c.execute("UPDATE master_app_table SET full_name = ?, bio = ?, profile_pic_path = ? WHERE user_id = ?", (u_name, u_bio, p_path, st.session_state.user_id))
                     conn.commit()
-                
-                save_to_internal_vault({
-                    "record_id": st.session_state.user_id,
-                    "data_type": "user",
-                    "user_id": st.session_state.user_id,
-                    "full_name": u_name,
-                    "bio": u_bio,
-                    "profile_pic_path": p_path
-                })
-                
-                st.success("Profile Picture and Info Updated Successfully!")
+                st.success("Profile Updated!")
                 st.rerun()
 
         st.markdown("---")
-        st.markdown("### 📤 High-Speed Smart Video Processing & Auto-Compression Center")
+        st.markdown("### 📤 Upload New Post or Live Camera Capture")
         
         if get_setting("lock_upload") == "ON":
             st.error("🚫 Video Upload System is temporarily disabled by Owner.")
         else:
-            post_type = st.selectbox("Format / Category", [
-                "short", 
-                "long", 
-                "mahfil", 
-                "movie", 
-                "picture"
-            ])
+            post_type = st.selectbox("Format", ["short", "long", "picture"])
             
             if get_setting("daily_limit_mode") == "ON":
                 current_cnt = get_user_today_upload_count(st.session_state.user_id, post_type)
-                limit_max = 1 if post_type in ["short", "long", "mahfil", "movie"] else 10
+                limit_max = 1 if post_type in ["short", "long"] else 10
                 st.info(f"⚠️ **Daily Guidelines Active:** You have uploaded **{current_cnt}/{limit_max}** {post_type} post(s) today.")
 
             title = st.text_input("Title")
@@ -1913,25 +1563,23 @@ with tab_profile:
             if use_live_camera:
                 uploaded_media = st.camera_input("📷 Capture Live Photo via Camera")
             else:
-                uploaded_media = st.file_uploader("Media File (Supports Up To 10 GB Video/Movies/Media)", type=["mp4", "jpg", "png", "mov", "mkv", "avi"])
+                uploaded_media = st.file_uploader("Media File", type=["mp4", "jpg", "png", "mov"])
             
-            if st.button("⚡ Fast Process, Compress & Publish Post"):
+            if st.button("Publish Post"):
                 if uploaded_media and title:
                     if not use_live_camera:
-                        MAX_FILE_SIZE_MB = 10000 * 1024 * 1024 
+                        MAX_FILE_SIZE_MB = 100 * 1024 * 1024
                         if uploaded_media.size > MAX_FILE_SIZE_MB:
-                            st.error("🚫 File size cannot exceed 10 GB!")
-                            st.stop()
-                            
-                        is_clean, scan_msg = sanitize_file_and_check_virus(uploaded_media, uploaded_media.name)
-                        if not is_clean:
-                            st.error(scan_msg)
+                            st.error("🚫 File size cannot exceed 100 MB!")
                             st.stop()
 
                     if get_setting("daily_limit_mode") == "ON":
                         today_count = get_user_today_upload_count(st.session_state.user_id, post_type)
-                        if post_type in ["short", "long", "mahfil", "movie"] and today_count >= 1:
-                            st.error(f"🚫 Limit Exceeded! You can only upload 1 {post_type.upper()} video per 24 hours.")
+                        if post_type == "short" and today_count >= 1:
+                            st.error("🚫 Limit Exceeded! You can only upload 1 Short video per 24 hours.")
+                            st.stop()
+                        elif post_type == "long" and today_count >= 1:
+                            st.error("🚫 Limit Exceeded! You can only upload 1 Long video per 24 hours.")
                             st.stop()
                         elif post_type == "picture" and today_count >= 10:
                             st.error("🚫 Limit Exceeded! You can only upload 10 Pictures/Posts per 24 hours.")
@@ -1948,17 +1596,8 @@ with tab_profile:
 
                     ext = ".png" if use_live_camera else os.path.splitext(uploaded_media.name)[1]
                     m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{ext}")
-                    
-                    with st.spinner("⏳ Chunking file to server..."):
-                        if use_live_camera:
-                            with open(m_path, "wb") as f:
-                                f.write(uploaded_media.getbuffer())
-                        else:
-                            process_and_chunk_media(uploaded_media, m_path)
-
-                    if ext.lower() in ['.mp4', '.mkv', '.mov', '.avi']:
-                        with st.spinner("🚀 Auto-Compressing large video size for Fast Streaming..."):
-                            auto_compress_video(m_path)
+                    with open(m_path, "wb") as f: 
+                        f.write(uploaded_media.getbuffer())
 
                     if ext.lower() in ['.jpg', '.jpeg', '.png']:
                         is_safe, msg = check_image_safety_with_ai(m_path)
@@ -1996,7 +1635,7 @@ with tab_profile:
                         conn.commit()
                         
                     save_to_internal_vault(post_data_map)
-                    st.success("🎉 Fast Compression Complete & Video Published Successfully!")
+                    st.success("Published Successfully!")
                     st.rerun()
 
 with tab_monetization:
@@ -2026,54 +1665,101 @@ with tab_monetization:
 
     st.markdown("---")
     st.markdown("### 💼 Third-Party Sponsor & Video Payment Panel")
+    st.caption("Advertisers or third parties can submit video links after completing payment.")
 
+    with st.expander("📥 Submit Sponsored Video & Payment Info", expanded=True):
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
+            active_gateways = c.fetchall()
+
+        gw_options = {}
+        if active_gateways:
+            gw_options = {f"[{gw['method_type']}] {gw['provider_name']}": gw for gw in active_gateways}
+            selected_gw_sp_name = st.selectbox("Select Payment Channel", list(gw_options.keys()), key="sp_gw_select")
+            selected_gw_sp = gw_options[selected_gw_sp_name]
+            
+            st.info(f"💳 **Official Transfer Details:**\n```\n{selected_gw_sp['account_details']}\n```")
+
+        with st.form("sponsor_video_submit_form"):
+            sp_name = st.text_input("Your Name / Company Name")
+            trx_10 = st.text_input("Enter Exactly 10-Digit Transaction ID (TrxID / Ref Code)", max_chars=10)
+            
+            sp_video_url = st.text_input("Video Link (YouTube / Facebook / Direct URL)")
+            sp_video_file = st.file_uploader("OR Upload Video File Direct", type=["mp4", "mov"])
+            
+            submit_sp_btn = st.form_submit_button("🚀 Submit to Owner for Approval")
+
+            if submit_sp_btn:
+                clean_trx = trx_10.strip()
+                if len(clean_trx) != 10:
+                    st.error("❌ Invalid Transaction ID! Reference/TrxID code must be exactly 10 characters long.")
+                elif not (sp_video_url or sp_video_file):
+                    st.error("❌ Please provide either a video URL link or upload a video file!")
+                else:
+                    v_file_path = ""
+                    if sp_video_file:
+                        v_file_path = os.path.join(UPLOAD_DIR, f"sp_{uuid.uuid4()}.mp4")
+                        with open(v_file_path, "wb") as f:
+                            f.write(sp_video_file.getbuffer())
+
+                    req_id = str(uuid.uuid4())
+                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    selected_channel_label = selected_gw_sp_name if active_gateways else "Direct Payment"
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO sponsor_video_requests 
+                            (request_id, user_id, sponsor_name, trx_id_10digit, bank_details_used, video_link, video_file_path, status, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+                        """, (req_id, st.session_state.user_id or "Guest", sp_name, clean_trx, selected_channel_label, sp_video_url, v_file_path, now_str))
+                        conn.commit()
+                        
+                    st.success("✅ Payment info and video submitted successfully! The owner will verify the 10-digit TrxID and publish the video.")
+
+    st.markdown("---")
+    st.markdown("### 🔥 Boost Your Video / Post (Dynamic Payment Gateways)")
+    
     if not st.session_state.user_id:
-        st.warning("🔒 Please login or sign up before submitting sponsored videos.")
-        st.info("👈 Use the login section in the sidebar to enter email/phone.")
+        st.warning("Please login to boost posts.")
     else:
-        with st.expander("📥 Submit Sponsored Video & Payment Info", expanded=True):
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
-                active_gateways = c.fetchall()
-
-            gw_options = {}
-            if active_gateways:
-                gw_options = {f"[{gw['method_type']}] {gw['provider_name']}": gw for gw in active_gateways}
-                selected_gw_sp_name = st.selectbox("Select Payment Channel", list(gw_options.keys()), key="sp_gw_select")
-                selected_gw_sp = gw_options[selected_gw_sp_name]
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT record_id, title FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
+            user_posts = c.fetchall()
+        
+        if not user_posts:
+            st.info("You haven't uploaded any posts yet to boost.")
+        elif not active_gateways:
+            st.error("No active payment methods found. Please contact admin.")
+        else:
+            post_options = {p["title"]: p["record_id"] for p in user_posts}
+            selected_title = st.selectbox("Select Post to Boost", list(post_options.keys()))
+            selected_post_id = post_options[selected_title]
+            
+            boost_plan = st.selectbox("Select Boost Package", [
+                "Basic - 5,000 Views ($5)",
+                "Pro - 20,000 Views ($15)",
+                "VIP Unlimited - 100,000 Views ($50)"
+            ])
+            
+            selected_gw_name = st.selectbox("Select Payment Method for Boost", list(gw_options.keys()), key="boost_gw_select")
+            selected_gw = gw_options[selected_gw_name]
+            
+            st.info(f"💳 Send Money / Transfer Details:\n```\n{selected_gw['account_details']}\n```")
                 
-                st.info(f"💳 **Official Transfer Details:**\n```\n{selected_gw_sp['account_details']}\n```")
-
-            with st.form("sponsor_video_submit_form"):
-                sp_name = st.text_input("Your Name / Company Name", value=current_user.get('full_name', ''))
-                sp_trx = st.text_input("10-Digit Transaction ID / Ref Code")
-                sp_link = st.text_input("Video Direct URL / Google Drive / Cloud Link (Optional)")
-                sp_file = st.file_uploader("Or Upload Video File Directly", type=["mp4", "mov", "mkv"])
-                
-                submit_sponsor_req = st.form_submit_button("🚀 Submit Sponsored Video")
-                
-                if submit_sponsor_req:
-                    if sp_name and sp_trx and (sp_link or sp_file):
-                        saved_v_path = ""
-                        if sp_file:
-                            sp_id_fn = str(uuid.uuid4())
-                            saved_v_path = os.path.join(UPLOAD_DIR, f"sp_{sp_id_fn}.mp4")
-                            with open(saved_v_path, "wb") as f:
-                                f.write(sp_file.getbuffer())
-
-                        req_id = str(uuid.uuid4())
-                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        gw_used_str = selected_gw_sp['provider_name'] if active_gateways else "WhatsApp Direct"
-
-                        with get_db_connection() as conn:
-                            c = conn.cursor()
-                            c.execute("""
-                                INSERT INTO sponsor_video_requests (request_id, user_id, sponsor_name, trx_id_10digit, bank_details_used, video_link, video_file_path, status, created_at)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
-                            """, (req_id, st.session_state.user_id, sp_name, sp_trx, gw_used_str, sp_link, saved_v_path, now_str))
-                            conn.commit()
-                        st.success("✅ Sponsored video submitted! Pending approval by Owner.")
-                        st.rerun()
-                    else:
-                        st.warning("Please fill all required details!")
+            trx_id = st.text_input("Enter Payment Transaction ID (TrxID) / Reference Code", key="boost_trx_input")
+            
+            if st.button("Submit Boost Request"):
+                if trx_id:
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (str(uuid.uuid4()), st.session_state.user_id, selected_post_id, boost_plan, boost_plan.split('(')[-1].replace(')', ''), trx_id, selected_gw_name, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                        conn.commit()
+                    st.success("✅ Boost Request Submitted Successfully! Owner will verify and activate boost shortly.")
+                else:
+                    st.error("Please enter the Transaction ID.")
