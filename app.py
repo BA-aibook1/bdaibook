@@ -119,38 +119,129 @@ def auto_restore_from_internal_vault():
                     pass
     return restored_count
 
+# ==========================================
+# MODERN UI / CSS ENHANCEMENTS (DESIGN FIX)
+# ==========================================
 st.markdown("""
 <style>
-    .block-container { padding-top: 1rem !important; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+    .block-container { 
+        padding-top: 1.5rem !important; 
+        max-width: 1200px;
+    }
     div[data-testid="stHeader"] {
         position: fixed; top: 0; left: 0; width: 100%;
-        background-color: #0e1117; z-index: 99999; border-bottom: 1px solid #222;
+        background-color: rgba(14, 17, 23, 0.95);
+        backdrop-filter: blur(10px);
+        z-index: 99999; border-bottom: 1px solid #1f2937;
     }
+    
+    /* Header Title Styling */
+    .app-header-title {
+        background: linear-gradient(90deg, #2563eb, #3b82f6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+        font-size: 1.8rem;
+        text-align: center;
+        margin: 0;
+        letter-spacing: -0.5px;
+    }
+    
+    /* Profile Pictures & Media Rounded Edges */
     img { border-radius: 12px; }
     .stImage > img {
-        border-radius: 50% !important; object-fit: cover !important; border: 2px solid #0064e0 !important;
+        border-radius: 50% !important; 
+        object-fit: cover !important; 
+        border: 2px solid #2563eb !important;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
     }
+    
+    /* Post Cards Modern Styling */
     .fb-post-card {
-        background: #18191a; padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #2f3031;
+        background: #111827; 
+        padding: 20px; 
+        border-radius: 16px; 
+        margin-bottom: 24px; 
+        border: 1px solid #1f2937;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        transition: transform 0.2s ease, border-color 0.2s ease;
     }
-    .video-watermark-wrapper { position: relative; }
+    .fb-post-card:hover {
+        border-color: #374151;
+    }
+    
+    .video-watermark-wrapper { position: relative; border-radius: 12px; overflow: hidden; }
     .video-watermark-badge {
-        position: absolute; top: 12px; right: 15px; background: rgba(0, 100, 224, 0.85);
-        color: white; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 99; pointer-events: none;
+        position: absolute; top: 12px; right: 15px; 
+        background: rgba(37, 99, 235, 0.9);
+        backdrop-filter: blur(4px);
+        color: white; padding: 4px 12px; border-radius: 20px; 
+        font-size: 11px; font-weight: 700; z-index: 99; pointer-events: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
-    .tiktok-container { max-width: 380px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 2px solid #222; background: #000; }
+    .tiktok-container { 
+        max-width: 380px; margin: 0 auto; border-radius: 16px; 
+        overflow: hidden; border: 1px solid #1f2937; background: #000; 
+    }
     .announcement-box {
-        background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 10px; border-radius: 10px; text-align: center; margin-bottom: 10px; font-weight: bold; font-size: 13px;
+        background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); 
+        color: #f3f4f6; padding: 12px 20px; border-radius: 12px; 
+        text-align: center; margin-bottom: 20px; font-weight: 600; font-size: 14px;
+        box-shadow: 0 4px 12px rgba(30, 64, 175, 0.25);
+        border: 1px solid rgba(255,255,255,0.1);
     }
-    .ad-container { margin-top: 15px; margin-bottom: 15px; padding: 8px; background: #0e0e10; border-radius: 8px; text-align: center; }
-    .vertical-live-feed-box { max-height: 600px; overflow-y: auto; background: #121316; padding: 15px; border-radius: 12px; border: 2px solid #0064e0; }
-    .vertical-live-card { background: #1e2026; border-left: 4px solid #0064e0; padding: 12px; margin-bottom: 15px; border-radius: 8px; color: #fff; }
-    .duplicate-card { background: #2a1215; border-left: 4px solid #ff4b4b; padding: 12px; margin-bottom: 10px; border-radius: 8px; color: #fff; }
-    .amazon-product-card { background: #1e2026; border: 1px solid #ff9900; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
-    .meta-control-box { background: #111a2e; border: 2px solid #0064e0; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
-    .msg-box-owner { background: #1b2838; border: 1px solid #0064e0; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
-    .chat-bubble-self { background: #0064e0; color: white; padding: 10px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; float: right; clear: both; }
-    .chat-bubble-other { background: #2f3031; color: white; padding: 10px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; float: left; clear: both; }
+    .ad-container { 
+        margin-top: 15px; margin-bottom: 15px; padding: 12px; 
+        background: #0b0f17; border-radius: 12px; text-align: center; 
+        border: 1px dashed #374151;
+    }
+    .vertical-live-feed-box { 
+        max-height: 600px; overflow-y: auto; background: #0b0f17; 
+        padding: 18px; border-radius: 16px; border: 1px solid #1f2937; 
+    }
+    .vertical-live-card { 
+        background: #111827; border-left: 4px solid #2563eb; 
+        padding: 14px; margin-bottom: 15px; border-radius: 8px; color: #fff; 
+    }
+    .duplicate-card { 
+        background: #1f1315; border-left: 4px solid #ef4444; 
+        padding: 14px; margin-bottom: 12px; border-radius: 8px; color: #fff; 
+    }
+    .amazon-product-card { 
+        background: #111827; border: 1px solid #f59e0b; 
+        padding: 18px; border-radius: 12px; margin-bottom: 15px; 
+    }
+    .meta-control-box { 
+        background: #0d1527; border: 1px solid #1d4ed8; 
+        padding: 20px; border-radius: 16px; margin-bottom: 20px; 
+    }
+    .msg-box-owner { 
+        background: #111827; border: 1px solid #1f2937; 
+        padding: 14px; border-radius: 10px; margin-bottom: 10px; 
+    }
+    .chat-bubble-self { 
+        background: #2563eb; color: white; padding: 12px 16px; 
+        border-radius: 16px 16px 2px 16px; margin-bottom: 10px; 
+        max-width: 80%; float: right; clear: both;
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    }
+    .chat-bubble-other { 
+        background: #1f2937; color: white; padding: 12px 16px; 
+        border-radius: 16px 16px 16px 2px; margin-bottom: 10px; 
+        max-width: 80%; float: left; clear: both;
+    }
+
+    /* Buttons Improvements */
+    .stButton>button {
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -427,13 +518,13 @@ with top_col1:
     if site_logo_path and os.path.exists(site_logo_path):
         st.image(site_logo_path, width=50)
     else:
-        st.markdown("📖")
+        st.markdown("<h2 style='margin:0;'>📖</h2>", unsafe_allow_html=True)
 
 with top_col2:
-    st.markdown(f"<h3 style='text-align: center; color:#0064e0; margin:0;'>{app_name}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 class='app-header-title'>{app_name}</h3>", unsafe_allow_html=True)
 
 with top_col3:
-    if st.button("👤 Profile", key="quick_profile_btn"):
+    if st.button("👤 Profile", key="quick_profile_btn", use_container_width=True):
         st.session_state.active_tab = 1
         st.rerun()
 
@@ -458,7 +549,7 @@ if not st.session_state.user_id:
         if is_recovery_mode:
             rec_code_inp = st.sidebar.text_input("Recovery Code")
             new_pass_inp = st.sidebar.text_input("New Password", type="password")
-            if st.sidebar.button("Reset Password"):
+            if st.sidebar.button("Reset Password", use_container_width=True):
                 if auth_input and rec_code_inp and new_pass_inp:
                     with get_db_connection() as conn:
                         c = conn.cursor()
@@ -473,7 +564,7 @@ if not st.session_state.user_id:
                 else:
                     st.sidebar.warning("Fill all details.")
         else:
-            if st.sidebar.button("Send OTP"):
+            if st.sidebar.button("Send OTP", use_container_width=True):
                 if auth_input and auth_pass:
                     generated_otp = str(random.randint(100000, 999999))
                     st.session_state.otp_code = generated_otp
@@ -483,7 +574,7 @@ if not st.session_state.user_id:
                     
             if st.session_state.otp_code:
                 user_otp = st.sidebar.text_input("Enter 6-Digit OTP Code")
-                if st.sidebar.button("Verify & Proceed"):
+                if st.sidebar.button("Verify & Proceed", use_container_width=True):
                     if user_otp == st.session_state.otp_code:
                         with get_db_connection() as conn:
                             c = conn.cursor()
@@ -553,7 +644,7 @@ else:
     else:
         st.sidebar.info("🔴 Meta Bluetooth Access: DISABLED")
 
-    if st.sidebar.button("Logout"):
+    if st.sidebar.button("Logout", use_container_width=True):
         st.session_state.user_id = None
         st.session_state.is_owner_session = False
         st.session_state.otp_code = None
@@ -593,7 +684,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
             if author_pic: 
                 st.image(author_pic, width=50)
             else:
-                st.markdown("👤")
+                st.markdown("<div style='font-size:2rem;'>👤</div>", unsafe_allow_html=True)
         with col_info:
             tick = get_meta_blue_badge() if post.get("is_verified") else ""
             boost_badge = "🔥 [BOOSTED]" if post.get("is_boosted") else ""
@@ -603,7 +694,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     with col_h2:
         if st.session_state.user_id and st.session_state.user_id != post.get("user_id"):
             fol_lbl = "✔ Following" if is_following else "➕ Follow"
-            if st.button(fol_lbl, key=f"fol_{prefix}_{post['record_id']}"):
+            if st.button(fol_lbl, key=f"fol_{prefix}_{post['record_id']}", use_container_width=True):
                 with get_db_connection() as conn:
                     c = conn.cursor()
                     if is_following:
@@ -615,7 +706,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
 
     if post.get("title"): st.subheader(post["title"])
     if post.get("content"): st.write(post["content"])
-    if post.get("tags"): st.markdown(f"<span style='color:#0064e0;'>{post['tags']}</span>", unsafe_allow_html=True)
+    if post.get("tags"): st.markdown(f"<span style='color:#3b82f6;'>{post['tags']}</span>", unsafe_allow_html=True)
 
     if st.session_state.user_id and st.session_state.user_id == post.get("user_id"):
         with st.expander("✏ Edit or Delete Post"):
@@ -623,7 +714,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
             new_content = st.text_area("Edit Description", value=post.get("content", ""), key=f"ec_{prefix}_{post['record_id']}")
             
             col_ed1, col_ed2 = st.columns(2)
-            if col_ed1.button("💾 Save Changes", key=f"save_{prefix}_{post['record_id']}"):
+            if col_ed1.button("💾 Save Changes", key=f"save_{prefix}_{post['record_id']}", use_container_width=True):
                 with get_db_connection() as conn:
                     c = conn.cursor()
                     c.execute("UPDATE master_app_table SET title = ?, content = ? WHERE record_id = ?", (new_title, new_content, post["record_id"]))
@@ -631,7 +722,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                 st.success("Post updated successfully!")
                 st.rerun()
                 
-            if col_ed2.button("🗑️️ Delete Post", key=f"del_{prefix}_{post['record_id']}"):
+            if col_ed2.button("🗑 Delete Post", key=f"del_{prefix}_{post['record_id']}", use_container_width=True):
                 with get_db_connection() as conn:
                     c = conn.cursor()
                     c.execute("DELETE FROM master_app_table WHERE record_id = ?", (post["record_id"],))
@@ -672,12 +763,12 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
             c.execute("SELECT * FROM likes WHERE user_id = ? AND post_id = ?", (st.session_state.user_id, post["record_id"]))
             if c.fetchone(): has_liked = True
 
-    st.markdown("---")
+    st.markdown("<hr style='margin:12px 0; border-color:#1f2937;'>", unsafe_allow_html=True)
     col_b1, col_b2, col_b3 = st.columns(3)
     col_b1.write(f"👁️ **{(post.get('views_count', 0) + 1):,}** Views")
     
     like_lbl = f"❤️ Liked ({real_likes})" if has_liked else f"👍 Like ({real_likes})"
-    if col_b2.button(like_lbl, key=f"lk_{prefix}_{post['record_id']}"):
+    if col_b2.button(like_lbl, key=f"lk_{prefix}_{post['record_id']}", use_container_width=True):
         if st.session_state.user_id:
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -690,7 +781,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         else:
             st.warning("Please login to like!")
 
-    if col_b3.button("🚀 Share", key=f"sh_{prefix}_{post['record_id']}"):
+    if col_b3.button("🚀 Share", key=f"sh_{prefix}_{post['record_id']}", use_container_width=True):
         st.toast("Sharing Link Copied!")
         
     st.markdown("</div>", unsafe_allow_html=True)
@@ -1447,10 +1538,10 @@ with tab_feed:
                     <div class='amazon-product-card'>
                         <div style='display:flex; justify-content:space-between; align-items:center;'>
                             <div>
-                                <h4 style='margin:0; color:#ff9900;'>🛒 {ap['title']}</h4>
+                                <h4 style='margin:0; color:#f59e0b;'>🛒 {ap['title']}</h4>
                                 <p style='margin:5px 0 0 0; color:#fff;'>Price: <b>{ap['price']}</b> | Category: <i>{ap['category']}</i></p>
                             </div>
-                            <a href='{ap['affiliate_link']}' target='_blank' style='background:#ff9900; color:#000; padding:8px 12px; text-decoration:none; border-radius:6px; font-weight:bold;'>Buy / View on Amazon</a>
+                            <a href='{ap['affiliate_link']}' target='_blank' style='background:#f59e0b; color:#000; padding:8px 14px; text-decoration:none; border-radius:8px; font-weight:bold;'>Buy / View on Amazon</a>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -1625,13 +1716,13 @@ with tab_feed:
                     with grid_cols[idx % 2]:
                         st.markdown(f"""
                         <div class='amazon-product-card'>
-                            <h4 style='color:#ff9900; margin-bottom:5px;'>{ap['title']}</h4>
-                            <p style='margin:0 0 10px 0;'>Price: <span style='color:#00ff66; font-weight:bold;'>{ap['price']}</span></p>
+                            <h4 style='color:#f59e0b; margin-bottom:5px;'>{ap['title']}</h4>
+                            <p style='margin:0 0 10px 0;'>Price: <span style='color:#10b981; font-weight:bold;'>{ap['price']}</span></p>
                         </div>
                         """, unsafe_allow_html=True)
                         if ap['image_url']:
                             st.image(ap['image_url'], use_container_width=True)
-                        st.markdown(f"<a href='{ap['affiliate_link']}' target='_blank'><button style='width:100%; background:#ff9900; color:#000; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;'>🛒 Buy Now on Amazon</button></a>", unsafe_allow_html=True)
+                        st.markdown(f"<a href='{ap['affiliate_link']}' target='_blank'><button style='width:100%; background:#f59e0b; color:#000; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;'>🛒 Buy Now on Amazon</button></a>", unsafe_allow_html=True)
                         st.markdown("<br>", unsafe_allow_html=True)
 
         with sub_feed3:
