@@ -140,11 +140,9 @@ st.markdown("""
         z-index: 99999; border-bottom: 1px solid #1f2937;
     }
     
-    /* Header Title Styling */
+    /* Facebook Blue Styling */
     .app-header-title {
-        background: linear-gradient(90deg, #2563eb, #3b82f6);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #1877F2 !important;
         font-weight: 800;
         font-size: 1.8rem;
         text-align: center;
@@ -157,8 +155,8 @@ st.markdown("""
     .stImage > img {
         border-radius: 50% !important; 
         object-fit: cover !important; 
-        border: 2px solid #2563eb !important;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        border: 2px solid #1877F2 !important;
+        box-shadow: 0 4px 12px rgba(24, 119, 242, 0.25);
     }
     
     /* Post Cards Modern Styling */
@@ -178,7 +176,7 @@ st.markdown("""
     .video-watermark-wrapper { position: relative; border-radius: 12px; overflow: hidden; }
     .video-watermark-badge {
         position: absolute; top: 12px; right: 15px; 
-        background: rgba(37, 99, 235, 0.9);
+        background: rgba(24, 119, 242, 0.9);
         backdrop-filter: blur(4px);
         color: white; padding: 4px 12px; border-radius: 20px; 
         font-size: 11px; font-weight: 700; z-index: 99; pointer-events: none;
@@ -189,10 +187,10 @@ st.markdown("""
         overflow: hidden; border: 1px solid #1f2937; background: #000; 
     }
     .announcement-box {
-        background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); 
-        color: #f3f4f6; padding: 12px 20px; border-radius: 12px; 
+        background: linear-gradient(135deg, #1877F2 0%, #0d5cb6 100%); 
+        color: #ffffff; padding: 12px 20px; border-radius: 12px; 
         text-align: center; margin-bottom: 20px; font-weight: 600; font-size: 14px;
-        box-shadow: 0 4px 12px rgba(30, 64, 175, 0.25);
+        box-shadow: 0 4px 12px rgba(24, 119, 242, 0.25);
         border: 1px solid rgba(255,255,255,0.1);
     }
     .ad-container { 
@@ -205,7 +203,7 @@ st.markdown("""
         padding: 18px; border-radius: 16px; border: 1px solid #1f2937; 
     }
     .vertical-live-card { 
-        background: #111827; border-left: 4px solid #2563eb; 
+        background: #111827; border-left: 4px solid #1877F2; 
         padding: 14px; margin-bottom: 15px; border-radius: 8px; color: #fff; 
     }
     .duplicate-card { 
@@ -217,7 +215,7 @@ st.markdown("""
         padding: 18px; border-radius: 12px; margin-bottom: 15px; 
     }
     .meta-control-box { 
-        background: #0d1527; border: 1px solid #1d4ed8; 
+        background: #0d1527; border: 1px solid #1877F2; 
         padding: 20px; border-radius: 16px; margin-bottom: 20px; 
     }
     .msg-box-owner { 
@@ -225,10 +223,10 @@ st.markdown("""
         padding: 14px; border-radius: 10px; margin-bottom: 10px; 
     }
     .chat-bubble-self { 
-        background: #2563eb; color: white; padding: 12px 16px; 
+        background: #1877F2; color: white; padding: 12px 16px; 
         border-radius: 16px 16px 2px 16px; margin-bottom: 10px; 
         max-width: 80%; float: right; clear: both;
-        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+        box-shadow: 0 2px 8px rgba(24, 119, 242, 0.3);
     }
     .chat-bubble-other { 
         background: #1f2937; color: white; padding: 12px 16px; 
@@ -426,7 +424,7 @@ def init_master_database():
             "lock_login": "OFF",
             "logo_path": "",
             "adsense_client_id": "ca-pub-0000000000000000",
-            "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #0064e0; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
+            "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #1877F2; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
             "show_ads": "ON",
             "global_notify_msg": "System Active Globally",
             "auto_duplicate_detector": "ON",
@@ -462,10 +460,12 @@ if site_ver_code:
 def hash_pass(pwd): 
     return hashlib.sha256(pwd.encode()).hexdigest()
 
+# ==========================================
+# PERFECTED META BLUE BADGE (AUTHENTIC LOOK)
+# ==========================================
 def get_meta_blue_badge():
     return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block; flex-shrink: 0;">
-        <path fill="#0064e0" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.79-4-4-4-.495 0-.965.084-1.4.238C14.55 2.475 13.18 1.6 11.6 1.6c-1.58 0-2.95.875-3.6 2.148-.435-.154-.905-.238-1.4-.238-2.21 0-4 1.79-4 4 0 .495.084.965.238 1.4C1.575 9.55.7 10.92.7 12.5c0 1.58-.875 2.95-2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.79 4 4 4 .495 0 .965-.084 1.4-.238 1.05 1.273 2.42 2.148 4 2.148 1.58 0 2.95-.875 3.6-2.148.435.154.905.238 1.4.238 2.21 0 4-1.79 4-4 0-.495-.084-.965-.238-1.4 1.273-1.05 2.148-2.42 2.148-4z"/>
-        <path fill="#ffffff" d="M10.2 16.2l-3.5-3.5 1.4-1.4 2.1 2.1 5.7-5.7 1.4 1.4-7.1 7.1z"/>
+        <path fill="#1877F2" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
     </svg>"""
 
 def increment_views(post_id):
@@ -706,7 +706,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
 
     if post.get("title"): st.subheader(post["title"])
     if post.get("content"): st.write(post["content"])
-    if post.get("tags"): st.markdown(f"<span style='color:#3b82f6;'>{post['tags']}</span>", unsafe_allow_html=True)
+    if post.get("tags"): st.markdown(f"<span style='color:#1877F2;'>{post['tags']}</span>", unsafe_allow_html=True)
 
     if st.session_state.user_id and st.session_state.user_id == post.get("user_id"):
         with st.expander("✏ Edit or Delete Post"):
@@ -1015,7 +1015,7 @@ with tab_feed:
                             <span>👤 <b>{lp['full_name']}</b> (ID: {lp['user_id'][:8]}...)</span>
                             <span style='color:#888; font-size:12px;'>⏱️ {lp['created_at']}</span>
                         </div>
-                        <p style='margin: 8px 0; font-size:15px;'><b>{lp['title']}</b> - <span style='color:#0064e0;'>[{lp['post_category'].upper()}]</span></p>
+                        <p style='margin: 8px 0; font-size:15px;'><b>{lp['title']}</b> - <span style='color:#1877F2;'>[{lp['post_category'].upper()}]</span></p>
                         <p style='color:#ccc; font-size:13px;'>{lp['content'] if lp['content'] else ''}</p>
                     </div>
                     """, unsafe_allow_html=True)
@@ -1093,7 +1093,7 @@ with tab_feed:
             else:
                 for sp in pending_sponsors:
                     st.markdown(f"""
-                    <div style='background:#1e2026; padding:12px; border-radius:8px; margin-bottom:10px; border-left:4px solid #0064e0;'>
+                    <div style='background:#1e2026; padding:12px; border-radius:8px; margin-bottom:10px; border-left:4px solid #1877F2;'>
                         <b>Sponsor Name:</b> {sp['sponsor_name']}<br>
                         <b>TrxID (10-Digit):</b> <span style='color:yellow; font-weight:bold;'>{sp['trx_id_10digit']}</span><br>
                         <b>Payment Method:</b> {sp['bank_details_used']}<br>
@@ -1695,7 +1695,7 @@ with tab_feed:
         ads_enabled = get_setting("show_ads") == "ON"
         ads_html = get_setting("adsense_script")
 
-        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5 = st.tabs(["🌐 All Feed", "🛒 Amazon Store", "🎬 Reels / Shorts", "🖼️ Photos", "📹 Long Videos"])
+        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5 = st.tabs(["🌐 All Feed", "🛒 Amazon Store", "🎬 Reels / Shorts", "🖼️️ Photos", "📹 Long Videos"])
 
         with sub_feed1:
             for post in posts:
@@ -1797,7 +1797,7 @@ with tab_profile:
             if get_setting("daily_limit_mode") == "ON":
                 current_cnt = get_user_today_upload_count(st.session_state.user_id, post_type)
                 limit_max = 1 if post_type in ["short", "long"] else 10
-                st.info(f"⚠️ **Daily Guidelines Active:** You have uploaded **{current_cnt}/{limit_max}** {post_type} post(s) today.")
+                st.info(f"⚠️️ **Daily Guidelines Active:** You have uploaded **{current_cnt}/{limit_max}** {post_type} post(s) today.")
 
             title = st.text_input("Title")
             desc = st.text_area("Description")
