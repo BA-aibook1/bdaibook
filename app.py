@@ -677,7 +677,7 @@ else:
 # Live Complaint & Screenshot Submission Box (Chat System Only)
 with st.sidebar.expander("💬 Chat Support & Screenshot Box"):
     if not st.session_state.user_id:
-        st.warning("🔒 চ্যাট বা মেসেজ পাঠাতে অবশ্যই আগে লগইন করুন।")
+        st.warning("🔒 Please login first to send messages or screenshots.")
     else:
         st.markdown(f"""
         <a href='{OWNER_WHATSAPP_LINK}' target='_blank' class='whatsapp-support-btn'>
@@ -691,7 +691,7 @@ with st.sidebar.expander("💬 Chat Support & Screenshot Box"):
         
         if st.button("🚀 Send Message"):
             if get_setting("live_chat_system_status", "ON") == "OFF":
-                st.sidebar.error("🔴 চ্যাট সিস্টেম বন্ধ রয়েছে। মেসেজ পাঠানো সম্ভব নয়।")
+                st.sidebar.error("🔴 Chat System is currently disabled. Cannot send message.")
             elif comp_msg or comp_img:
                 img_p = ""
                 if comp_img:
@@ -1020,7 +1020,7 @@ with tab_feed:
             for gw in gateways:
                 col_g1, col_g2 = st.columns([4, 1])
                 col_g1.write(f"📌 **[{gw['method_type']}] {gw['provider_name']}** —\n```\n{gw['account_details']}\n```")
-                if col_g2.button("🗑️ Remove", key=f"del_gw_{gw['gateway_id']}"):
+                if col_g2.button("🗑️️ Remove", key=f"del_gw_{gw['gateway_id']}"):
                     with get_db_connection() as conn:
                         c = conn.cursor()
                         c.execute("DELETE FROM payment_gateways WHERE gateway_id = ?", (gw['gateway_id'],))
@@ -1116,7 +1116,7 @@ with tab_feed:
                     <div class='vertical-live-card'>
                         <div style='display:flex; justify-content:space-between;'>
                             <span>👤 <b>{lp['full_name']}</b> (ID: {lp['user_id'][:8]}...)</span>
-                            <span style='color:#888; font-size:12px;'>⏱️️ {lp['created_at']}</span>
+                            <span style='color:#888; font-size:12px;'>⏱ {lp['created_at']}</span>
                         </div>
                         <p style='margin: 8px 0; font-size:15px;'><b>{lp['title']}</b> - <span style='color:#0064e0;'>[{str(lp['post_category']).upper()}]</span></p>
                         <p style='color:#ccc; font-size:13px;'>{lp['content'] if lp['content'] else ''}</p>
@@ -1334,7 +1334,7 @@ with tab_feed:
                                 ban_status = "<span style='color:red;'>[BANNED]</span>" if is_banned else "<span style='color:green;'>[ACTIVE]</span>"
                                 
                                 col_d_u1.write(f"👤 **{u_dup['full_name']}** ({u_dup['user_id'][:8]}...) {ban_status}")
-                                col_d_u2.write(f"⏱️️ {u_dup['created_at']}")
+                                col_d_u2.write(f"⏱ {u_dup['created_at']}")
                                 
                                 if not is_banned:
                                     if col_d_u3.button("🚫 Ban This Account", key=f"ban_dup_{u_dup['user_id']}"):
@@ -1673,7 +1673,7 @@ with tab_feed:
 
         with o_tab17:
             st.markdown("#### 👤 17th Screen: Live Chat & WhatsApp Engine")
-            st.caption("মালিক এখান থেকে ইউজারদের সাথে সরাসরি চ্যাট আদান-প্রদান নিয়ন্ত্রণ করতে পারবেন।")
+            st.caption("Owner can control and respond to user messages directly from here.")
             
             current_chat_status = get_setting("live_chat_system_status", "ON")
             
@@ -1690,15 +1690,15 @@ with tab_feed:
             
             with col_sw2:
                 if current_chat_status == "ON":
-                    st.success("✅ চ্যাট সিস্টেম চালু আছে (ইউজাররা মেসেজ ও স্ক্রিনশট পাঠাতে পারছে)")
+                    st.success("✅ Chat system active (Users can send messages and screenshots)")
                 else:
-                    st.error("🔴 চ্যাট সিস্টেম বন্ধ আছে (ইউজারদের মেসেজিং সুবিধা সাময়িক স্থগিত)")
+                    st.error("🔴 Chat system disabled (User messaging features paused)")
 
             st.markdown("---")
-            st.markdown("##### 📩 চ্যাট আদান-প্রদান ও ইনবক্স")
+            st.markdown("##### 📩 Live Chat & Inbox Messages")
             
             if current_chat_status == "OFF":
-                st.warning("⚠️ চ্যাট বন্ধ থাকায় নতুন কোনো মেসেজ প্রসেস হচ্ছে না।")
+                st.warning("⚠️ Chat system is off. New messages are not being processed.")
             else:
                 with get_db_connection() as conn:
                     c = conn.cursor()
@@ -1706,7 +1706,7 @@ with tab_feed:
                     all_chat_msgs = c.fetchall()
 
                 if not all_chat_msgs:
-                    st.info("🎉 কোনো নতুন মেসেজ বা স্ক্রিনশট পেন্ডিং নেই।")
+                    st.info("🎉 No pending messages or screenshots found.")
                 else:
                     for msg in all_chat_msgs:
                         m_id = msg['complaint_id']
@@ -1719,18 +1719,18 @@ with tab_feed:
                         
                         st.markdown(f"""
                         <div style='background: #18191a; padding: 12px; border-radius: 10px; border-left: 4px solid #25D366; margin-bottom: 10px;'>
-                            <b>👤 {u_name}</b> <small style='color:#888;'>(ID: {u_id[:8]}... | {m_time})</small><br>
+                            <b>👤 Sender: {u_name}</b> <small style='color:#888;'>(ID: {u_id[:8]}... | {m_time})</small><br>
                             <span style='font-size:15px;'>💬 {m_text}</span>
                         </div>
                         """, unsafe_allow_html=True)
                         
                         if m_img and os.path.exists(m_img):
-                            st.image(m_img, caption="📸 সংযুক্ত স্ক্রিনশট", width=300)
+                            st.image(m_img, caption="📸 Attached Screenshot", width=300)
                             
                         if m_reply:
-                            st.info(f"👑 **আপনার পাঠানো রিপ্লাই:** {m_reply}")
+                            st.info(f"👑 **Owner Reply Sent:** {m_reply}")
                         
-                        reply_input = st.text_input("রিপ্লাই লিখুন...", value=m_reply, key=f"r_inp_{m_id}")
+                        reply_input = st.text_input("Type your reply...", value=m_reply, key=f"r_inp_{m_id}")
                         c_btn1, c_btn2 = st.columns(2)
                         
                         if c_btn1.button("📤 Send Reply", key=f"s_btn_{m_id}"):
@@ -1739,7 +1739,7 @@ with tab_feed:
                                     c = conn.cursor()
                                     c.execute("UPDATE live_complaints SET reply_text = ?, status = 'Replied' WHERE complaint_id = ?", (reply_input, m_id))
                                     conn.commit()
-                                st.success("✅ রিপ্লাই পাঠানো হয়েছে!")
+                                st.success("✅ Reply sent successfully!")
                                 st.rerun()
                                 
                         if c_btn2.button("🗑️ Delete Chat", key=f"d_btn_{m_id}"):
@@ -1747,7 +1747,7 @@ with tab_feed:
                                 c = conn.cursor()
                                 c.execute("DELETE FROM live_complaints WHERE complaint_id = ?", (m_id,))
                                 conn.commit()
-                            st.warning("🗑️ চ্যাট মুছে ফেলা হয়েছে।")
+                            st.warning("🗑️️ Chat deleted successfully.")
                             st.rerun()
                         st.markdown("---")
 
