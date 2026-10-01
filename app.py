@@ -461,11 +461,12 @@ def hash_pass(pwd):
     return hashlib.sha256(pwd.encode()).hexdigest()
 
 # ==========================================
-# PERFECTED META BLUE BADGE (AUTHENTIC LOOK)
+# PERFECTED META BLUE BADGE (SCALLOPED / KHAS DESIGN)
 # ==========================================
 def get_meta_blue_badge():
     return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block; flex-shrink: 0;">
-        <path fill="#1877F2" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+        <path fill="#1877F2" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.668.258-.955.088-2.025-.508-2.822-.797-.797-1.867-.967-2.822-.508C16.31 4.233 14.94 3.5 13.36 3.5c-1.58 0-2.95.875-3.668 2.148-.955-.258-2.025-.088-2.822.508-.797.797-.967 1.867-.508 2.822C5.108 9.69 4.375 11.06 4.375 12.64c0 1.58.875 2.95 2.148 3.668-.258.955-.088 2.025.508 2.822.797.797 1.867.967 2.822.508 1.16 1.13 2.53 1.863 4.11 1.863 1.58 0 2.95-.875 3.668-2.148.955.258 2.025.088 2.822-.508.797-.797.967-1.867.508-2.822 1.273-.718 2.048-2.088 2.048-3.668z"/>
+        <path fill="#FFFFFF" d="M10.25 15.75l-3.5-3.5 1.41-1.41 2.09 2.08 5.67-5.67 1.41 1.41z"/>
     </svg>"""
 
 def increment_views(post_id):
@@ -1695,7 +1696,7 @@ with tab_feed:
         ads_enabled = get_setting("show_ads") == "ON"
         ads_html = get_setting("adsense_script")
 
-        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5 = st.tabs(["🌐 All Feed", "🛒 Amazon Store", "🎬 Reels / Shorts", "🖼️️ Photos", "📹 Long Videos"])
+        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5 = st.tabs(["🌐 All Feed", "🛒 Amazon Store", "🎬 Reels / Shorts", "🖼 Photos", "📹 Long Videos"])
 
         with sub_feed1:
             for post in posts:
@@ -1797,7 +1798,7 @@ with tab_profile:
             if get_setting("daily_limit_mode") == "ON":
                 current_cnt = get_user_today_upload_count(st.session_state.user_id, post_type)
                 limit_max = 1 if post_type in ["short", "long"] else 10
-                st.info(f"⚠️️ **Daily Guidelines Active:** You have uploaded **{current_cnt}/{limit_max}** {post_type} post(s) today.")
+                st.info(f"⚠ **Daily Guidelines Active:** You have uploaded **{current_cnt}/{limit_max}** {post_type} post(s) today.")
 
             title = st.text_input("Title")
             desc = st.text_area("Description")
