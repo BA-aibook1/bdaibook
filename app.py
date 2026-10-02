@@ -538,9 +538,14 @@ current_user = {}
 st.sidebar.markdown("### 🔐 User Login / Register")
 login_locked = get_setting("lock_login") == "ON"
 
+# ==========================================
+# AUTHENTICATION & LOGIN GATEWAY
+# ==========================================
 if not st.session_state.user_id:
     if login_locked:
         st.sidebar.error("🚫 Login System is temporarily locked by Owner for maintenance!")
+        st.error("🔒 ওয়েবসাইটটিতে প্রবেশ করার অনুমতি নেই। অ্যাডমিন সিস্টেম মেনটেন্যান্স বা লকড অবস্থায় রেখেছেন।")
+        st.stop()
     else:
         auth_input = st.sidebar.text_input("Phone Number or Gmail")
         auth_pass = st.sidebar.text_input("Password", type="password")
@@ -618,38 +623,45 @@ if not st.session_state.user_id:
                                 st.rerun()
                     else:
                         st.sidebar.error("❌ Invalid OTP Code!")
+                        
+    # 🔒 AUTHENTICATION GATE: সাইন ইন না করা পর্যন্ত ইউজার কোনো পোস্ট বা কনটেন্ট দেখতে পারবে না
+    st.warning("🔒 ব্রাউজারে অ্যাপলিকেশনের কনটেন্ট দেখতে আপনাকে অবশ্যই সাইন ইন / লগইন করতে হবে। সাইডবার থেকে লগইন সম্পন্ন করুন।")
+    st.stop()
+
+# ==========================================
+# LOGGED IN USER LOGIC & SIDEBAR INFO
+# ==========================================
+with get_db_connection() as conn:
+    c = conn.cursor()
+    c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (st.session_state.user_id,))
+    raw_user = c.fetchone()
+    
+    c.execute("SELECT COUNT(*) as cnt FROM follows WHERE following_id = ?", (st.session_state.user_id,))
+    f_res = c.fetchone()
+    real_followers = f_res["cnt"] if f_res else 0
+    
+    current_user = dict(raw_user) if raw_user else {}
+
+if current_user.get("is_suspended"):
+    sus_until = current_user.get("suspended_until", "")
+    if datetime.now().strftime("%Y-%m-%d %H:%M:%S") < sus_until:
+        st.error(f"🚫 Account Suspended until: {sus_until}")
+        st.stop()
+
+st.sidebar.markdown(f"User: **{current_user.get('full_name', 'User')}**")
+st.sidebar.markdown(f"👥 Real Followers: **{real_followers:,}**")
+
+user_bt_permission = check_user_meta_bluetooth_permission(st.session_state.user_id)
+if user_bt_permission:
+    st.sidebar.success("🔵 Meta Bluetooth Access: ACTIVE")
 else:
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND user_id = ?", (st.session_state.user_id,))
-        raw_user = c.fetchone()
-        
-        c.execute("SELECT COUNT(*) as cnt FROM follows WHERE following_id = ?", (st.session_state.user_id,))
-        f_res = c.fetchone()
-        real_followers = f_res["cnt"] if f_res else 0
-        
-        current_user = dict(raw_user) if raw_user else {}
-    
-    if current_user.get("is_suspended"):
-        sus_until = current_user.get("suspended_until", "")
-        if datetime.now().strftime("%Y-%m-%d %H:%M:%S") < sus_until:
-            st.error(f"🚫 Account Suspended until: {sus_until}")
-            st.stop()
+    st.sidebar.info("🔴 Meta Bluetooth Access: DISABLED")
 
-    st.sidebar.markdown(f"User: **{current_user.get('full_name', 'User')}**")
-    st.sidebar.markdown(f"👥 Real Followers: **{real_followers:,}**")
-    
-    user_bt_permission = check_user_meta_bluetooth_permission(st.session_state.user_id)
-    if user_bt_permission:
-        st.sidebar.success("🔵 Meta Bluetooth Access: ACTIVE")
-    else:
-        st.sidebar.info("🔴 Meta Bluetooth Access: DISABLED")
-
-    if st.sidebar.button("Logout", use_container_width=True):
-        st.session_state.user_id = None
-        st.session_state.is_owner_session = False
-        st.session_state.otp_code = None
-        st.rerun()
+if st.sidebar.button("Logout", use_container_width=True):
+    st.session_state.user_id = None
+    st.session_state.is_owner_session = False
+    st.session_state.otp_code = None
+    st.rerun()
 
 tab_feed, tab_profile, tab_messages, tab_monetization = st.tabs([
     "📺 Public Live Feed", 
@@ -1144,7 +1156,7 @@ with tab_feed:
                         st.rerun()
 
         with o_tab11:
-            st.markdown("#### 🏔️ 11th Screen: System Optimization & Security Shield")
+            st.markdown("#### 🏔️️ 11th Screen: System Optimization & Security Shield")
             st.caption("Automated system optimization and security controls:")
             
             st.markdown("""
@@ -1167,7 +1179,7 @@ with tab_feed:
                     st.success("✅ Cache Cleared & Storage Optimized!")
 
         with o_tab12:
-            st.markdown("#### 🕵️‍♂️ 12th Screen: Auto-Duplicate Account Detector & Ban Control Switch")
+            st.markdown("#### 🕵️‍♂️️ 12th Screen: Auto-Duplicate Account Detector & Ban Control Switch")
             st.caption("লাইভ সিস্টেম: একই জিমেইল বা ফোন দিয়ে একাধিক অ্যাকাউন্ট তৈরি করলে ব্যাকএন্ডে অটোমেটিক ডিটেক্ট হবে।")
             
             curr_dup_switch = get_setting("auto_duplicate_detector", "ON")
@@ -2076,5 +2088,3 @@ with tab_monetization:
                             VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
                         """, (req_id, st.session_state.user_id or "Guest", sp_name, clean_trx, selected_channel_label, sp_video_url, v_file_path, now_str))
                         conn.commit()
-                        
-                    st.success("✅ Payment info and video submitted successfully! The owner will verify the 10-digit TrxID.")
