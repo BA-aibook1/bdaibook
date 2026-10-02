@@ -140,7 +140,6 @@ st.markdown("""
         z-index: 99999; border-bottom: 1px solid #1f2937;
     }
     
-    /* Facebook Blue Styling */
     .app-header-title {
         color: #1877F2 !important;
         font-weight: 800;
@@ -150,7 +149,6 @@ st.markdown("""
         letter-spacing: -0.5px;
     }
     
-    /* Profile Pictures & Media Rounded Edges */
     img { border-radius: 12px; }
     .stImage > img {
         border-radius: 50% !important; 
@@ -159,7 +157,6 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(24, 119, 242, 0.25);
     }
     
-    /* Post Cards Modern Styling */
     .fb-post-card {
         background: #111827; 
         padding: 20px; 
@@ -234,7 +231,6 @@ st.markdown("""
         max-width: 80%; float: left; clear: both;
     }
 
-    /* Buttons Improvements */
     .stButton>button {
         border-radius: 10px !important;
         font-weight: 600 !important;
@@ -460,9 +456,6 @@ if site_ver_code:
 def hash_pass(pwd): 
     return hashlib.sha256(pwd.encode()).hexdigest()
 
-# ==========================================
-# PERFECTED META BLUE BADGE (SCALLOPED / KHAS DESIGN)
-# ==========================================
 def get_meta_blue_badge():
     return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block; flex-shrink: 0;">
         <path fill="#1877F2" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.668.258-.955.088-2.025-.508-2.822-.797-.797-1.867-.967-2.822-.508C16.31 4.233 14.94 3.5 13.36 3.5c-1.58 0-2.95.875-3.668 2.148-.955-.258-2.025-.088-2.822.508-.797.797-.967 1.867-.508 2.822C5.108 9.69 4.375 11.06 4.375 12.64c0 1.58.875 2.95 2.148 3.668-.258.955-.088 2.025.508 2.822.797.797 1.867.967 2.822.508 1.16 1.13 2.53 1.863 4.11 1.863 1.58 0 2.95-.875 3.668-2.148.955.258 2.025.088 2.822-.508.797-.797.967-1.867.508-2.822 1.273-.718 2.048-2.088 2.048-3.668z"/>
@@ -1414,7 +1407,6 @@ with tab_feed:
         with o_tab16:
             st.markdown("#### 🛒 16th Screen: Amazon E-Commerce & Owner Master Permission Target Hub")
             
-            # --- META & BLUETOOTH OWNER CONTROL PANEL ---
             st.markdown("<div class='meta-control-box'>", unsafe_allow_html=True)
             st.markdown("### ⚡ Owner Master Control Switch (Meta & Bluetooth Permission)")
             
@@ -1480,10 +1472,7 @@ with tab_feed:
                     with st.expander(f"👤 {u_target['full_name']} ({u_target['auth_identifier']}) - Status: [{u_status}]"):
                         col_usr_t1, col_usr_t2, col_usr_t3 = st.columns([2, 2, 2])
                         
-                        # User Status Selection (Real vs Fake)
                         new_usr_status = col_usr_t1.selectbox("User Authenticity", ["REAL", "FAKE"], index=0 if u_status == "REAL" else 1, key=f"st_sel_{u_id}")
-                        
-                        # Bluetooth Switch
                         bt_grant = col_usr_t2.checkbox("Allow Meta Bluetooth Permission", value=u_bt, key=f"bt_cb_{u_id}")
                         
                         if col_usr_t3.button("💾 Save User Permission", key=f"save_perm_{u_id}"):
@@ -1499,7 +1488,6 @@ with tab_feed:
                             st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
-            # --- AMAZON E-COMMERCE SECTION ---
             st.markdown("---")
             st.markdown("##### ➕ Add New Amazon Product")
             with st.form("add_amazon_product_form"):
@@ -1562,7 +1550,6 @@ with tab_feed:
             st.markdown("#### 💬 17th Screen: Message System, Owner Direct Upload & Communication Center")
             st.caption("মেসেজ আদান-প্রদান, মালিকের নিকট ফাইল জমা প্রদান এবং ওনার প্যানেল থেকে বার্তা/ফটো পাঠাল কেন্দ্র।")
             
-            # --- SECTION 1: USER-TO-USER MESSAGE SYSTEM ---
             st.markdown("##### 📩 1. Direct Message Exchange System (মেসেজ আদান-প্রদান)")
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1601,7 +1588,6 @@ with tab_feed:
                         st.rerun()
 
             st.markdown("---")
-            # --- SECTION 2: UPLOAD TO OWNER VAULT ---
             st.markdown("##### 📤 2. Upload Photo / File directly to Owner (মালিকের এখানে জমা দিন)")
             with st.form("owner_upload_vault_form"):
                 upload_note = st.text_area("Note / Message for Owner")
@@ -1631,7 +1617,6 @@ with tab_feed:
                         st.error("Please upload a photo or file first.")
 
             st.markdown("---")
-            # --- SECTION 3: OWNER DIRECT MEDIA PUBLISHER & INBOX CONTROL ---
             st.markdown("##### 👑 3. Owner Direct Media Upload & Received Vault Inbox")
             st.caption("মালিকের নিজস্ব ডাইরেক্ট পাবলিশার ও জমা হওয়া ফাইল পর্যবেক্ষণ কেন্দ্র:")
             
@@ -1911,7 +1896,6 @@ with tab_messages:
                 selected_recip_label = st.selectbox("কার কাছে মেসেজ পাঠাতে চান সিলেক্ট করুন:", list(user_dict.keys()), key="user_chat_recip_select")
                 target_recip_id = user_dict[selected_recip_label]
                 
-                # চ্যাট হিস্টোরি প্রদর্শন
                 st.markdown("##### 📜 Chat History")
                 with get_db_connection() as conn:
                     c = conn.cursor()
@@ -2029,52 +2013,56 @@ with tab_monetization:
     st.caption("Advertisers or third parties can submit video links after completing payment.")
 
     with st.expander("📥 Submit Sponsored Video & Payment Info", expanded=True):
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
-            active_gateways = c.fetchall()
+        # 🔒 [SECURITY UPDATE]: Check if user is logged in before allowing submission
+        if not st.session_state.user_id:
+            st.warning("🚫 স্পন্সর ভিডিও ও পেমেন্ট ইনফো সাবমিট করতে হলে আপনাকে অবশ্যই সাইন-ইন বা লগইন করতে হবে!")
+        else:
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
+                active_gateways = c.fetchall()
 
-        gw_options = {}
-        if active_gateways:
-            gw_options = {f"[{gw['method_type']}] {gw['provider_name']}": gw for gw in active_gateways}
-            selected_gw_sp_name = st.selectbox("Select Payment Channel", list(gw_options.keys()), key="sp_gw_select")
-            selected_gw_sp = gw_options[selected_gw_sp_name]
-            
-            st.info(f"💳 **Official Transfer Details:**\n```\n{selected_gw_sp['account_details']}\n```")
+            gw_options = {}
+            if active_gateways:
+                gw_options = {f"[{gw['method_type']}] {gw['provider_name']}": gw for gw in active_gateways}
+                selected_gw_sp_name = st.selectbox("Select Payment Channel", list(gw_options.keys()), key="sp_gw_select")
+                selected_gw_sp = gw_options[selected_gw_sp_name]
+                
+                st.info(f"💳 **Official Transfer Details:**\n```\n{selected_gw_sp['account_details']}\n```")
 
-        with st.form("sponsor_video_submit_form"):
-            sp_name = st.text_input("Your Name / Company Name")
-            trx_10 = st.text_input("Enter Exactly 10-Digit Transaction ID (TrxID / Ref Code)", max_chars=10)
-            
-            sp_video_url = st.text_input("Video Link (YouTube / Facebook / Direct URL)")
-            sp_video_file = st.file_uploader("OR Upload Video File Direct", type=["mp4", "mov"])
-            
-            submit_sp_btn = st.form_submit_button("🚀 Submit to Owner for Approval")
+            with st.form("sponsor_video_submit_form"):
+                sp_name = st.text_input("Your Name / Company Name")
+                trx_10 = st.text_input("Enter Exactly 10-Digit Transaction ID (TrxID / Ref Code)", max_chars=10)
+                
+                sp_video_url = st.text_input("Video Link (YouTube / Facebook / Direct URL)")
+                sp_video_file = st.file_uploader("OR Upload Video File Direct", type=["mp4", "mov"])
+                
+                submit_sp_btn = st.form_submit_button("🚀 Submit to Owner for Approval")
 
-            if submit_sp_btn:
-                clean_trx = trx_10.strip()
-                if len(clean_trx) != 10:
-                    st.error("❌ Invalid Transaction ID! Reference/TrxID code must be exactly 10 characters long.")
-                elif not (sp_video_url or sp_video_file):
-                    st.error("❌ Please provide either a video URL link or upload a video file!")
-                else:
-                    v_file_path = ""
-                    if sp_video_file:
-                        v_file_path = os.path.join(UPLOAD_DIR, f"sp_{uuid.uuid4()}.mp4")
-                        with open(v_file_path, "wb") as f:
-                            f.write(sp_video_file.getbuffer())
+                if submit_sp_btn:
+                    clean_trx = trx_10.strip()
+                    if len(clean_trx) != 10:
+                        st.error("❌ Invalid Transaction ID! Reference/TrxID code must be exactly 10 characters long.")
+                    elif not (sp_video_url or sp_video_file):
+                        st.error("❌ Please provide either a video URL link or upload a video file!")
+                    else:
+                        v_file_path = ""
+                        if sp_video_file:
+                            v_file_path = os.path.join(UPLOAD_DIR, f"sp_{uuid.uuid4()}.mp4")
+                            with open(v_file_path, "wb") as f:
+                                f.write(sp_video_file.getbuffer())
 
-                    req_id = str(uuid.uuid4())
-                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    
-                    selected_channel_label = selected_gw_sp_name if active_gateways else "Direct Payment"
-                    with get_db_connection() as conn:
-                        c = conn.cursor()
-                        c.execute("""
-                            INSERT INTO sponsor_video_requests 
-                            (request_id, user_id, sponsor_name, trx_id_10digit, bank_details_used, video_link, video_file_path, status, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
-                        """, (req_id, st.session_state.user_id or "Guest", sp_name, clean_trx, selected_channel_label, sp_video_url, v_file_path, now_str))
-                        conn.commit()
+                        req_id = str(uuid.uuid4())
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         
-                    st.success("✅ Payment info and video submitted successfully! The owner will verify the 10-digit TrxID.")
+                        selected_channel_label = selected_gw_sp_name if active_gateways else "Direct Payment"
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO sponsor_video_requests 
+                                (request_id, user_id, sponsor_name, trx_id_10digit, bank_details_used, video_link, video_file_path, status, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+                            """, (req_id, st.session_state.user_id, sp_name, clean_trx, selected_channel_label, sp_video_url, v_file_path, now_str))
+                            conn.commit()
+                            
+                        st.success("✅ Payment info and video submitted successfully! The owner will verify the 10-digit TrxID.")
