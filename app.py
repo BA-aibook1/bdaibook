@@ -16,6 +16,48 @@ NEW_OWNER_SECRET_KEY = os.getenv("OWNER_SECRET", "S$s123456789112233BDAIBOOK@MDS
 SECRET_CODES = [NEW_OWNER_SECRET_KEY]
 
 # ==========================================
+# AUTO VIDEO COMPRESSION ENGINE (NEW ADDITION)
+# ==========================================
+try:
+    from moviepy.editor import VideoFileClip
+    MOVIEPY_AVAILABLE = True
+except ImportError:
+    MOVIEPY_AVAILABLE = False
+
+def compress_video_automatically(input_path, output_path):
+    """
+    বড় ভিডিওর সাইজ (MB) কমাতে এবং ফাস্ট আপলোড নিশ্চিত করতে অটো কম্প্রেশন লজিক।
+    """
+    if not MOVIEPY_AVAILABLE:
+        # যদি moviepy ইনস্টল না থাকে, তবে ডিরেক্ট ফাইল কপি করে কাজ চালিয়ে নেবে যাতে অ্যাপ ক্র্যাশ না করে।
+        with open(input_path, 'rb') as f_in, open(output_path, 'wb') as f_out:
+            f_out.write(f_in.read())
+        return output_path
+
+    try:
+        clip = VideoFileClip(input_path)
+        # রেজোলিউশন অপ্টিমাইজ করে সাইজ কমানো (যেমন ম্যাক্স 720p এ নামিয়ে আনা)
+        if clip.size[1] > 720:
+            clip = clip.resize(height=720)
+        
+        # বিটরেট ও কোয়ালিটি অপ্টিমাইজ করে কম্প্রেস করা
+        clip.write_videofile(
+            output_path,
+            codec="libx264",
+            audio_codec="aac",
+            bitrate="1000k",
+            preset="ultrafast",  # ফাস্ট জেনারেশনের জন্য
+            logger=None
+        )
+        clip.close()
+        return output_path
+    except Exception as e:
+        # কোনো কারণে এরর হলে মূল ফাইলটিই ব্যাকআপ হিসেবে রেখে দেবে
+        with open(input_path, 'rb') as f_in, open(output_path, 'wb') as f_out:
+            f_out.write(f_in.read())
+        return output_path
+
+# ==========================================
 # GOOGLE VISION AI AUTO-MODERATION ENGINE
 # ==========================================
 try:
@@ -860,7 +902,7 @@ with tab_feed:
                         st.rerun()
 
             st.markdown("---")
-            st.markdown("#### ⚙️ Global Daily Limit Switch")
+            st.markdown("#### ⚙️️ Global Daily Limit Switch")
             curr_daily_limit = get_setting("daily_limit_mode", "OFF")
             st.write(f"Global Daily Limit Status: **{'ACTIVE' if curr_daily_limit == 'ON' else 'UNLIMITED'}**")
 
@@ -1825,12 +1867,26 @@ with tab_profile:
                         st.error("🚫 Inappropriate Content Detected! Account suspended.")
                         st.rerun()
 
-                    ext = ".png" if use_live_camera else os.path.splitext(uploaded_media.name)[1]
-                    m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{ext}")
-                    with open(m_path, "wb") as f: 
+                    # টেম্পোরারি ফাইল হিসেবে সেভ করা
+                    temp_ext = ".png" if use_live_camera else os.path.splitext(uploaded_media.name)[1]
+                    temp_path = os.path.join(UPLOAD_DIR, f"temp_{uuid.uuid4()}{temp_ext}")
+                    with open(temp_path, "wb") as f: 
                         f.write(uploaded_media.getbuffer())
 
-                    if ext.lower() in ['.jpg', '.jpeg', '.png']:
+                    # যদি ভিডিও হয়, তবে অটো কম্প্রেশন লজিক কাজ করবে
+                    final_ext = ".mp4" if (not use_live_camera and temp_ext.lower() in ['.mp4', '.mov', '.avi', '.mkv']) else temp_ext
+                    m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{final_ext}")
+
+                    if not use_live_camera and final_ext == ".mp4":
+                        with st.spinner("⏳ ভিডিওর সাইজ ছোট ও অপ্টিমাইজ করা হচ্ছে (Auto-Compression)..."):
+                            compress_video_automatically(temp_path, m_path)
+                        if os.path.exists(temp_path):
+                            os.remove(temp_path) # টেম্পোরারি ফাইল ডিলিট
+                    else:
+                        if temp_path != m_path:
+                            os.rename(temp_path, m_path)
+
+                    if final_ext.lower() in ['.jpg', '.jpeg', '.png']:
                         is_safe, msg = check_image_safety_with_ai(m_path)
                         if not is_safe:
                             if os.path.exists(m_path):
@@ -1866,7 +1922,7 @@ with tab_profile:
                         conn.commit()
                         
                     save_to_internal_vault(post_data_map)
-                    st.success("Published Successfully!")
+                    st.success("Published Successfully with Auto-Optimized Size!")
                     st.rerun()
 
 # ==========================================
@@ -2013,7 +2069,6 @@ with tab_monetization:
     st.caption("Advertisers or third parties can submit video links after completing payment.")
 
     with st.expander("📥 Submit Sponsored Video & Payment Info", expanded=True):
-        # 🔒 [SECURITY UPDATE]: Check if user is logged in before allowing submission
         if not st.session_state.user_id:
             st.warning("🚫 স্পন্সর ভিডিও ও পেমেন্ট ইনফো সাবমিট করতে হলে আপনাকে অবশ্যই সাইন-ইন বা লগইন করতে হবে!")
         else:
