@@ -1709,6 +1709,9 @@ with tab_feed:
                             elif msg['media_path'].lower().endswith('.mp4'):
                                 st.video(msg['media_path'])
 
+        # ==========================================
+        # 18TH SCREEN: ADVANCED VIDEO ANALYTICS & MONETIZATION HUB
+        # ==========================================
         with o_tab18:
             st.markdown("#### 📊 18th Screen: Advanced Video Analytics & Monetization Hub")
             st.caption("Special owner panel to analyze video performance, total views, engagement, and overall platform earnings.")
@@ -1955,7 +1958,7 @@ with tab_profile:
                     st.rerun()
                 elif uploaded_media and title:
                     if not use_live_camera:
-                        MAX_FILE_SIZE_MB = 700 * 1024 * 1024  # 700 MB limit
+                        MAX_FILE_SIZE_MB = 700 * 1024 * 1024  # Updated to 700 MB limit
                         if uploaded_media.size > MAX_FILE_SIZE_MB:
                             st.error("🚫 File size cannot exceed 700 MB!")
                             st.stop()
@@ -2039,6 +2042,9 @@ with tab_profile:
                 else:
                     st.warning("Please provide a title and necessary content/media for your post.")
 
+# ==========================================
+# 3. USER MESSAGES & CHAT TAB IMPLEMENTATION
+# ==========================================
 with tab_messages:
     st.markdown("### 💬 User Message System & Direct Chat")
     
@@ -2215,7 +2221,6 @@ with tab_monetization:
                         v_file_path = ""
                         if sp_video_file:
                             v_file_path = os.path.join(UPLOAD_DIR, f"sp_{uuid.uuid4()}.mp4")
-                            # সংশোধিত অংশ: সঠিকভাবে ব্র্যাকেট বন্ধ করা হয়েছে
                             with open(v_file_path, "wb") as f:
                                 f.write(sp_video_file.getbuffer())
 
