@@ -158,7 +158,7 @@ def auto_restore_from_internal_vault():
     return restored_count
 
 # ==========================================
-# MODERN UI / CSS ENHANCEMENTS (DESIGN FIX)
+# MODERN UI / CSS ENHANCEMENTS (FACEBOOK STYLE FIX)
 # ==========================================
 st.markdown("""
 <style>
@@ -795,12 +795,23 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
             c.execute("SELECT * FROM likes WHERE user_id = ? AND post_id = ?", (st.session_state.user_id, post["record_id"]))
             if c.fetchone(): has_liked = True
 
+    # ==========================================
+    # FACEBOOK STYLE REACTION & ACTION BAR FIX
+    # ==========================================
     st.markdown("<hr style='margin:12px 0; border-color:#1f2937;'>", unsafe_allow_html=True)
-    col_b1, col_b2, col_b3 = st.columns(3)
-    col_b1.write(f"👁️ **{(post.get('views_count', 0) + 1):,}** Views")
     
-    like_lbl = f"❤ Liked ({real_likes})" if has_liked else f"👍 Like ({real_likes})"
-    if col_b2.button(like_lbl, key=f"lk_{prefix}_{post['record_id']}", use_container_width=True):
+    # টপ স্ট্যাটাস কাউন্ট (যেমন ফেসবুকে লাইوك এবং কমেন্ট সংখ্যা উপরে দেখায়)
+    col_stat1, col_stat2 = st.columns(2)
+    col_stat1.markdown(f"👍❤️ **{real_likes:,}** Likes")
+    col_stat2.markdown(f"👁️ **{(post.get('views_count', 0) + 1):,}** Views", help="Total post views")
+
+    st.markdown("<hr style='margin:6px 0 12px 0; border-color:#1f2937;'>", unsafe_allow_html=True)
+
+    # আসল ফেসবুকের মতো ৩টি বাটন (Like, Comment/Discussion, Share)
+    col_b1, col_b2, col_b3 = st.columns(3)
+    
+    like_lbl = f"👍 Liked ({real_likes})" if has_liked else f"👍 Like ({real_likes})"
+    if col_b1.button(like_lbl, key=f"lk_{prefix}_{post['record_id']}", use_container_width=True):
         if st.session_state.user_id:
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -813,7 +824,10 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         else:
             st.warning("Please login to like!")
 
-    if col_b3.button("🚀 Share", key=f"sh_{prefix}_{post['record_id']}", use_container_width=True):
+    if col_b2.button("💬 Comment", key=f"comm_{prefix}_{post['record_id']}", use_container_width=True):
+        st.toast("Comment section coming soon!")
+
+    if col_b3.button("↗️ Share", key=f"sh_{prefix}_{post['record_id']}", use_container_width=True):
         st.toast("Sharing Link Copied!")
         
     st.markdown("</div>", unsafe_allow_html=True)
@@ -1176,7 +1190,7 @@ with tab_feed:
                         st.rerun()
 
         with o_tab11:
-            st.markdown("#### 🏔️ 11th Screen: System Optimization & Security Shield")
+            st.markdown("#### 🏔️️ 11th Screen: System Optimization & Security Shield")
             st.caption("Automated system optimization and security controls:")
             
             st.markdown("""
@@ -1292,7 +1306,7 @@ with tab_feed:
             col_v0, col_v1, col_v2, col_v3, col_v4 = st.columns(5)
             col_v0.metric("💬 Text Posts", cnt_text)
             col_v1.metric("📝 Posts", cnt_post)
-            col_v2.metric("🖼️ Pictures", cnt_pic)
+            col_v2.metric("🖼️️ Pictures", cnt_pic)
             col_v3.metric("📱 Shorts", cnt_short)
             col_v4.metric("📹 Long", cnt_long)
 
@@ -1709,9 +1723,6 @@ with tab_feed:
                             elif msg['media_path'].lower().endswith('.mp4'):
                                 st.video(msg['media_path'])
 
-        # ==========================================
-        # 18TH SCREEN: ADVANCED VIDEO ANALYTICS & MONETIZATION HUB
-        # ==========================================
         with o_tab18:
             st.markdown("#### 📊 18th Screen: Advanced Video Analytics & Monetization Hub")
             st.caption("Special owner panel to analyze video performance, total views, engagement, and overall platform earnings.")
@@ -2221,7 +2232,7 @@ with tab_monetization:
                         v_file_path = ""
                         if sp_video_file:
                             v_file_path = os.path.join(UPLOAD_DIR, f"sp_{uuid.uuid4()}.mp4")
-                            with open(v_file_path, "wb") as f:
+                            with open(v_file_path, "wb" as f:
                                 f.write(sp_video_file.getbuffer())
 
                         req_id = str(uuid.uuid4())
