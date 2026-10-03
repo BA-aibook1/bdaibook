@@ -765,7 +765,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     media_path = post.get("media_path")
     cat = post.get("post_category", "general")
     
-    if media_path:
+    if media_path and cat != "text":
         if media_path.startswith("http://") or media_path.startswith("https://"):
             st.video(media_path)
         elif os.path.exists(media_path):
@@ -1199,7 +1199,7 @@ with tab_feed:
                     st.success("✅ Cache Cleared & Storage Optimized!")
 
         with o_tab12:
-            st.markdown("#### 🕵️️‍♂️ 12th Screen: Auto-Duplicate Account Detector & Ban Control Switch")
+            st.markdown("#### 🕵‍♂️ 12th Screen: Auto-Duplicate Account Detector & Ban Control Switch")
             st.caption("Live System: Automatically detects multiple accounts created with the same Gmail or Phone in backend.")
             
             curr_dup_switch = get_setting("auto_duplicate_detector", "ON")
@@ -1274,10 +1274,12 @@ with tab_feed:
 
         with o_tab13:
             st.markdown("#### 📦 13th Screen: Master Vault, Data Backup & One-Click Restore Engine")
-            st.caption("Central management and auto-save center for all 4 content categories: Posts, Pictures, Short Videos, and Long Videos.")
+            st.caption("Central management and auto-save center for all content categories including Text Posts.")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'text'")
+                cnt_text = c.fetchone()["cnt"]
                 c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'general'")
                 cnt_post = c.fetchone()["cnt"]
                 c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'picture'")
@@ -1287,14 +1289,15 @@ with tab_feed:
                 c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'long'")
                 cnt_long = c.fetchone()["cnt"]
 
-            col_v1, col_v2, col_v3, col_v4 = st.columns(4)
+            col_v0, col_v1, col_v2, col_v3, col_v4 = st.columns(5)
+            col_v0.metric("💬 Text Posts", cnt_text)
             col_v1.metric("📝 Posts", cnt_post)
             col_v2.metric("🖼️ Pictures", cnt_pic)
             col_v3.metric("📱 Shorts", cnt_short)
-            col_v4.metric("📹 Long Videos", cnt_long)
+            col_v4.metric("📹 Long", cnt_long)
 
             st.markdown("---")
-            st.markdown("##### ⚙️ 15-Days Internal Auto-Vault Status")
+            st.markdown("##### ⚙️️ 15-Days Internal Auto-Vault Status")
             
             p1_files = len(os.listdir(PERIOD_1_DIR)) if os.path.exists(PERIOD_1_DIR) else 0
             p2_files = len(os.listdir(PERIOD_2_DIR)) if os.path.exists(PERIOD_2_DIR) else 0
@@ -1388,7 +1391,7 @@ with tab_feed:
 
             st.markdown("---")
             st.markdown("##### 🔍 Google Search Console & AdSense Auto-Verification Setup")
-            st.caption("Once you save the verification code (e.g., `<meta name='google-site-verification' content='...' />`) here, it will automatically complete site verification across all pages.")
+            st.caption("Once you save the verification code here, it will automatically complete site verification across all pages.")
 
             current_saved_ver_code = get_setting("site_verification_code", "")
             input_ver_code = st.text_area("Paste Verification Meta Tag / HTML Snippet Here", value=current_saved_ver_code, height=100)
@@ -1768,7 +1771,7 @@ with tab_feed:
         ads_enabled = get_setting("show_ads") == "ON"
         ads_html = get_setting("adsense_script")
 
-        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5 = st.tabs(["🌐 All Feed", "🛒 Amazon Store", "🎬 Reels / Shorts", "🖼 Photos", "📹 Long Videos"])
+        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5, sub_feed6 = st.tabs(["🌐 All Feed", "🛒 Amazon Store", "💬 Text Posts", "🎬 Reels / Shorts", "🖼 Photos", "📹 Long Videos"])
 
         with sub_feed1:
             for post in posts:
@@ -1799,6 +1802,14 @@ with tab_feed:
                         st.markdown("<br>", unsafe_allow_html=True)
 
         with sub_feed3:
+            text_posts = [p for p in posts if p.get("post_category") == "text"]
+            if not text_posts:
+                st.info("No Text Posts available.")
+            else:
+                for post in text_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="text")
+
+        with sub_feed4:
             short_posts = [p for p in posts if p.get("post_category") == "short"]
             if not short_posts:
                 st.info("No Reels / Short Videos uploaded yet.")
@@ -1806,7 +1817,7 @@ with tab_feed:
                 for post in short_posts:
                     render_post_card(post, ads_enabled, ads_html, prefix="short")
 
-        with sub_feed4:
+        with sub_feed5:
             picture_posts = [p for p in posts if p.get("post_category") == "picture"]
             if not picture_posts:
                 st.info("No Photo posts available.")
@@ -1814,7 +1825,7 @@ with tab_feed:
                 for post in picture_posts:
                     render_post_card(post, ads_enabled, ads_html, prefix="pic")
 
-        with sub_feed5:
+        with sub_feed6:
             long_posts = [p for p in posts if p.get("post_category") == "long"]
             if not long_posts:
                 st.info("No Long Videos available.")
@@ -1841,9 +1852,6 @@ with tab_profile:
             st.write(f"👥 **Real Followers:** {real_followers:,}")
             st.write(f"**Bio:** {current_user.get('bio', 'No bio added')}")
 
-        # ==========================================
-        # NEW ADDITION: USER PROFILE MONITORING & ANALYTICS DASHBOARD
-        # ==========================================
         st.markdown("---")
         st.markdown("### 📊 Your Profile Live Monitoring & Earnings Hub")
         
@@ -1890,12 +1898,12 @@ with tab_profile:
                 st.rerun()
 
         st.markdown("---")
-        st.markdown("### 📤 Upload New Post or Live Camera Capture")
+        st.markdown("### 📤 Upload New Post, Text Status or Live Camera Capture")
         
         if get_setting("lock_upload") == "ON":
-            st.error("🚫 Video Upload System is temporarily disabled by Owner.")
+            st.error("🚫 Upload System is temporarily disabled by Owner.")
         else:
-            post_type = st.selectbox("Format", ["short", "long", "picture"])
+            post_type = st.selectbox("Format", ["text", "short", "long", "picture"])
             
             if get_setting("daily_limit_mode") == "ON":
                 current_cnt = get_user_today_upload_count(st.session_state.user_id, post_type)
@@ -1903,18 +1911,52 @@ with tab_profile:
                 st.info(f"⚠ **Daily Guidelines Active:** You have uploaded **{current_cnt}/{limit_max}** {post_type} post(s) today.")
 
             title = st.text_input("Title")
-            desc = st.text_area("Description")
+            desc = st.text_area("Description / Status Content")
             p_tags = st.text_input("Hashtags")
             
-            use_live_camera = st.checkbox("📸 Use Live Camera Instead of File Upload")
-            
-            if use_live_camera:
-                uploaded_media = st.camera_input("📷 Capture Live Photo via Camera")
+            if post_type == "text":
+                uploaded_media = None
+                use_live_camera = False
             else:
-                uploaded_media = st.file_uploader("Media File", type=["mp4", "jpg", "png", "mov"])
+                use_live_camera = st.checkbox("📸 Use Live Camera Instead of File Upload")
+                if use_live_camera:
+                    uploaded_media = st.camera_input("📷 Capture Live Photo via Camera")
+                else:
+                    uploaded_media = st.file_uploader("Media File", type=["mp4", "jpg", "png", "mov"])
             
             if st.button("Publish Post"):
-                if uploaded_media and title:
+                if post_type == "text" and (title or desc):
+                    rec_id = str(uuid.uuid4())
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    post_data_map = {
+                        "record_id": rec_id,
+                        "data_type": "post",
+                        "user_id": st.session_state.user_id,
+                        "full_name": current_user.get("full_name", "User"),
+                        "is_verified": current_user.get("is_verified", 1),
+                        "title": title,
+                        "content": desc,
+                        "tags": p_tags,
+                        "media_path": "",
+                        "post_category": "text",
+                        "views_count": 1,
+                        "likes_count": 0,
+                        "created_at": now
+                    }
+
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, tags, media_path, post_category, views_count, likes_count, created_at)
+                            VALUES (?, 'post', ?, ?, ?, ?, ?, ?, '', 'text', 1, 0, ?)
+                        """, (rec_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), title, desc, p_tags, now))
+                        conn.commit()
+                        
+                    save_to_internal_vault(post_data_map)
+                    st.success("Text Post Published Successfully!")
+                    st.rerun()
+                elif uploaded_media and title:
                     if not use_live_camera:
                         MAX_FILE_SIZE_MB = 100 * 1024 * 1024
                         if uploaded_media.size > MAX_FILE_SIZE_MB:
@@ -1997,6 +2039,8 @@ with tab_profile:
                     save_to_internal_vault(post_data_map)
                     st.success("Published Successfully with Auto-Optimized Size!")
                     st.rerun()
+                else:
+                    st.warning("Please provide a title and necessary content/media for your post.")
 
 # ==========================================
 # 3. USER MESSAGES & CHAT TAB IMPLEMENTATION
