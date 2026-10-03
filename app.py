@@ -803,7 +803,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     col_b1, col_b2, col_b3 = st.columns(3)
     col_b1.write(f"👁️ **{(post.get('views_count', 0) + 1):,}** Views")
     
-    like_lbl = f"❤️️ Liked ({real_likes})" if has_liked else f"👍 Like ({real_likes})"
+    like_lbl = f"❤ Liked ({real_likes})" if has_liked else f"👍 Like ({real_likes})"
     if col_b2.button(like_lbl, key=f"lk_{prefix}_{post['record_id']}", use_container_width=True):
         if st.session_state.user_id:
             with get_db_connection() as conn:
@@ -845,7 +845,7 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner Master Control Power Panels (1 to 18)")
+        st.markdown("### 🎛️️ Owner Master Control Power Panels (1 to 18)")
         
         o_tabs = st.tabs([
             "1️⃣ Global Branding", 
@@ -1581,7 +1581,7 @@ with tab_feed:
                     if ap['image_url']:
                         st.image(ap['image_url'], width=150)
                         
-                    if st.button("🗑️️ Remove Product", key=f"del_amz_{ap['product_id']}"):
+                    if st.button("🗑 Remove Product", key=f"del_amz_{ap['product_id']}"):
                         with get_db_connection() as conn:
                             c = conn.cursor()
                             c.execute("DELETE FROM amazon_products WHERE product_id = ?", (ap['product_id'],))
@@ -1803,7 +1803,7 @@ with tab_feed:
                         st.markdown("<br>", unsafe_allow_html=True)
 
         with sub_feed3:
-            short_posts = [p for p in posts if p.get("post_category") == "short"]
+            short_posts = [p for p in posts if p.get("post_category"] == "short"]
             if not short_posts:
                 st.info("No Reels / Short Videos uploaded yet.")
             else:
@@ -1811,7 +1811,7 @@ with tab_feed:
                     render_post_card(post, ads_enabled, ads_html, prefix="short")
 
         with sub_feed4:
-            picture_posts = [p for p in posts if p.get("post_category") == "picture"]
+            picture_posts = [p for p in posts if p.get("post_category"] == "picture"]
             if not picture_posts:
                 st.info("No Photo posts available.")
             else:
@@ -1819,7 +1819,7 @@ with tab_feed:
                     render_post_card(post, ads_enabled, ads_html, prefix="pic")
 
         with sub_feed5:
-            long_posts = [p for p in posts if p.get("post_category") == "long"]
+            long_posts = [p for p in posts if p.get("post_category"] == "long"]
             if not long_posts:
                 st.info("No Long Videos available.")
             else:
@@ -1844,6 +1844,39 @@ with tab_profile:
         with col_p2:
             st.write(f"👥 **Real Followers:** {real_followers:,}")
             st.write(f"**Bio:** {current_user.get('bio', 'No bio added')}")
+
+        # ==========================================
+        # NEW ADDITION: USER PROFILE MONITORING & ANALYTICS DASHBOARD
+        # ==========================================
+        st.markdown("---")
+        st.markdown("### 📊 Your Profile Live Monitoring & Earnings Hub")
+        
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            # ইউজারের মোট আপলোড করা ভিডিও বা পোস্টের সংখ্যা গণনা
+            c.execute("SELECT COUNT(*) as total_vids FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
+            user_vids_res = c.fetchone()
+            total_user_videos = user_vids_res["total_vids"] if user_vids_res else 0
+            
+            # ইউজারের সব পোস্টের মোট ভিউজ গণনা
+            c.execute("SELECT SUM(views_count) as total_vw FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
+            user_vw_res = c.fetchone()
+            total_user_views = user_vw_res["total_vw"] if user_vw_res and user_vw_res["total_vw"] else 0
+
+        # আয় এবং সাবস্ক্রাইবার ক্যালকুলেশন
+        estimated_user_earnings = total_user_views * 0.0005  # প্রতি ভিউ অনুযায়ী আনুমানিক ইনকাম
+        followers_needed = max(0, 1000 - real_followers)
+        
+        u_col1, u_col2, u_col3, u_col4 = st.columns(4)
+        u_col1.metric("🎬 Total Uploads", f"{total_user_videos:,}")
+        u_col2.metric("👥 Followers / Subs", f"{real_followers:,}")
+        u_col3.metric("👁️ Total Views", f"{total_user_views:,}")
+        u_col4.metric("💰 Estimated Earnings", f"${estimated_user_earnings:,.2f}")
+
+        if real_followers >= 1000:
+            st.success("🎉 অভিনন্দন! আপনার ১০০০+ ফলোয়ার পূর্ণ হয়েছে, আপনি এখন মনিটাইজেশনের জন্য সম্পূর্ণ উপযুক্ত!")
+        else:
+            st.info(f"💡 ১০০০ সাবস্ক্রাইবার বা ফলোয়ার পূর্ণ হতে আর মাত্র **{followers_needed:,}** জন বাকি আছে। নিয়মিত ভিডিও আপলোড করে দ্রুত লক্ষ্য পূরণ করুন!")
 
         with st.expander("⚙️ Edit Profile"):
             u_name = st.text_input("Name", value=current_user.get("full_name", ""))
