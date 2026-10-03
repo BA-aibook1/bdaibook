@@ -803,7 +803,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     col_b1, col_b2, col_b3 = st.columns(3)
     col_b1.write(f"👁️ **{(post.get('views_count', 0) + 1):,}** Views")
     
-    like_lbl = f"❤️ Liked ({real_likes})" if has_liked else f"👍 Like ({real_likes})"
+    like_lbl = f"❤️️ Liked ({real_likes})" if has_liked else f"👍 Like ({real_likes})"
     if col_b2.button(like_lbl, key=f"lk_{prefix}_{post['record_id']}", use_container_width=True):
         if st.session_state.user_id:
             with get_db_connection() as conn:
@@ -845,7 +845,7 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️ Owner Master Control Power Panels (1 to 17)")
+        st.markdown("### 🎛️ Owner Master Control Power Panels (1 to 18)")
         
         o_tabs = st.tabs([
             "1️⃣ Global Branding", 
@@ -864,10 +864,11 @@ with tab_feed:
             "1️⃣4️⃣ Control & Analytics",
             "1️⃣5️⃣ Free Copyright-Free Music Library",
             "1️⃣6️⃣ Amazon E-Commerce & Meta Target Hub",
-            "1️⃣7️⃣ Message & Direct Owner Upload Hub"
+            "1️⃣7️⃣ Message & Direct Owner Upload Hub",
+            "1️⃣8️⃣ Advanced Video Analytics & Monetization Hub"
         ])
         
-        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16, o_tab17 = o_tabs
+        o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16, o_tab17, o_tab18 = o_tabs
         
         with o_tab1:
             st.markdown("#### 🖼️ Global Branding & Logo")
@@ -902,7 +903,7 @@ with tab_feed:
                         st.rerun()
 
             st.markdown("---")
-            st.markdown("#### ⚙️️ Global Daily Limit Switch")
+            st.markdown("#### ⚙ Global Daily Limit Switch")
             curr_daily_limit = get_setting("daily_limit_mode", "OFF")
             st.write(f"Global Daily Limit Status: **{'ACTIVE' if curr_daily_limit == 'ON' else 'UNLIMITED'}**")
 
@@ -1580,7 +1581,7 @@ with tab_feed:
                     if ap['image_url']:
                         st.image(ap['image_url'], width=150)
                         
-                    if st.button("🗑️ Remove Product", key=f"del_amz_{ap['product_id']}"):
+                    if st.button("🗑️️ Remove Product", key=f"del_amz_{ap['product_id']}"):
                         with get_db_connection() as conn:
                             c = conn.cursor()
                             c.execute("DELETE FROM amazon_products WHERE product_id = ?", (ap['product_id'],))
@@ -1708,6 +1709,54 @@ with tab_feed:
                                 st.image(msg['media_path'], width=200)
                             elif msg['media_path'].lower().endswith('.mp4'):
                                 st.video(msg['media_path'])
+
+        # ==========================================
+        # 18TH SCREEN: ADVANCED VIDEO ANALYTICS & MONETIZATION HUB
+        # ==========================================
+        with o_tab18:
+            st.markdown("#### 📊 18th Screen: Advanced Video Analytics & Monetization Hub")
+            st.caption("ভিডিওর পারফরম্যান্স, মোট ভিউজ, এনগেজমেন্ট এবং প্ল্যাটফর্মের সামগ্রিক আয় অ্যানালাইসিস করার স্পেশাল ওনার প্যানেল।")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT SUM(views_count) as total_v FROM master_app_table WHERE data_type = 'post'")
+                tot_v_res = c.fetchone()
+                total_platform_views = tot_v_res["total_v"] if tot_v_res and tot_v_res["total_v"] else 0
+                
+                c.execute("SELECT COUNT(*) as total_l FROM likes")
+                tot_l_res = c.fetchone()
+                total_platform_likes = tot_l_res["total_l"] if tot_l_res and tot_l_res["total_l"] else 0
+
+            col_an1, col_an2, col_an3 = st.columns(3)
+            col_an1.metric("👁️ Total Platform Views", f"{total_platform_views:,}")
+            col_an2.metric("❤️ Total Platform Likes", f"{total_platform_likes:,}")
+            col_an3.metric("💰 Estimated Revenue", f"${(total_platform_views * 0.005):,.2f} USD")
+
+            st.markdown("---")
+            st.markdown("##### 🎬 Top Performing Videos Analytics")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT title, full_name, views_count, post_category, created_at FROM master_app_table WHERE data_type = 'post' ORDER BY views_count DESC LIMIT 5")
+                top_videos = c.fetchall()
+
+            if not top_videos:
+                st.info("কোনো ভিডিও ডাটা পাওয়া যায়নি।")
+            else:
+                for tv in top_videos:
+                    st.markdown(f"""
+                    <div style='background:#161b22; padding:12px; border-radius:8px; margin-bottom:8px; border-left:4px solid #10b981;'>
+                        <b>📌 শিরোনাম:</b> {tv['title'] or 'Untitled'} <br>
+                        <b>👤 Creator:</b> {tv['full_name']} | <b>ক্যাটাগরি:</b> [{tv['post_category'].upper()}]<br>
+                        <b>👁️ Views:</b> {tv['views_count']:,} | <small style='color:#888;'>আপলোড টাইম: {tv['created_at']}</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            st.markdown("---")
+            st.markdown("##### ⚙️ Quick Monetization Payout Rate Control")
+            c_rate = st.number_input("Per 1,000 Views Payout Rate ($ USD)", value=0.50, step=0.10)
+            if st.button("💾 Save Payout Rate Settings"):
+                set_setting("payout_rate_per_1k", str(c_rate))
+                st.success("✅ Payout rate updated successfully across the platform!")
 
     else:
         with get_db_connection() as conn:
