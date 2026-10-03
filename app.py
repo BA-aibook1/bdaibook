@@ -29,30 +29,26 @@ def compress_video_automatically(input_path, output_path):
     বড় ভিডিওর সাইজ (MB) কমাতে এবং ফাস্ট আপলোড নিশ্চিত করতে অটো কম্প্রেশন লজিক।
     """
     if not MOVIEPY_AVAILABLE:
-        # যদি moviepy ইনস্টল না থাকে, তবে ডিরেক্ট ফাইল কপি করে কাজ চালিয়ে নেবে যাতে অ্যাপ ক্র্যাশ না করে।
         with open(input_path, 'rb') as f_in, open(output_path, 'wb') as f_out:
             f_out.write(f_in.read())
         return output_path
 
     try:
         clip = VideoFileClip(input_path)
-        # রেজোলিউশন অপ্টিমাইজ করে সাইজ কমানো (যেমন ম্যাক্স 720p এ নামিয়ে আনা)
         if clip.size[1] > 720:
             clip = clip.resize(height=720)
         
-        # বিটরেট ও কোয়ালিটি অপ্টিমাইজ করে কম্প্রেস করা
         clip.write_videofile(
             output_path,
             codec="libx264",
             audio_codec="aac",
             bitrate="1000k",
-            preset="ultrafast",  # ফাস্ট জেনারেশনের জন্য
+            preset="ultrafast",
             logger=None
         )
         clip.close()
         return output_path
     except Exception as e:
-        # কোনো কারণে এরর হলে মূল ফাইলটিই ব্যাকআপ হিসেবে রেখে দেবে
         with open(input_path, 'rb') as f_in, open(output_path, 'wb') as f_out:
             f_out.write(f_in.read())
         return output_path
@@ -845,7 +841,7 @@ with tab_feed:
         col_m3.metric("🔥 Active Boosted Posts", total_boosted)
 
         st.markdown("---")
-        st.markdown("### 🎛️️ Owner Master Control Power Panels (1 to 18)")
+        st.markdown("### 🎛 Owner Master Control Power Panels (1 to 18)")
         
         o_tabs = st.tabs([
             "1️⃣ Global Branding", 
@@ -1258,7 +1254,7 @@ with tab_feed:
                                 ban_status = "<span style='color:red;'>[BANNED]</span>" if is_banned else "<span style='color:green;'>[ACTIVE]</span>"
                                 
                                 col_d_u1.write(f"👤 **{u_dup['full_name']}** ({u_dup['user_id'][:8]}...) {ban_status}")
-                                col_d_u2.write(f"⏱️ {u_dup['created_at']}")
+                                col_d_u2.write(f"⏱️️ {u_dup['created_at']}")
                                 
                                 if not is_banned:
                                     if col_d_u3.button("🚫 Ban This Account", key=f"ban_dup_{u_dup['user_id']}"):
@@ -1803,7 +1799,7 @@ with tab_feed:
                         st.markdown("<br>", unsafe_allow_html=True)
 
         with sub_feed3:
-            short_posts = [p for p in posts if p.get("post_category"] == "short"]
+            short_posts = [p for p in posts if p.get("post_category") == "short"]
             if not short_posts:
                 st.info("No Reels / Short Videos uploaded yet.")
             else:
@@ -1811,7 +1807,7 @@ with tab_feed:
                     render_post_card(post, ads_enabled, ads_html, prefix="short")
 
         with sub_feed4:
-            picture_posts = [p for p in posts if p.get("post_category"] == "picture"]
+            picture_posts = [p for p in posts if p.get("post_category") == "picture"]
             if not picture_posts:
                 st.info("No Photo posts available.")
             else:
@@ -1819,7 +1815,7 @@ with tab_feed:
                     render_post_card(post, ads_enabled, ads_html, prefix="pic")
 
         with sub_feed5:
-            long_posts = [p for p in posts if p.get("post_category"] == "long"]
+            long_posts = [p for p in posts if p.get("post_category") == "long"]
             if not long_posts:
                 st.info("No Long Videos available.")
             else:
@@ -1853,18 +1849,15 @@ with tab_profile:
         
         with get_db_connection() as conn:
             c = conn.cursor()
-            # ইউজারের মোট আপলোড করা ভিডিও বা পোস্টের সংখ্যা গণনা
             c.execute("SELECT COUNT(*) as total_vids FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
             user_vids_res = c.fetchone()
             total_user_videos = user_vids_res["total_vids"] if user_vids_res else 0
             
-            # ইউজারের সব পোস্টের মোট ভিউজ গণনা
             c.execute("SELECT SUM(views_count) as total_vw FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
             user_vw_res = c.fetchone()
             total_user_views = user_vw_res["total_vw"] if user_vw_res and user_vw_res["total_vw"] else 0
 
-        # আয় এবং সাবস্ক্রাইবার ক্যালকুলেশন
-        estimated_user_earnings = total_user_views * 0.0005  # প্রতি ভিউ অনুযায়ী আনুমানিক ইনকাম
+        estimated_user_earnings = total_user_views * 0.0005
         followers_needed = max(0, 1000 - real_followers)
         
         u_col1, u_col2, u_col3, u_col4 = st.columns(4)
@@ -1949,13 +1942,11 @@ with tab_profile:
                         st.error("🚫 Inappropriate Content Detected! Account suspended.")
                         st.rerun()
 
-                    # টেম্পোরারি ফাইল হিসেবে সেভ করা
                     temp_ext = ".png" if use_live_camera else os.path.splitext(uploaded_media.name)[1]
                     temp_path = os.path.join(UPLOAD_DIR, f"temp_{uuid.uuid4()}{temp_ext}")
                     with open(temp_path, "wb") as f: 
                         f.write(uploaded_media.getbuffer())
 
-                    # যদি ভিডিও হয়, তবে অটো কম্প্রেশন লজিক কাজ করবে
                     final_ext = ".mp4" if (not use_live_camera and temp_ext.lower() in ['.mp4', '.mov', '.avi', '.mkv']) else temp_ext
                     m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{final_ext}")
 
@@ -1963,7 +1954,7 @@ with tab_profile:
                         with st.spinner("⏳ ভিডিওর সাইজ ছোট ও অপ্টিমাইজ করা হচ্ছে (Auto-Compression)..."):
                             compress_video_automatically(temp_path, m_path)
                         if os.path.exists(temp_path):
-                            os.remove(temp_path) # টেম্পোরারি ফাইল ডিলিট
+                            os.remove(temp_path)
                     else:
                         if temp_path != m_path:
                             os.rename(temp_path, m_path)
