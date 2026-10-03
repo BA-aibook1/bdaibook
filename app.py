@@ -1297,7 +1297,7 @@ with tab_feed:
             col_v4.metric("📹 Long", cnt_long)
 
             st.markdown("---")
-            st.markdown("##### ⚙️️ 15-Days Internal Auto-Vault Status")
+            st.markdown("##### ⚙ 15-Days Internal Auto-Vault Status")
             
             p1_files = len(os.listdir(PERIOD_1_DIR)) if os.path.exists(PERIOD_1_DIR) else 0
             p2_files = len(os.listdir(PERIOD_2_DIR)) if os.path.exists(PERIOD_2_DIR) else 0
@@ -1958,9 +1958,9 @@ with tab_profile:
                     st.rerun()
                 elif uploaded_media and title:
                     if not use_live_camera:
-                        MAX_FILE_SIZE_MB = 100 * 1024 * 1024
+                        MAX_FILE_SIZE_MB = 700 * 1024 * 1024  # Updated to 700 MB limit
                         if uploaded_media.size > MAX_FILE_SIZE_MB:
-                            st.error("🚫 File size cannot exceed 100 MB!")
+                            st.error("🚫 File size cannot exceed 700 MB!")
                             st.stop()
 
                     if get_setting("daily_limit_mode") == "ON":
