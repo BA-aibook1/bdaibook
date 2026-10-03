@@ -26,7 +26,7 @@ except ImportError:
 
 def compress_video_automatically(input_path, output_path):
     """
-    বড় ভিডিওর সাইজ (MB) কমাতে এবং ফাস্ট আপলোড নিশ্চিত করতে অটো কম্প্রেশন লজিক।
+    Auto compression logic to reduce large video size (MB) and ensure fast upload.
     """
     if not MOVIEPY_AVAILABLE:
         with open(input_path, 'rb') as f_in, open(output_path, 'wb') as f_out:
@@ -1199,8 +1199,8 @@ with tab_feed:
                     st.success("✅ Cache Cleared & Storage Optimized!")
 
         with o_tab12:
-            st.markdown("#### 🕵️‍♂️ 12th Screen: Auto-Duplicate Account Detector & Ban Control Switch")
-            st.caption("লাইভ সিস্টেম: একই জিমেইল বা ফোন দিয়ে একাধিক অ্যাকাউন্ট তৈরি করলে ব্যাকএন্ডে অটোমেটিক ডিটেক্ট হবে।")
+            st.markdown("#### 🕵️️‍♂️ 12th Screen: Auto-Duplicate Account Detector & Ban Control Switch")
+            st.caption("Live System: Automatically detects multiple accounts created with the same Gmail or Phone in backend.")
             
             curr_dup_switch = get_setting("auto_duplicate_detector", "ON")
             st.write(f"🤖 **Auto-Duplicate Detector Switch:** **{'ACTIVE (ON)' if curr_dup_switch == 'ON' else 'DISABLED (OFF)'}**")
@@ -1254,7 +1254,7 @@ with tab_feed:
                                 ban_status = "<span style='color:red;'>[BANNED]</span>" if is_banned else "<span style='color:green;'>[ACTIVE]</span>"
                                 
                                 col_d_u1.write(f"👤 **{u_dup['full_name']}** ({u_dup['user_id'][:8]}...) {ban_status}")
-                                col_d_u2.write(f"⏱️️ {u_dup['created_at']}")
+                                col_d_u2.write(f"⏱ {u_dup['created_at']}")
                                 
                                 if not is_banned:
                                     if col_d_u3.button("🚫 Ban This Account", key=f"ban_dup_{u_dup['user_id']}"):
@@ -1274,7 +1274,7 @@ with tab_feed:
 
         with o_tab13:
             st.markdown("#### 📦 13th Screen: Master Vault, Data Backup & One-Click Restore Engine")
-            st.caption("পোস্ট, ছবি, শর্ট ভিডিও এবং লং ভিডিও—এই ৪টি ক্যাটাগরির সমস্ত তথ্য ও ডাটাবেজ নিয়ন্ত্রণ ও অটো-সেভ কেন্দ্র।")
+            st.caption("Central management and auto-save center for all 4 content categories: Posts, Pictures, Short Videos, and Long Videos.")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1340,7 +1340,7 @@ with tab_feed:
 
             st.markdown("---")
             st.markdown("##### 📤 Emergency File Upload Data Restore System")
-            st.caption("যদি অন্য ডিভাইস থেকে ব্যাকআপ ফাইল আপলোড করে রিস্টোর করতে চান:")
+            st.caption("If you want to restore by uploading a backup file from another device:")
             
             uploaded_vault_file = st.file_uploader("Upload Backup JSON Vault File", type=["json"], key="vault_restore_uploader")
             
@@ -1372,7 +1372,7 @@ with tab_feed:
 
         with o_tab14:
             st.markdown("#### 🌟 14th Screen: Master Control & Regional Analytics")
-            st.caption("আঞ্চলিক কার্যক্রম, অটো সাইট ভেরিফিকেশন এবং স্পেশাল ওনার কন্ট্রোল প্যানেল।")
+            st.caption("Regional operations, auto site verification, and special owner control panel.")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1388,7 +1388,7 @@ with tab_feed:
 
             st.markdown("---")
             st.markdown("##### 🔍 Google Search Console & AdSense Auto-Verification Setup")
-            st.caption("এখানে গুগল কনসোল বা এডসেন্সের ভেরিফিকেশন কোড (যেমন: `<meta name='google-site-verification' content='...' />`) একবার সেভ করে রাখলে এটি অটোমেটিক সাইট ভেরিফিকেশন সম্পন্ন করবে।")
+            st.caption("Once you save the verification code (e.g., `<meta name='google-site-verification' content='...' />`) here, it will automatically complete site verification across all pages.")
 
             current_saved_ver_code = get_setting("site_verification_code", "")
             input_ver_code = st.text_area("Paste Verification Meta Tag / HTML Snippet Here", value=current_saved_ver_code, height=100)
@@ -1408,7 +1408,7 @@ with tab_feed:
 
         with o_tab15:
             st.markdown("#### 🎵 15th Screen: Free Copyright-Free Music Library (Owner Upload)")
-            st.caption("অ্যাডমিন এখানে ফ্রি ব্যাকগ্রাউন্ড মিউজিক আপলোড করতে পারবেন।")
+            st.caption("Admin can upload free background music here.")
             
             with st.form("owner_music_upload_form"):
                 song_title = st.text_input("Song Title / Name")
@@ -1474,19 +1474,19 @@ with tab_feed:
             
             b_col1, b_col2, b_col3 = st.columns(3)
             
-            if b_col1.button("🌐 1. Meta All (সবার জন্য)", use_container_width=True):
+            if b_col1.button("🌐 1. Meta All (For Everyone)", use_container_width=True):
                 set_setting("meta_mode", "ALL")
                 set_setting("is_global_meta_active", "true")
                 st.success("Mode Set: Meta & Bluetooth feature activated for ALL users automatically!")
                 st.rerun()
 
-            if b_col2.button("🎯 2. Meta Select Target (নির্দিষ্ট ইউজার)", use_container_width=True):
+            if b_col2.button("🎯 2. Meta Select Target (Targeted User)", use_container_width=True):
                 set_setting("meta_mode", "SELECTED_USERS")
                 set_setting("is_global_meta_active", "true")
                 st.info("Mode Set: Only TARGETED / APPROVED real users will get access.")
                 st.rerun()
 
-            if b_col3.button("🚫 3. Meta Block/Off (সম্পূর্ণ বন্ধ)", use_container_width=True):
+            if b_col3.button("🚫 3. Meta Block/Off (Fully Disabled)", use_container_width=True):
                 set_setting("meta_mode", "DISABLED")
                 set_setting("is_global_meta_active", "false")
                 st.error("Mode Set: Meta & Bluetooth feature BLOCKED globally.")
@@ -1587,9 +1587,9 @@ with tab_feed:
 
         with o_tab17:
             st.markdown("#### 💬 17th Screen: Message System, Owner Direct Upload & Communication Center")
-            st.caption("মেসেজ আদান-প্রদান, মালিকের নিকট ফাইল জমা প্রদান এবং ওনার প্যানেল থেকে বার্তা/ফটো পাঠাল কেন্দ্র।")
+            st.caption("Message exchange, file submission to owner, and direct message/photo sending center from owner panel.")
             
-            st.markdown("##### 📩 1. Direct Message Exchange System (মেসেজ আদান-প্রদান)")
+            st.markdown("##### 📩 1. Direct Message Exchange System")
             with get_db_connection() as conn:
                 c = conn.cursor()
                 c.execute("SELECT user_id, full_name FROM master_app_table WHERE data_type = 'user'")
@@ -1627,7 +1627,7 @@ with tab_feed:
                         st.rerun()
 
             st.markdown("---")
-            st.markdown("##### 📤 2. Upload Photo / File directly to Owner (মালিকের এখানে জমা দিন)")
+            st.markdown("##### 📤 2. Upload Photo / File directly to Owner")
             with st.form("owner_upload_vault_form"):
                 upload_note = st.text_area("Note / Message for Owner")
                 owner_file = st.file_uploader("Upload Photo/Media to Owner Vault", type=["jpg", "png", "jpeg", "mp4", "pdf"])
@@ -1657,7 +1657,7 @@ with tab_feed:
 
             st.markdown("---")
             st.markdown("##### 👑 3. Owner Direct Media Upload & Received Vault Inbox")
-            st.caption("মালিকের নিজস্ব ডাইরেক্ট পাবলিশার ও জমা হওয়া ফাইল পর্যবেক্ষণ কেন্দ্র:")
+            st.caption("Owner's direct publisher and received file monitoring center:")
             
             with st.expander("📬 View Items Uploaded by Users to Owner Vault", expanded=True):
                 with get_db_connection() as conn:
@@ -1711,7 +1711,7 @@ with tab_feed:
         # ==========================================
         with o_tab18:
             st.markdown("#### 📊 18th Screen: Advanced Video Analytics & Monetization Hub")
-            st.caption("ভিডিওর পারফরম্যান্স, মোট ভিউজ, এনগেজমেন্ট এবং প্ল্যাটফর্মের সামগ্রিক আয় অ্যানালাইসিস করার স্পেশাল ওনার প্যানেল।")
+            st.caption("Special owner panel to analyze video performance, total views, engagement, and overall platform earnings.")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -1736,14 +1736,14 @@ with tab_feed:
                 top_videos = c.fetchall()
 
             if not top_videos:
-                st.info("কোনো ভিডিও ডাটা পাওয়া যায়নি।")
+                st.info("No video data found.")
             else:
                 for tv in top_videos:
                     st.markdown(f"""
                     <div style='background:#161b22; padding:12px; border-radius:8px; margin-bottom:8px; border-left:4px solid #10b981;'>
-                        <b>📌 শিরোনাম:</b> {tv['title'] or 'Untitled'} <br>
-                        <b>👤 Creator:</b> {tv['full_name']} | <b>ক্যাটাগরি:</b> [{tv['post_category'].upper()}]<br>
-                        <b>👁️ Views:</b> {tv['views_count']:,} | <small style='color:#888;'>আপলোড টাইম: {tv['created_at']}</small>
+                        <b>📌 Title:</b> {tv['title'] or 'Untitled'} <br>
+                        <b>👤 Creator:</b> {tv['full_name']} | <b>Category:</b> [{tv['post_category'].upper()}]<br>
+                        <b>👁️ Views:</b> {tv['views_count']:,} | <small style='color:#888;'>Upload Time: {tv['created_at']}</small>
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -1867,9 +1867,9 @@ with tab_profile:
         u_col4.metric("💰 Estimated Earnings", f"${estimated_user_earnings:,.2f}")
 
         if real_followers >= 1000:
-            st.success("🎉 অভিনন্দন! আপনার ১০০০+ ফলোয়ার পূর্ণ হয়েছে, আপনি এখন মনিটাইজেশনের জন্য সম্পূর্ণ উপযুক্ত!")
+            st.success("🎉 Congratulations! You have reached 1,000+ followers and are fully eligible for monetization!")
         else:
-            st.info(f"💡 ১০০০ সাবস্ক্রাইবার বা ফলোয়ার পূর্ণ হতে আর মাত্র **{followers_needed:,}** জন বাকি আছে। নিয়মিত ভিডিও আপলোড করে দ্রুত লক্ষ্য পূরণ করুন!")
+            st.info(f"💡 Only **{followers_needed:,}** more followers needed to reach 1,000 subscribers/followers. Keep uploading regularly to achieve your goal!")
 
         with st.expander("⚙️ Edit Profile"):
             u_name = st.text_input("Name", value=current_user.get("full_name", ""))
@@ -1951,7 +1951,7 @@ with tab_profile:
                     m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{final_ext}")
 
                     if not use_live_camera and final_ext == ".mp4":
-                        with st.spinner("⏳ ভিডিওর সাইজ ছোট ও অপ্টিমাইজ করা হচ্ছে (Auto-Compression)..."):
+                        with st.spinner("⏳ Compressing and optimizing video size (Auto-Compression)..."):
                             compress_video_automatically(temp_path, m_path)
                         if os.path.exists(temp_path):
                             os.remove(temp_path)
@@ -2005,12 +2005,12 @@ with tab_messages:
     st.markdown("### 💬 User Message System & Direct Chat")
     
     if not st.session_state.user_id:
-        st.warning("🔒 মেসেজ পাঠাতে বা দেখতে অনুগ্রহ করে প্রথমে লগইন করুন।")
+        st.warning("🔒 Please login first to send or view messages.")
     else:
         chat_sub_tab1, chat_sub_tab2 = st.tabs(["📩 Send Message & Chat", "📤 Upload File Directly to Owner"])
         
         with chat_sub_tab1:
-            st.markdown("#### 💬 ইউজারদের সাথে মেসেজ/ছবি আদান-প্রদান")
+            st.markdown("#### 💬 Message & Media Exchange with Users")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
@@ -2020,9 +2020,9 @@ with tab_messages:
             user_dict = {f"{u['full_name']} (ID: {u['user_id'][:6]}...)": u['user_id'] for u in all_chat_users}
             
             if not user_dict:
-                st.info("বর্তমানে মেসেজ পাঠানোর জন্য অন্য কোনো নিবন্ধিত ইউজার নেই।")
+                st.info("No other registered users available to message currently.")
             else:
-                selected_recip_label = st.selectbox("কার কাছে মেসেজ পাঠাতে চান সিলেক্ট করুন:", list(user_dict.keys()), key="user_chat_recip_select")
+                selected_recip_label = st.selectbox("Select User to Message:", list(user_dict.keys()), key="user_chat_recip_select")
                 target_recip_id = user_dict[selected_recip_label]
                 
                 st.markdown("##### 📜 Chat History")
@@ -2037,7 +2037,7 @@ with tab_messages:
                     chat_history = c.fetchall()
                 
                 if not chat_history:
-                    st.caption("এখনো পর্যন্ত কোনো কথোপকথন হয়নি। প্রথম মেসেজ পাঠান!")
+                    st.caption("No conversations yet. Send the first message!")
                 else:
                     for ch in chat_history:
                         is_me = (ch['sender_id'] == st.session_state.user_id)
@@ -2059,8 +2059,8 @@ with tab_messages:
                                 st.video(ch['media_path'])
                 
                 st.markdown("---")
-                u_msg_text = st.text_area("আপনার মেসেজ টাইপ করুন", key="user_tab_msg_input")
-                u_msg_media = st.file_uploader("ছবি বা মিডিয়া যুক্ত করুন (অপশনাল)", type=["png", "jpg", "jpeg", "mp4"], key="user_tab_msg_media")
+                u_msg_text = st.text_area("Type Your Message", key="user_tab_msg_input")
+                u_msg_media = st.file_uploader("Attach Photo or Media (Optional)", type=["png", "jpg", "jpeg", "mp4"], key="user_tab_msg_media")
                 
                 if st.button("🚀 Send Message", key="user_tab_send_msg_btn"):
                     if u_msg_text or u_msg_media:
@@ -2080,14 +2080,14 @@ with tab_messages:
                                 VALUES (?, ?, ?, ?, ?, ?)
                             """, (msg_id, st.session_state.user_id, target_recip_id, u_msg_text, m_path, now_str))
                             conn.commit()
-                        st.success("✅ মেসেজ সফলভাবে পাঠানো হয়েছে!")
+                        st.success("✅ Message sent successfully!")
                         st.rerun()
 
         with chat_sub_tab2:
-            st.markdown("#### 📤 2. Upload Photo / File directly to Owner (মালিকের কাছে তথ্য বা ফাইল জমা দিন)")
+            st.markdown("#### 📤 2. Upload Photo / File directly to Owner")
             with st.form("user_tab_owner_upload_form"):
-                upload_note = st.text_area("মালিকের জন্য নোট বা বার্তা")
-                owner_file = st.file_uploader("ছবি বা ফাইল সিলেক্ট করুন", type=["jpg", "png", "jpeg", "mp4", "pdf"])
+                upload_note = st.text_area("Note or Message for Owner")
+                owner_file = st.file_uploader("Select Photo or File", type=["jpg", "png", "jpeg", "mp4", "pdf"])
                 submit_to_owner = st.form_submit_button("📤 Submit File to Owner Vault")
                 
                 if submit_to_owner:
@@ -2107,10 +2107,10 @@ with tab_messages:
                                 VALUES (?, ?, ?, ?, ?, ?)
                             """, (str(uuid.uuid4()), u_id, u_name, upload_note, f_path, now_str))
                             conn.commit()
-                        st.success("✅ ফাইল এবং নোট সফলভাবে সরাসরি মালিকের সিকিউর ভল্টে জমা হয়েছে!")
+                        st.success("✅ File and note successfully submitted directly to Owner's secure vault!")
                         st.rerun()
                     else:
-                        st.error("অনুগ্রহ করে একটি ছবি বা ফাইল নির্বাচন করুন।")
+                        st.error("Please select a photo or file first.")
 
 with tab_monetization:
     st.markdown("### 💸 Worldwide Monetization & Video Boost Center")
@@ -2143,7 +2143,7 @@ with tab_monetization:
 
     with st.expander("📥 Submit Sponsored Video & Payment Info", expanded=True):
         if not st.session_state.user_id:
-            st.warning("🚫 স্পন্সর ভিডিও ও পেমেন্ট ইনফো সাবমিট করতে হলে আপনাকে অবশ্যই সাইন-ইন বা লগইন করতে হবে!")
+            st.warning("🚫 You must sign-in or login to submit sponsor videos and payment info!")
         else:
             with get_db_connection() as conn:
                 c = conn.cursor()
