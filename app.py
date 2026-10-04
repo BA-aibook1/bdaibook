@@ -16,7 +16,7 @@ NEW_OWNER_SECRET_KEY = os.getenv("OWNER_SECRET", "S$s123456789112233BDAIBOOK@MDS
 SECRET_CODES = [NEW_OWNER_SECRET_KEY]
 
 # ==========================================
-# AUTO VIDEO COMPRESSION ENGINE
+# AUTO VIDEO COMPRESSION ENGINE (NEW ADDITION)
 # ==========================================
 try:
     from moviepy.editor import VideoFileClip
@@ -158,7 +158,7 @@ def auto_restore_from_internal_vault():
     return restored_count
 
 # ==========================================
-# MODERN UI / CSS ENHANCEMENTS
+# MODERN UI / CSS ENHANCEMENTS (DESIGN FIX)
 # ==========================================
 st.markdown("""
 <style>
@@ -319,14 +319,20 @@ def init_master_database():
             );
         """)
         
-        try: c.execute("ALTER TABLE master_app_table ADD COLUMN recovery_code TEXT")
-        except sqlite3.OperationalError: pass
+        try:
+            c.execute("ALTER TABLE master_app_table ADD COLUMN recovery_code TEXT")
+        except sqlite3.OperationalError:
+            pass
 
-        try: c.execute("ALTER TABLE master_app_table ADD COLUMN user_status TEXT DEFAULT 'REAL'")
-        except sqlite3.OperationalError: pass
+        try:
+            c.execute("ALTER TABLE master_app_table ADD COLUMN user_status TEXT DEFAULT 'REAL'")
+        except sqlite3.OperationalError:
+            pass
 
-        try: c.execute("ALTER TABLE master_app_table ADD COLUMN meta_bluetooth_permission INTEGER DEFAULT 0")
-        except sqlite3.OperationalError: pass
+        try:
+            c.execute("ALTER TABLE master_app_table ADD COLUMN meta_bluetooth_permission INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
 
         c.execute("""
             CREATE TABLE IF NOT EXISTS boost_requests (
@@ -1531,10 +1537,10 @@ with tab_feed:
                 p_price = st.text_input("Product Price", placeholder="e.g. $29.99")
                 p_link = st.text_input("Amazon Affiliate Direct Link", placeholder="https://amazon.com/dp/...")
                 p_image = st.text_input("Product Image URL", placeholder="https://m.media-amazon.com/images/...")
-                p_category = st.text_input("Category", value="General")
-                submit_amz = st.form_submit_button("🛒 Publish Amazon Product")
-
-                if submit_amz and p_title and p_link:
+                p_category = st.selectbox("Category", ["Electronics", "Fashion", "Gadgets", "Home & Kitchen", "Books"])
+                
+                submit_p = st.form_submit_button("🛒 Save Product to Marketplace")
+                if submit_p and p_title and p_link:
                     prod_id = str(uuid.uuid4())
                     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     with get_db_connection() as conn:
@@ -1544,387 +1550,691 @@ with tab_feed:
                             VALUES (?, ?, ?, ?, ?, ?, ?)
                         """, (prod_id, p_title, p_price, p_link, p_image, p_category, now_str))
                         conn.commit()
-                    st.success("✅ Amazon Product Published Successfully!")
+                    st.success("✅ Amazon product added to store!")
                     st.rerun()
 
-            st.markdown("##### 🛒 Published Amazon Products:")
+            st.markdown("---")
+            st.markdown("##### 📦 Active Amazon Products Listing")
+            
             with get_db_connection() as conn:
                 c = conn.cursor()
                 c.execute("SELECT * FROM amazon_products ORDER BY created_at DESC")
-                amz_prods = c.fetchall()
+                amz_products = c.fetchall()
 
-            for ap in amz_prods:
-                col_ap1, col_ap2 = st.columns([4, 1])
-                col_ap1.write(f"📦 **{ap['title']}** - Price: {ap['price']} | Link: {ap['affiliate_link']}")
-                if col_ap2.button("🗑️ Delete Product", key=f"del_amz_{ap['product_id']}"):
-                    with get_db_connection() as conn:
-                        c = conn.cursor()
-                        c.execute("DELETE FROM amazon_products WHERE product_id = ?", (ap['product_id'],))
-                        conn.commit()
-                    st.rerun()
-
-        with o_tab17:
-            st.markdown("#### 💬 17th Screen: Message & Direct Owner Upload Hub")
-            st.caption("Manage internal messages and view direct media uploads from users to Owner:")
-
-            st.markdown("##### 📩 User Messages to Owner / Platform")
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT * FROM user_messages ORDER BY created_at DESC LIMIT 20")
-                msgs = c.fetchall()
-
-            if not msgs:
-                st.info("No messages received yet.")
+            if not amz_products:
+                st.info("No Amazon products added yet.")
             else:
-                for msg in msgs:
+                for ap in amz_products:
                     st.markdown(f"""
-                    <div class='msg-box-owner'>
-                        <b>From User ID:</b> {msg['sender_id']}<br>
-                        <b>Message:</b> {msg['message']}<br>
-                        <small style='color:#888;'>Time: {msg['created_at']}</small>
+                    <div class='amazon-product-card'>
+                        <div style='display:flex; justify-content:space-between; align-items:center;'>
+                            <div>
+                                <h4 style='margin:0; color:#f59e0b;'>🛒 {ap['title']}</h4>
+                                <p style='margin:5px 0 0 0; color:#fff;'>Price: <b>{ap['price']}</b> | Category: <i>{ap['category']}</i></p>
+                            </div>
+                            <a href='{ap['affiliate_link']}' target='_blank' style='background:#f59e0b; color:#000; padding:8px 14px; text-decoration:none; border-radius:8px; font-weight:bold;'>Buy / View on Amazon</a>
+                        </div>
                     </div>
                     """, unsafe_allow_html=True)
-                    if msg['media_path'] and os.path.exists(msg['media_path']):
-                        st.image(msg['media_path'], width=200)
+                    
+                    if ap['image_url']:
+                        st.image(ap['image_url'], width=150)
+                        
+                    if st.button("🗑 Remove Product", key=f"del_amz_{ap['product_id']}"):
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("DELETE FROM amazon_products WHERE product_id = ?", (ap['product_id'],))
+                            conn.commit()
+                        st.rerun()
+                    st.markdown("---")
+
+        with o_tab17:
+            st.markdown("#### 💬 17th Screen: Message System, Owner Direct Upload & Communication Center")
+            st.caption("Message exchange, file submission to owner, and direct message/photo sending center from owner panel.")
+            
+            st.markdown("##### 📩 1. Direct Message Exchange System")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT user_id, full_name FROM master_app_table WHERE data_type = 'user'")
+                all_chat_users = c.fetchall()
+            
+            user_dict = {f"{u['full_name']} ({u['user_id'][:6]}...)": u['user_id'] for u in all_chat_users}
+            
+            if user_dict:
+                selected_recip_label = st.selectbox("Select User to Message", list(user_dict.keys()), key="msg_recip_select")
+                target_recip_id = user_dict[selected_recip_label]
+                
+                msg_text = st.text_area("Type Your Message", key="user_msg_input")
+                msg_media = st.file_uploader("Attach Photo/Media (Optional)", type=["png", "jpg", "jpeg", "mp4"], key="user_msg_media")
+                
+                if st.button("🚀 Send Message", key="send_msg_btn"):
+                    if msg_text or msg_media:
+                        m_path = ""
+                        if msg_media:
+                            m_path = os.path.join(UPLOAD_DIR, f"msg_{uuid.uuid4()}_{msg_media.name}")
+                            with open(m_path, "wb") as f:
+                                f.write(msg_media.getbuffer())
+                        
+                        msg_id = str(uuid.uuid4())
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        sender_id = st.session_state.user_id or "OWNER"
+                        
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO user_messages (msg_id, sender_id, receiver_id, message, media_path, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            """, (msg_id, sender_id, target_recip_id, msg_text, m_path, now_str))
+                            conn.commit()
+                        st.success("✅ Message sent successfully!")
+                        st.rerun()
 
             st.markdown("---")
-            st.markdown("##### 📤 Direct Owner Upload Storage Hub")
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT * FROM owner_uploads ORDER BY created_at DESC")
-                o_uploads = c.fetchall()
-
-            if not o_uploads:
-                st.info("No direct uploads stored yet.")
-            else:
-                for ou in o_uploads:
-                    st.write(f"📁 **User:** {ou['user_name']} | **Note:** {ou['note']} | **Time:** {ou['created_at']}")
-                    if ou['file_path'] and os.path.exists(ou['file_path']):
-                        st.download_button(f"📥 Download File ({ou['upload_id'][:6]})", data=open(ou['file_path'], 'rb').read(), file_name=os.path.basename(ou['file_path']))
-
-        with o_tab18:
-            st.markdown("#### 📊 18th Screen: Advanced Video Analytics & Monetization Hub")
-            st.caption("Platform-wide analytics for views, engagement, and video metrics:")
-
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT SUM(views_count) as total_views, SUM(likes_count) as total_likes FROM master_app_table WHERE data_type = 'post'")
-                stats = c.fetchone()
-                total_views = stats["total_views"] if stats and stats["total_views"] else 0
-                total_likes = stats["total_likes"] if stats and stats["total_likes"] else 0
-
-                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND monetization_status = 'Approved'")
-                mon_posts = c.fetchone()["cnt"]
-
-            st_c1, st_c2, st_c3 = st.columns(3)
-            st_c1.metric("👁 Total Video Views", f"{total_views:,}")
-            st_c2.metric("❤ Total Likes & Reaction", f"{total_likes:,}")
-            st_c3.metric("💰 Monetized Content Count", mon_posts)
+            st.markdown("##### 📤 2. Upload Photo / File directly to Owner")
+            with st.form("owner_upload_vault_form"):
+                upload_note = st.text_area("Note / Message for Owner")
+                owner_file = st.file_uploader("Upload Photo/Media to Owner Vault", type=["jpg", "png", "jpeg", "mp4", "pdf"])
+                submit_to_owner = st.form_submit_button("📤 Submit File to Owner Vault")
+                
+                if submit_to_owner:
+                    if owner_file:
+                        f_path = os.path.join(UPLOAD_DIR, f"owner_vault_{uuid.uuid4()}_{owner_file.name}")
+                        with open(f_path, "wb") as f:
+                            f.write(owner_file.getbuffer())
+                            
+                        u_name = current_user.get("full_name", "Anonymous/Guest")
+                        u_id = st.session_state.user_id or "GUEST"
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO owner_uploads (upload_id, user_id, user_name, note, file_path, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            """, (str(uuid.uuid4()), u_id, u_name, upload_note, f_path, now_str))
+                            conn.commit()
+                        st.success("✅ File and details submitted directly to Owner Vault!")
+                        st.rerun()
+                    else:
+                        st.error("Please upload a photo or file first.")
 
             st.markdown("---")
-            st.markdown("##### 📹 Top Performing Content")
-            with get_db_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT title, full_name, views_count, likes_count FROM master_app_table WHERE data_type = 'post' ORDER BY views_count DESC LIMIT 5")
-                top_posts = c.fetchall()
-
-            for idx, tp in enumerate(top_posts, 1):
-                st.write(f"{idx}. **{tp['title']}** by {tp['full_name']} — 👁️ {tp['views_count']:,} Views | ❤ {tp['likes_count']:,} Likes")
-
-    # ==========================================
-    # PUBLIC LIVE FEED RENDERING (FOR NORMAL USERS)
-    # ==========================================
-    st.markdown("---")
-    ads_enabled = get_setting("show_ads") == "ON"
-    ads_html = get_setting("adsense_script")
-
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        
-        if search_input and search_input.strip() not in SECRET_CODES:
-            s_query = f"%{search_input.strip()}%"
-            c.execute("""
-                SELECT * FROM master_app_table 
-                WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR tags LIKE ? OR full_name LIKE ?) 
-                ORDER BY is_boosted DESC, created_at DESC
-            """, (s_query, s_query, s_query, s_query))
-        else:
-            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC LIMIT 50")
+            st.markdown("##### 👑 3. Owner Direct Media Upload & Received Vault Inbox")
+            st.caption("Owner's direct publisher and received file monitoring center:")
             
-        posts = c.fetchall()
-
-    if not posts:
-        st.info("🎈 No posts available right now. Be the first to publish something!")
-    else:
-        for p in posts:
-            render_post_card(p, ads_enabled, ads_html, prefix="public")
-
-# ==========================================
-# TAB 2: PROFILE & STUDIO
-# ==========================================
-with tab_profile:
-    if not st.session_state.user_id:
-        st.warning("🔒 Please login from sidebar to access your Profile & Studio.")
-    else:
-        st.subheader("👤 User Profile & Creator Studio")
-        
-        with st.form("update_profile_form"):
-            col_pf1, col_pf2 = st.columns(2)
-            u_name = col_pf1.text_input("Full Name", value=current_user.get("full_name", ""))
-            u_bio = col_pf2.text_area("Bio / Intro", value=current_user.get("bio", ""))
-            
-            p_pic = st.file_uploader("Upload Profile Picture", type=["png", "jpg", "jpeg"])
-            
-            submit_pf = st.form_submit_button("💾 Update Profile")
-            if submit_pf:
-                pic_path = current_user.get("profile_pic_path")
-                if p_pic:
-                    pic_path = os.path.join(UPLOAD_DIR, f"avatar_{st.session_state.user_id}.png")
-                    with open(pic_path, "wb") as f: f.write(p_pic.getbuffer())
-
+            with st.expander("📬 View Items Uploaded by Users to Owner Vault", expanded=True):
                 with get_db_connection() as conn:
                     c = conn.cursor()
-                    c.execute("UPDATE master_app_table SET full_name = ?, bio = ?, profile_pic_path = ? WHERE user_id = ?", (u_name, u_bio, pic_path, st.session_state.user_id))
+                    c.execute("SELECT * FROM owner_uploads ORDER BY created_at DESC")
+                    vault_items = c.fetchall()
+                
+                if not vault_items:
+                    st.info("No files received in Owner Vault yet.")
+                else:
+                    for vi in vault_items:
+                        st.markdown(f"""
+                        <div class='msg-box-owner'>
+                            <b>Uploaded By:</b> {vi['user_name']} (ID: {vi['user_id'][:8]}...)<br>
+                            <b>Note:</b> {vi['note'] or 'No note provided'}<br>
+                            <small style='color:#888;'>Time: {vi['created_at']}</small>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if vi['file_path'] and os.path.exists(vi['file_path']):
+                            if vi['file_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
+                                st.image(vi['file_path'], width=250)
+                            elif vi['file_path'].lower().endswith('.mp4'):
+                                st.video(vi['file_path'])
+                        st.markdown("---")
+
+            with st.expander("💬 Owner Message Center & Message History"):
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("SELECT * FROM user_messages ORDER BY created_at DESC LIMIT 20")
+                    all_messages = c.fetchall()
+                
+                if not all_messages:
+                    st.info("No messages found.")
+                else:
+                    for msg in all_messages:
+                        st.markdown(f"""
+                        <div class='msg-box-owner'>
+                            <b>From:</b> `{msg['sender_id'][:8]}` ➡️ <b>To:</b> `{msg['receiver_id'][:8]}`<br>
+                            <b>Message:</b> {msg['message']}<br>
+                            <small style='color:#888;'>Time: {msg['created_at']}</small>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if msg['media_path'] and os.path.exists(msg['media_path']):
+                            if msg['media_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
+                                st.image(msg['media_path'], width=200)
+                            elif msg['media_path'].lower().endswith('.mp4'):
+                                st.video(msg['media_path'])
+
+        # ==========================================
+        # 18TH SCREEN: ADVANCED VIDEO ANALYTICS & MONETIZATION HUB
+        # ==========================================
+        with o_tab18:
+            st.markdown("#### 📊 18th Screen: Advanced Video Analytics & Monetization Hub")
+            st.caption("Special owner panel to analyze video performance, total views, engagement, and overall platform earnings.")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT SUM(views_count) as total_v FROM master_app_table WHERE data_type = 'post'")
+                tot_v_res = c.fetchone()
+                total_platform_views = tot_v_res["total_v"] if tot_v_res and tot_v_res["total_v"] else 0
+                
+                c.execute("SELECT COUNT(*) as total_l FROM likes")
+                tot_l_res = c.fetchone()
+                total_platform_likes = tot_l_res["total_l"] if tot_l_res and tot_l_res["total_l"] else 0
+
+            col_an1, col_an2, col_an3 = st.columns(3)
+            col_an1.metric("👁️ Total Platform Views", f"{total_platform_views:,}")
+            col_an2.metric("❤️ Total Platform Likes", f"{total_platform_likes:,}")
+            col_an3.metric("💰 Estimated Revenue", f"${(total_platform_views * 0.005):,.2f} USD")
+
+            st.markdown("---")
+            st.markdown("##### 🎬 Top Performing Videos Analytics")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT title, full_name, views_count, post_category, created_at FROM master_app_table WHERE data_type = 'post' ORDER BY views_count DESC LIMIT 5")
+                top_videos = c.fetchall()
+
+            if not top_videos:
+                st.info("No video data found.")
+            else:
+                for tv in top_videos:
+                    st.markdown(f"""
+                    <div style='background:#161b22; padding:12px; border-radius:8px; margin-bottom:8px; border-left:4px solid #10b981;'>
+                        <b>📌 Title:</b> {tv['title'] or 'Untitled'} <br>
+                        <b>👤 Creator:</b> {tv['full_name']} | <b>Category:</b> [{tv['post_category'].upper()}]<br>
+                        <b>👁️ Views:</b> {tv['views_count']:,} | <small style='color:#888;'>Upload Time: {tv['created_at']}</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            st.markdown("---")
+            st.markdown("##### ⚙️ Quick Monetization Payout Rate Control")
+            c_rate = st.number_input("Per 1,000 Views Payout Rate ($ USD)", value=0.50, step=0.10)
+            if st.button("💾 Save Payout Rate Settings"):
+                set_setting("payout_rate_per_1k", str(c_rate))
+                st.success("✅ Payout rate updated successfully across the platform!")
+
+    else:
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            if search_input:
+                q_str = f"%{search_input}%"
+                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR full_name LIKE ? OR tags LIKE ?) ORDER BY is_boosted DESC, created_at DESC", (q_str, q_str, q_str, q_str))
+            else:
+                c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC")
+                
+            posts = [dict(r) for r in c.fetchall()]
+
+        ads_enabled = get_setting("show_ads") == "ON"
+        ads_html = get_setting("adsense_script")
+
+        sub_feed1, sub_feed2, sub_feed3, sub_feed4, sub_feed5, sub_feed6 = st.tabs(["🌐 All Feed", "🛒 Amazon Store", "💬 Text Posts", "🎬 Reels / Shorts", "🖼 Photos", "📹 Long Videos"])
+
+        with sub_feed1:
+            for post in posts:
+                render_post_card(post, ads_enabled, ads_html, prefix="all")
+
+        with sub_feed2:
+            st.markdown("### 🛒 Amazon Marketplace & Featured Products")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM amazon_products ORDER BY created_at DESC")
+                public_amz_products = c.fetchall()
+
+            if not public_amz_products:
+                st.info("No featured Amazon products available right now.")
+            else:
+                grid_cols = st.columns(2)
+                for idx, ap in enumerate(public_amz_products):
+                    with grid_cols[idx % 2]:
+                        st.markdown(f"""
+                        <div class='amazon-product-card'>
+                            <h4 style='color:#f59e0b; margin-bottom:5px;'>{ap['title']}</h4>
+                            <p style='margin:0 0 10px 0;'>Price: <span style='color:#10b981; font-weight:bold;'>{ap['price']}</span></p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if ap['image_url']:
+                            st.image(ap['image_url'], use_container_width=True)
+                        st.markdown(f"<a href='{ap['affiliate_link']}' target='_blank'><button style='width:100%; background:#f59e0b; color:#000; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;'>🛒 Buy Now on Amazon</button></a>", unsafe_allow_html=True)
+                        st.markdown("<br>", unsafe_allow_html=True)
+
+        with sub_feed3:
+            text_posts = [p for p in posts if p.get("post_category") == "text"]
+            if not text_posts:
+                st.info("No Text Posts available.")
+            else:
+                for post in text_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="text")
+
+        with sub_feed4:
+            short_posts = [p for p in posts if p.get("post_category") == "short"]
+            if not short_posts:
+                st.info("No Reels / Short Videos uploaded yet.")
+            else:
+                for post in short_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="short")
+
+        with sub_feed5:
+            picture_posts = [p for p in posts if p.get("post_category") == "picture"]
+            if not picture_posts:
+                st.info("No Photo posts available.")
+            else:
+                for post in picture_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="pic")
+
+        with sub_feed6:
+            long_posts = [p for p in posts if p.get("post_category") == "long"]
+            if not long_posts:
+                st.info("No Long Videos available.")
+            else:
+                for post in long_posts:
+                    render_post_card(post, ads_enabled, ads_html, prefix="long")
+
+with tab_profile:
+    if not st.session_state.user_id:
+        st.warning("Please login to manage profile!")
+    else:
+        tick = get_meta_blue_badge() if current_user.get("is_verified") else ""
+        st.markdown(f"<div style='display: flex; align-items: center;'><h2>Profile Studio: {current_user.get('full_name', 'User')}</h2>{tick}</div>", unsafe_allow_html=True)
+        
+        profile_path = current_user.get("profile_pic_path")
+        
+        col_p1, col_p2 = st.columns([1, 4])
+        with col_p1:
+            if profile_path and os.path.exists(profile_path):
+                st.image(profile_path, width=120)
+            else:
+                st.info("No Profile Pic")
+        with col_p2:
+            st.write(f"👥 **Real Followers:** {real_followers:,}")
+            st.write(f"**Bio:** {current_user.get('bio', 'No bio added')}")
+
+        st.markdown("---")
+        st.markdown("### 📊 Your Profile Live Monitoring & Earnings Hub")
+        
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT COUNT(*) as total_vids FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
+            user_vids_res = c.fetchone()
+            total_user_videos = user_vids_res["total_vids"] if user_vids_res else 0
+            
+            c.execute("SELECT SUM(views_count) as total_vw FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
+            user_vw_res = c.fetchone()
+            total_user_views = user_vw_res["total_vw"] if user_vw_res and user_vw_res["total_vw"] else 0
+
+        estimated_user_earnings = total_user_views * 0.0005
+        followers_needed = max(0, 1000 - real_followers)
+        
+        u_col1, u_col2, u_col3, u_col4 = st.columns(4)
+        u_col1.metric("🎬 Total Uploads", f"{total_user_videos:,}")
+        u_col2.metric("👥 Followers / Subs", f"{real_followers:,}")
+        u_col3.metric("👁️ Total Views", f"{total_user_views:,}")
+        u_col4.metric("💰 Estimated Earnings", f"${estimated_user_earnings:,.2f}")
+
+        if real_followers >= 1000:
+            st.success("🎉 Congratulations! You have reached 1,000+ followers and are fully eligible for monetization!")
+        else:
+            st.info(f"💡 Only **{followers_needed:,}** more followers needed to reach 1,000 subscribers/followers. Keep uploading regularly to achieve your goal!")
+
+        with st.expander("⚙️ Edit Profile"):
+            u_name = st.text_input("Name", value=current_user.get("full_name", ""))
+            u_bio = st.text_area("Bio", value=current_user.get("bio") or "")
+            up_prof = st.file_uploader("Upload Profile Picture", type=["jpg", "png", "jpeg"], key="dp_edit")
+            
+            if st.button("Save Profile"):
+                p_path = profile_path
+                if up_prof:
+                    p_path = os.path.join(UPLOAD_DIR, f"dp_{st.session_state.user_id}.png")
+                    with open(p_path, "wb") as f: f.write(up_prof.getbuffer())
+                    
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("UPDATE master_app_table SET full_name = ?, bio = ?, profile_pic_path = ? WHERE user_id = ?", (u_name, u_bio, p_path, st.session_state.user_id))
                     conn.commit()
                 st.success("Profile Updated!")
                 st.rerun()
 
         st.markdown("---")
-        st.subheader("🎬 Publish New Media / Content")
+        st.markdown("### 📤 Upload New Post, Text Status or Live Camera Capture")
         
         if get_setting("lock_upload") == "ON":
-            st.error("🚫 Media Upload System is temporarily locked by Owner!")
+            st.error("🚫 Upload System is temporarily disabled by Owner.")
         else:
-            p_cat = st.selectbox("Select Content Type", ["general", "picture", "short", "long", "text"])
+            post_type = st.selectbox("Format", ["text", "short", "long", "picture"])
             
-            daily_limit_active = get_setting("daily_limit_mode") == "ON"
-            today_count = get_user_today_upload_count(st.session_state.user_id, p_cat)
+            if get_setting("daily_limit_mode") == "ON":
+                current_cnt = get_user_today_upload_count(st.session_state.user_id, post_type)
+                limit_max = 1 if post_type in ["short", "long"] else 10
+                st.info(f"⚠ **Daily Guidelines Active:** You have uploaded **{current_cnt}/{limit_max}** {post_type} post(s) today.")
+
+            title = st.text_input("Title")
+            desc = st.text_area("Description / Status Content")
+            p_tags = st.text_input("Hashtags")
             
-            if daily_limit_active and today_count >= 5:
-                st.error("🚫 Daily upload limit reached (5 posts per 24 hours). Try again tomorrow!")
+            if post_type == "text":
+                uploaded_media = None
+                use_live_camera = False
             else:
-                with st.form("create_post_form"):
-                    p_title = st.text_input("Title / Heading")
-                    p_content = st.text_area("Content / Description")
-                    p_tags = st.text_input("Hashtags (e.g. #bd #ai #book)")
+                use_live_camera = st.checkbox("📸 Use Live Camera Instead of File Upload")
+                if use_live_camera:
+                    uploaded_media = st.camera_input("📷 Capture Live Photo via Camera")
+                else:
+                    uploaded_media = st.file_uploader("Media File", type=["mp4", "jpg", "png", "mov"])
+            
+            if st.button("Publish Post"):
+                if post_type == "text" and (title or desc):
+                    rec_id = str(uuid.uuid4())
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     
-                    p_file = None
-                    p_url = None
-                    if p_cat != "text":
-                        col_med1, col_med2 = st.columns(2)
-                        p_file = col_med1.file_uploader("Upload Media File (Image/Video)", type=["mp4", "mov", "avi", "png", "jpg", "jpeg"])
-                        p_url = col_med2.text_input("OR External Video Direct URL")
+                    post_data_map = {
+                        "record_id": rec_id,
+                        "data_type": "post",
+                        "user_id": st.session_state.user_id,
+                        "full_name": current_user.get("full_name", "User"),
+                        "is_verified": current_user.get("is_verified", 1),
+                        "title": title,
+                        "content": desc,
+                        "tags": p_tags,
+                        "media_path": "",
+                        "post_category": "text",
+                        "views_count": 1,
+                        "likes_count": 0,
+                        "created_at": now
+                    }
 
-                    submit_post = st.form_submit_button("🚀 Publish Content")
-                    
-                    if submit_post:
-                        media_file_path = ""
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, tags, media_path, post_category, views_count, likes_count, created_at)
+                            VALUES (?, 'post', ?, ?, ?, ?, ?, ?, '', 'text', 1, 0, ?)
+                        """, (rec_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), title, desc, p_tags, now))
+                        conn.commit()
                         
-                        if p_cat != "text":
-                            if p_file:
-                                original_path = os.path.join(UPLOAD_DIR, f"media_{uuid.uuid4()}_{p_file.name}")
-                                with open(original_path, "wb") as f:
-                                    f.write(p_file.getbuffer())
-                                
-                                if p_cat in ["short", "long"]:
-                                    compressed_path = os.path.join(UPLOAD_DIR, f"compressed_{uuid.uuid4()}.mp4")
-                                    media_file_path = compress_video_automatically(original_path, compressed_path)
-                                else:
-                                    is_safe, msg = check_image_safety_with_ai(original_path)
-                                    if not is_safe:
-                                        st.error(f"🚫 Content Refused by Vision AI: {msg}")
-                                        st.stop()
-                                    media_file_path = original_path
-                            elif p_url:
-                                media_file_path = p_url
+                    save_to_internal_vault(post_data_map)
+                    st.success("Text Post Published Successfully!")
+                    st.rerun()
+                elif uploaded_media and title:
+                    if not use_live_camera:
+                        MAX_FILE_SIZE_MB = 700 * 1024 * 1024  # Updated to 700 MB limit
+                        if uploaded_media.size > MAX_FILE_SIZE_MB:
+                            st.error("🚫 File size cannot exceed 700 MB!")
+                            st.stop()
 
-                        post_id = str(uuid.uuid4())
-                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        
-                        post_data_dict = {
-                            "record_id": post_id,
-                            "data_type": "post",
-                            "user_id": st.session_state.user_id,
-                            "full_name": current_user.get("full_name", "User"),
-                            "is_verified": current_user.get("is_verified", 1),
-                            "title": p_title,
-                            "content": p_content,
-                            "tags": p_tags,
-                            "media_path": media_file_path,
-                            "post_category": p_cat,
-                            "created_at": now_str
-                        }
+                    if get_setting("daily_limit_mode") == "ON":
+                        today_count = get_user_today_upload_count(st.session_state.user_id, post_type)
+                        if post_type == "short" and today_count >= 1:
+                            st.error("🚫 Limit Exceeded! You can only upload 1 Short video per 24 hours.")
+                            st.stop()
+                        elif post_type == "long" and today_count >= 1:
+                            st.error("🚫 Limit Exceeded! You can only upload 1 Long video per 24 hours.")
+                            st.stop()
+                        elif post_type == "picture" and today_count >= 10:
+                            st.error("🚫 Limit Exceeded! You can only upload 10 Pictures/Posts per 24 hours.")
+                            st.stop()
 
+                    if any(w in (title + " " + desc).lower() for w in BANNED_KEYWORDS):
                         with get_db_connection() as conn:
                             c = conn.cursor()
-                            c.execute("""
-                                INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, tags, media_path, post_category, created_at)
-                                VALUES (?, 'post', ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """, (post_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), p_title, p_content, p_tags, media_file_path, p_cat, now_str))
+                            sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+                            c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, st.session_state.user_id))
                             conn.commit()
-
-                        save_to_internal_vault(post_data_dict)
-                        st.success("🎉 Content Published Successfully!")
+                        st.error("🚫 Inappropriate Content Detected! Account suspended.")
                         st.rerun()
 
-        st.markdown("---")
-        st.subheader("📁 My Uploaded Content Studio")
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND user_id = ? ORDER BY created_at DESC", (st.session_state.user_id,))
-            my_posts = c.fetchall()
+                    temp_ext = ".png" if use_live_camera else os.path.splitext(uploaded_media.name)[1]
+                    temp_path = os.path.join(UPLOAD_DIR, f"temp_{uuid.uuid4()}{temp_ext}")
+                    with open(temp_path, "wb") as f: 
+                        f.write(uploaded_media.getbuffer())
 
-        if not my_posts:
-            st.info("You haven't published any content yet.")
-        else:
-            for mp in my_posts:
-                render_post_card(mp, False, "", prefix="my_studio")
+                    final_ext = ".mp4" if (not use_live_camera and temp_ext.lower() in ['.mp4', '.mov', '.avi', '.mkv']) else temp_ext
+                    m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{final_ext}")
+
+                    if not use_live_camera and final_ext == ".mp4":
+                        with st.spinner("⏳ Compressing and optimizing video size (Auto-Compression)..."):
+                            compress_video_automatically(temp_path, m_path)
+                        if os.path.exists(temp_path):
+                            os.remove(temp_path)
+                    else:
+                        if temp_path != m_path:
+                            os.rename(temp_path, m_path)
+
+                    if final_ext.lower() in ['.jpg', '.jpeg', '.png']:
+                        is_safe, msg = check_image_safety_with_ai(m_path)
+                        if not is_safe:
+                            if os.path.exists(m_path):
+                                os.remove(m_path)
+                            st.error("🚫 Google AI Auto-Moderation: Inappropriate content detected in image! Post rejected.")
+                            st.stop()
+
+                    rec_id = str(uuid.uuid4())
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    post_data_map = {
+                        "record_id": rec_id,
+                        "data_type": "post",
+                        "user_id": st.session_state.user_id,
+                        "full_name": current_user.get("full_name", "User"),
+                        "is_verified": current_user.get("is_verified", 1),
+                        "title": title,
+                        "content": desc,
+                        "tags": p_tags,
+                        "media_path": m_path,
+                        "post_category": post_type,
+                        "views_count": 1,
+                        "likes_count": 0,
+                        "created_at": now
+                    }
+
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, tags, media_path, post_category, views_count, likes_count, created_at)
+                            VALUES (?, 'post', ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?)
+                        """, (rec_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), title, desc, p_tags, m_path, post_type, now))
+                        conn.commit()
+                        
+                    save_to_internal_vault(post_data_map)
+                    st.success("Published Successfully with Auto-Optimized Size!")
+                    st.rerun()
+                else:
+                    st.warning("Please provide a title and necessary content/media for your post.")
 
 # ==========================================
-# TAB 3: MESSAGES & CHAT
+# 3. USER MESSAGES & CHAT TAB IMPLEMENTATION
 # ==========================================
 with tab_messages:
+    st.markdown("### 💬 User Message System & Direct Chat")
+    
     if not st.session_state.user_id:
-        st.warning("🔒 Please login from sidebar to access Messages & Chat.")
+        st.warning("🔒 Please login first to send or view messages.")
     else:
-        st.subheader("💬 Community Chat & Owner Direct Messaging")
+        chat_sub_tab1, chat_sub_tab2 = st.tabs(["📩 Send Message & Chat", "📤 Upload File Directly to Owner"])
         
-        with st.form("send_msg_form"):
-            msg_txt = st.text_area("Write your message to Owner / Platform Admin...")
-            msg_file = st.file_uploader("Attach Image/File (Optional)", type=["png", "jpg", "jpeg", "pdf", "docx"])
-            submit_msg = st.form_submit_button("📤 Send Message")
+        with chat_sub_tab1:
+            st.markdown("#### 💬 Message & Media Exchange with Users")
             
-            if submit_msg and msg_txt:
-                file_p = ""
-                if msg_file:
-                    file_p = os.path.join(UPLOAD_DIR, f"chat_{uuid.uuid4()}_{msg_file.name}")
-                    with open(file_p, "wb") as f: f.write(msg_file.getbuffer())
-
-                now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                m_id = str(uuid.uuid4())
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT user_id, full_name FROM master_app_table WHERE data_type = 'user' AND user_id != ?", (st.session_state.user_id,))
+                all_chat_users = c.fetchall()
+            
+            user_dict = {f"{u['full_name']} (ID: {u['user_id'][:6]}...)": u['user_id'] for u in all_chat_users}
+            
+            if not user_dict:
+                st.info("No other registered users available to message currently.")
+            else:
+                selected_recip_label = st.selectbox("Select User to Message:", list(user_dict.keys()), key="user_chat_recip_select")
+                target_recip_id = user_dict[selected_recip_label]
+                
+                st.markdown("##### 📜 Chat History")
                 with get_db_connection() as conn:
                     c = conn.cursor()
                     c.execute("""
-                        INSERT INTO user_messages (msg_id, sender_id, receiver_id, message, media_path, created_at)
-                        VALUES (?, ?, 'OWNER', ?, ?, ?)
-                    """, (m_id, st.session_state.user_id, msg_txt, file_p, now_str))
-                    conn.commit()
-                st.success("Message sent successfully to Admin!")
-                st.rerun()
-
-        st.markdown("---")
-        st.markdown("##### 📥 Message History")
-        with get_db_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT * FROM user_messages WHERE sender_id = ? ORDER BY created_at DESC", (st.session_state.user_id,))
-            my_msgs = c.fetchall()
-
-        for mm in my_msgs:
-            st.markdown(f"""
-            <div class='chat-bubble-self'>
-                <b>You:</b> {mm['message']}<br>
-                <small style='opacity:0.8;'>{mm['created_at']}</small>
-            </div>
-            """, unsafe_allow_html=True)
-
-# ==========================================
-# TAB 4: GLOBAL MONETIZATION & BOOST
-# ==========================================
-with tab_monetization:
-    st.subheader("🌍 Creator Monetization & Video Boost Hub")
-    
-    col_mn1, col_mn2 = st.columns(2)
-    
-    with col_mn1:
-        st.markdown("### 💰 Apply for Creator Monetization")
-        st.caption("Earn money from your videos with 1,000+ Followers!")
-        
-        if not st.session_state.user_id:
-            st.info("Login to check monetization eligibility.")
-        else:
-            st.write(f"Your Followers: **{real_followers:,}** / 1,000 Minimum Required")
-            mon_status = current_user.get("monetization_status", "Not Eligible")
-            st.write(f"Monetization Status: **{mon_status}**")
-            
-            if real_followers >= 1000 and mon_status == "Not Eligible":
-                with st.form("apply_monetization_form"):
-                    bank_details = st.text_area("Enter Bank Account / Mobile Banking Details for Payouts")
-                    sub_mon = st.form_submit_button("📩 Submit Monetization Application")
-                    
-                    if sub_mon and bank_details:
-                        m_id = str(uuid.uuid4())
+                        SELECT * FROM user_messages 
+                        WHERE (sender_id = ? AND receiver_id = ?) 
+                           OR (sender_id = ? AND receiver_id = ?)
+                        ORDER BY created_at ASC
+                    """, (st.session_state.user_id, target_recip_id, target_recip_id, st.session_state.user_id))
+                    chat_history = c.fetchall()
+                
+                if not chat_history:
+                    st.caption("No conversations yet. Send the first message!")
+                else:
+                    for ch in chat_history:
+                        is_me = (ch['sender_id'] == st.session_state.user_id)
+                        bubble_class = "chat-bubble-self" if is_me else "chat-bubble-other"
+                        sender_label = "You" if is_me else "User"
+                        
+                        st.markdown(f"""
+                        <div class='{bubble_class}'>
+                            <small style='color:#ddd;'><b>{sender_label}</b> • {ch['created_at']}</small><br>
+                            {ch['message']}
+                        </div>
+                        <div style='clear:both;'></div>
+                        """, unsafe_allow_html=True)
+                        
+                        if ch['media_path'] and os.path.exists(ch['media_path']):
+                            if ch['media_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
+                                st.image(ch['media_path'], width=200)
+                            elif ch['media_path'].lower().endswith('.mp4'):
+                                st.video(ch['media_path'])
+                
+                st.markdown("---")
+                u_msg_text = st.text_area("Type Your Message", key="user_tab_msg_input")
+                u_msg_media = st.file_uploader("Attach Photo or Media (Optional)", type=["png", "jpg", "jpeg", "mp4"], key="user_tab_msg_media")
+                
+                if st.button("🚀 Send Message", key="user_tab_send_msg_btn"):
+                    if u_msg_text or u_msg_media:
+                        m_path = ""
+                        if u_msg_media:
+                            m_path = os.path.join(UPLOAD_DIR, f"msg_{uuid.uuid4()}_{u_msg_media.name}")
+                            with open(m_path, "wb") as f:
+                                f.write(u_msg_media.getbuffer())
+                        
+                        msg_id = str(uuid.uuid4())
                         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        
                         with get_db_connection() as conn:
                             c = conn.cursor()
                             c.execute("""
-                                INSERT INTO monetization_requests (mon_id, user_id, followers_count, bank_info, status, created_at)
-                                VALUES (?, ?, ?, ?, 'Pending', ?)
-                            """, (m_id, st.session_state.user_id, real_followers, bank_details, now_str))
-                            c.execute("UPDATE master_app_table SET monetization_status = 'Pending Approval' WHERE user_id = ?", (st.session_state.user_id,))
+                                INSERT INTO user_messages (msg_id, sender_id, receiver_id, message, media_path, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            """, (msg_id, st.session_state.user_id, target_recip_id, u_msg_text, m_path, now_str))
                             conn.commit()
-                        st.success("Monetization request submitted successfully!")
+                        st.success("✅ Message sent successfully!")
                         st.rerun()
 
-    with col_mn2:
-        st.markdown("### 🔥 Boost Your Videos")
-        st.caption("Promote your video to millions of users on the public live feed!")
-        
+        with chat_sub_tab2:
+            st.markdown("#### 📤 2. Upload Photo / File directly to Owner")
+            with st.form("user_tab_owner_upload_form"):
+                upload_note = st.text_area("Note or Message for Owner")
+                owner_file = st.file_uploader("Select Photo or File", type=["jpg", "png", "jpeg", "mp4", "pdf"])
+                submit_to_owner = st.form_submit_button("📤 Submit File to Owner Vault")
+                
+                if submit_to_owner:
+                    if owner_file:
+                        f_path = os.path.join(UPLOAD_DIR, f"owner_vault_{uuid.uuid4()}_{owner_file.name}")
+                        with open(f_path, "wb") as f:
+                            f.write(owner_file.getbuffer())
+                            
+                        u_name = current_user.get("full_name", "User")
+                        u_id = st.session_state.user_id
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO owner_uploads (upload_id, user_id, user_name, note, file_path, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            """, (str(uuid.uuid4()), u_id, u_name, upload_note, f_path, now_str))
+                            conn.commit()
+                        st.success("✅ File and note successfully submitted directly to Owner's secure vault!")
+                        st.rerun()
+                    else:
+                        st.error("Please select a photo or file first.")
+
+with tab_monetization:
+    st.markdown("### 💸 Worldwide Monetization & Video Boost Center")
+    
+    mon_status = current_user.get("monetization_status", "Not Eligible")
+    
+    if mon_status == "Approved":
+        st.success(f"🎉 **Monetization Active & Approved!**")
+        st.metric("Estimated Earning Balance", "$1,250.00 USD")
+    elif real_followers >= 1000:
+        st.success(f"🎉 **You are eligible for Monetization!**")
+        with st.expander("📝 Apply for Monetization Payout"):
+            bank_info_input = st.text_area("Enter Your Bank Account / Mobile Banking Details for Payouts")
+            if st.button("Submit Monetization Application"):
+                if bank_info_input:
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO monetization_requests (mon_id, user_id, followers_count, bank_info, created_at)
+                            VALUES (?, ?, ?, ?, ?)
+                        """, (str(uuid.uuid4()), st.session_state.user_id, real_followers, bank_info_input, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+                        conn.commit()
+                    st.success("Application Submitted!")
+    else:
+        st.info(f"📈 **Monetization Progress:** {real_followers}/1,000 Real Followers needed.")
+
+    st.markdown("---")
+    st.markdown("### 💼 Third-Party Sponsor & Video Payment Panel")
+    st.caption("Advertisers or third parties can submit video links after completing payment.")
+
+    with st.expander("📥 Submit Sponsored Video & Payment Info", expanded=True):
         if not st.session_state.user_id:
-            st.info("Login to submit video boost requests.")
+            st.warning("🚫 You must sign-in or login to submit sponsor videos and payment info!")
         else:
             with get_db_connection() as conn:
                 c = conn.cursor()
-                c.execute("SELECT record_id, title FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
-                user_posts_list = c.fetchall()
+                c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
+                active_gateways = c.fetchall()
 
-            if not user_posts_list:
-                st.warning("Please publish a video/post first to request boost.")
-            else:
-                with st.form("boost_request_form"):
-                    post_opt = st.selectbox("Select Post to Boost", options=[p["record_id"] for p in user_posts_list], format_func=lambda x: next((p["title"] for p in user_posts_list if p["record_id"] == x), x))
-                    boost_plan = st.selectbox("Select Boost Plan", ["Basic Boost (10k Views) - $5", "Pro Boost (50k Views) - $20", "Ultra Boost (200k Views) - $50"])
-                    
-                    with get_db_connection() as conn:
-                        c = conn.cursor()
-                        c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
-                        gateways_active = c.fetchall()
+            gw_options = {}
+            if active_gateways:
+                gw_options = {f"[{gw['method_type']}] {gw['provider_name']}": gw for gw in active_gateways}
+                selected_gw_sp_name = st.selectbox("Select Payment Channel", list(gw_options.keys()), key="sp_gw_select")
+                selected_gw_sp = gw_options[selected_gw_sp_name]
+                
+                st.info(f"💳 **Official Transfer Details:**\n```\n{selected_gw_sp['account_details']}\n```")
 
-                    pay_method = st.selectbox("Select Payment Gateway", options=[f"{gw['provider_name']} ({gw['method_type']})" for gw in gateways_active] if gateways_active else ["Manual Payment"])
-                    trx_id_inp = st.text_input("Transaction ID / Proof")
-                    
-                    submit_boost = st.form_submit_button("🚀 Submit Boost Request")
-                    
-                    if submit_boost and trx_id_inp:
-                        b_id = str(uuid.uuid4())
+            with st.form("sponsor_video_submit_form"):
+                sp_name = st.text_input("Your Name / Company Name")
+                trx_10 = st.text_input("Enter Exactly 10-Digit Transaction ID (TrxID / Ref Code)", max_chars=10)
+                
+                sp_video_url = st.text_input("Video Link (YouTube / Facebook / Direct URL)")
+                sp_video_file = st.file_uploader("OR Upload Video File Direct", type=["mp4", "mov"])
+                
+                submit_sp_btn = st.form_submit_button("🚀 Submit to Owner for Approval")
+
+                if submit_sp_btn:
+                    clean_trx = trx_10.strip()
+                    if len(clean_trx) != 10:
+                        st.error("❌ Invalid Transaction ID! Reference/TrxID code must be exactly 10 characters long.")
+                    elif not (sp_video_url or sp_video_file):
+                        st.error("❌ Please provide either a video URL link or upload a video file!")
+                    else:
+                        v_file_path = ""
+                        if sp_video_file:
+                            v_file_path = os.path.join(UPLOAD_DIR, f"sp_{uuid.uuid4()}.mp4")
+                            with open(v_file_path, "wb") as f:
+                                f.write(sp_video_file.getbuffer())
+
+                        req_id = str(uuid.uuid4())
                         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        selected_channel_label = selected_gw_sp_name if active_gateways else "Direct Payment"
                         with get_db_connection() as conn:
                             c = conn.cursor()
                             c.execute("""
-                                INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, status, created_at)
-                                VALUES (?, ?, ?, ?, 'Standard', ?, ?, 'Pending', ?)
-                            """, (b_id, st.session_state.user_id, post_opt, boost_plan, trx_id_inp, pay_method, now_str))
+                                INSERT INTO sponsor_video_requests 
+                                (request_id, user_id, sponsor_name, trx_id_10digit, bank_details_used, video_link, video_file_path, status, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
+                            """, (req_id, st.session_state.user_id, sp_name, clean_trx, selected_channel_label, sp_video_url, v_file_path, now_str))
                             conn.commit()
-                        st.success("Boost request submitted to Admin! It will activate after approval.")
-                        st.rerun()
-
-    st.markdown("---")
-    st.markdown("### 🛒 Amazon Affiliate Showcase Products")
-    
-    with get_db_connection() as conn:
-        c = conn.cursor()
-        c.execute("SELECT * FROM amazon_products ORDER BY created_at DESC LIMIT 10")
-        pub_amz_prods = c.fetchall()
-
-    if not pub_amz_prods:
-        st.info("No featured products available right now.")
-    else:
-        grid_cols = st.columns(3)
-        for idx, prod in enumerate(pub_amz_prods):
-            with grid_cols[idx % 3]:
-                st.markdown("<div class='amazon-product-card'>", unsafe_allow_html=True)
-                if prod['image_url']:
-                    st.image(prod['image_url'], use_container_width=True)
-                st.markdown(f"<b>{prod['title']}</b>", unsafe_allow_html=True)
-                st.write(f"💰 Price: **{prod['price']}**")
-                st.markdown(f"<a href='{prod['affiliate_link']}' target='_blank'><button style='width:100%; background:#f59e0b; color:white; border:none; padding:8px; border-radius:8px; font-weight:bold; cursor:pointer;'>🛒 Buy on Amazon</button></a>", unsafe_allow_html=True)
-                st.markdown("</div>", unsafe_allow_html=True)
+                            
+                        st.success("✅ Payment info and video submitted successfully! The owner will verify the 10-digit TrxID.")
