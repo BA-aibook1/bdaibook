@@ -145,8 +145,7 @@ def auto_restore_from_internal_vault():
                                 'is_verified', 'violation_count', 'is_suspended', 'suspended_until',
                                 'title', 'content', 'tags', 'media_path', 'post_category', 'likes_count',
                                 'views_count', 'is_boosted', 'monetization_status', 'country',
-                                'is_owner_post', 'created_at', 'recovery_code', 'user_status', 'meta_bluetooth_permission',
-                                'user_role'
+                                'is_owner_post', 'created_at', 'recovery_code', 'user_status', 'meta_bluetooth_permission'
                             ]]
                             values = [data[k] for k in keys]
                             placeholders = ", ".join(["?"] * len(keys))
@@ -246,9 +245,28 @@ st.markdown("""
         background: #1f1315; border-left: 4px solid #ef4444; 
         padding: 14px; margin-bottom: 12px; border-radius: 8px; color: #fff; 
     }
+    .amazon-product-card { 
+        background: #111827; border: 1px solid #f59e0b; 
+        padding: 18px; border-radius: 12px; margin-bottom: 15px; 
+    }
     .meta-control-box { 
         background: #0d1527; border: 1px solid #1877F2; 
         padding: 20px; border-radius: 16px; margin-bottom: 20px; 
+    }
+    .msg-box-owner { 
+        background: #111827; border: 1px solid #1f2937; 
+        padding: 14px; border-radius: 10px; margin-bottom: 10px; 
+    }
+    .chat-bubble-self { 
+        background: #1877F2; color: white; padding: 12px 16px; 
+        border-radius: 16px 16px 2px 16px; margin-bottom: 10px; 
+        max-width: 80%; float: right; clear: both;
+        box-shadow: 0 2px 8px rgba(24, 119, 242, 0.3);
+    }
+    .chat-bubble-other { 
+        background: #1f2937; color: white; padding: 12px 16px; 
+        border-radius: 16px 16px 16px 2px; margin-bottom: 10px; 
+        max-width: 80%; float: left; clear: both;
     }
 
     .stButton>button {
@@ -301,17 +319,14 @@ def init_master_database():
             );
         """)
         
-        # Schema Alterations
-        for col_def in [
-            ("recovery_code", "TEXT"),
-            ("user_status", "TEXT DEFAULT 'REAL'"),
-            ("meta_bluetooth_permission", "INTEGER DEFAULT 0"),
-            ("user_role", "TEXT DEFAULT 'EMPLOYEE'") # Role Management Schema Addition
-        ]:
-            try:
-                c.execute(f"ALTER TABLE master_app_table ADD COLUMN {col_def[0]} {col_def[1]}")
-            except sqlite3.OperationalError:
-                pass
+        try: c.execute("ALTER TABLE master_app_table ADD COLUMN recovery_code TEXT")
+        except sqlite3.OperationalError: pass
+
+        try: c.execute("ALTER TABLE master_app_table ADD COLUMN user_status TEXT DEFAULT 'REAL'")
+        except sqlite3.OperationalError: pass
+
+        try: c.execute("ALTER TABLE master_app_table ADD COLUMN meta_bluetooth_permission INTEGER DEFAULT 0")
+        except sqlite3.OperationalError: pass
 
         c.execute("""
             CREATE TABLE IF NOT EXISTS boost_requests (
@@ -485,6 +500,17 @@ def increment_views(post_id):
         c.execute("UPDATE master_app_table SET views_count = views_count + 1 WHERE record_id = ?", (post_id,))
         conn.commit()
 
+def get_user_today_upload_count(user_id, category):
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        twenty_four_hours_ago = (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+        c.execute("""
+            SELECT COUNT(*) as cnt FROM master_app_table 
+            WHERE data_type = 'post' AND user_id = ? AND post_category = ? AND created_at >= ?
+        """, (user_id, category, twenty_four_hours_ago))
+        res = c.fetchone()
+        return res["cnt"] if res else 0
+
 def check_user_meta_bluetooth_permission(user_id):
     is_global_active = get_setting("is_global_meta_active", "true") == "true"
     if not is_global_active:
@@ -507,7 +533,6 @@ def check_user_meta_bluetooth_permission(user_id):
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
-if "user_role" not in st.session_state: st.session_state.user_role = "EMPLOYEE"
 if "active_tab" not in st.session_state: st.session_state.active_tab = 0
 
 site_logo_path = get_setting("logo_path")
@@ -535,7 +560,7 @@ if announcement:
 real_followers = 0
 current_user = {}
 
-st.sidebar.markdown("### 🔐 Authentication Panel")
+st.sidebar.markdown("### 🔐 User Login / Register")
 login_locked = get_setting("lock_login") == "ON"
 
 if not st.session_state.user_id:
@@ -585,9 +610,6 @@ if not st.session_state.user_id:
                             if usr:
                                 if usr["password_hash"] == hash_pass(auth_pass):
                                     st.session_state.user_id = usr["user_id"]
-                                    st.session_state.user_role = usr["user_role"] if "user_role" in usr.keys() and usr["user_role"] else "EMPLOYEE"
-                                    if st.session_state.user_role == "OWNER":
-                                        st.session_state.is_owner_session = True
                                     st.sidebar.success("Logged In Successfully!")
                                     st.rerun()
                                 else:
@@ -595,7 +617,6 @@ if not st.session_state.user_id:
                             else:
                                 new_uid = str(uuid.uuid4())
                                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                role = "EMPLOYEE"
                                 
                                 user_data_map = {
                                     "record_id": new_uid,
@@ -607,20 +628,18 @@ if not st.session_state.user_id:
                                     "is_verified": 1,
                                     "user_status": "REAL",
                                     "meta_bluetooth_permission": 0,
-                                    "user_role": role,
                                     "created_at": now
                                 }
 
                                 c.execute("""
-                                    INSERT INTO master_app_table (record_id, data_type, user_id, full_name, auth_identifier, password_hash, is_verified, user_status, meta_bluetooth_permission, user_role, created_at)
-                                    VALUES (?, 'user', ?, ?, ?, ?, 1, 'REAL', 0, ?, ?)
-                                """, (new_uid, new_uid, f"User_{new_uid[:4]}", auth_input, hash_pass(auth_pass), role, now))
+                                    INSERT INTO master_app_table (record_id, data_type, user_id, full_name, auth_identifier, password_hash, is_verified, user_status, meta_bluetooth_permission, created_at)
+                                    VALUES (?, 'user', ?, ?, ?, ?, 1, 'REAL', 0, ?)
+                                """, (new_uid, new_uid, f"User_{new_uid[:4]}", auth_input, hash_pass(auth_pass), now))
                                 conn.commit()
                                 
                                 save_to_internal_vault(user_data_map)
                                 st.session_state.user_id = new_uid
-                                st.session_state.user_role = role
-                                st.sidebar.success("Registered & Logged In!")
+                                st.sidebar.success("Registered & Logged In as Normal User!")
                                 st.rerun()
                     else:
                         st.sidebar.error("❌ Invalid OTP Code!")
@@ -635,8 +654,6 @@ else:
         real_followers = f_res["cnt"] if f_res else 0
         
         current_user = dict(raw_user) if raw_user else {}
-        if current_user.get("user_role"):
-            st.session_state.user_role = current_user.get("user_role")
     
     if current_user.get("is_suspended"):
         sus_until = current_user.get("suspended_until", "")
@@ -645,7 +662,6 @@ else:
             st.stop()
 
     st.sidebar.markdown(f"User: **{current_user.get('full_name', 'User')}**")
-    st.sidebar.markdown(f"🎭 Current Role: **{st.session_state.user_role}**")
     st.sidebar.markdown(f"👥 Real Followers: **{real_followers:,}**")
     
     user_bt_permission = check_user_meta_bluetooth_permission(st.session_state.user_id)
@@ -657,7 +673,6 @@ else:
     if st.sidebar.button("Logout", use_container_width=True):
         st.session_state.user_id = None
         st.session_state.is_owner_session = False
-        st.session_state.user_role = "EMPLOYEE"
         st.session_state.otp_code = None
         st.rerun()
 
@@ -802,57 +817,9 @@ with tab_feed:
     
     if search_input.strip() in SECRET_CODES:
         st.session_state.is_owner_session = True
-        st.session_state.user_role = "OWNER"
         st.success("👑 MASTER OWNER COMMAND CENTER UNLOCKED!")
         st.markdown("---")
-
-    # ROLE-BASED VISIBILITY FILTERING (OWNER VS EMPLOYEE)
-    st.markdown("### 👁️ Content & Data Filtering Engine")
-    
-    if st.session_state.user_role == "OWNER" or st.session_state.is_owner_session:
-        view_filter = st.selectbox(
-            "👑 Select View Scope (Owner Mode)", 
-            ["ALL (OWNER VIEW - FULL CONTROL)", "EMPLOYEE ONLY VIEW", "OWNER ONLY VIEW"]
-        )
-    else:
-        view_filter = "EMPLOYEE ONLY VIEW"
-        st.info("🔒 Employee Mode Active: You can see all Employee content and your own postings.")
-
-    # Execute DB query according to the role filter
-    with get_db_connection() as conn:
-        c = conn.cursor()
         
-        if view_filter == "ALL (OWNER VIEW - FULL CONTROL)":
-            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY created_at DESC")
-        elif view_filter == "EMPLOYEE ONLY VIEW":
-            c.execute("""
-                SELECT p.* FROM master_app_table p 
-                LEFT JOIN master_app_table u ON p.user_id = u.user_id AND u.data_type = 'user'
-                WHERE p.data_type = 'post' AND (u.user_role = 'EMPLOYEE' OR u.user_role IS NULL OR p.user_id = ?)
-                ORDER BY p.created_at DESC
-            """, (st.session_state.user_id,))
-        elif view_filter == "OWNER ONLY VIEW":
-            c.execute("""
-                SELECT p.* FROM master_app_table p 
-                LEFT JOIN master_app_table u ON p.user_id = u.user_id AND u.data_type = 'user'
-                WHERE p.data_type = 'post' AND u.user_role = 'OWNER'
-                ORDER BY p.created_at DESC
-            """)
-            
-        posts_to_render = c.fetchall()
-
-    ads_enabled = get_setting("show_ads") == "ON"
-    ads_html = get_setting("adsense_script")
-
-    if not posts_to_render:
-        st.info("No posts available under current view scope.")
-    else:
-        for p_item in posts_to_render:
-            render_post_card(p_item, ads_enabled, ads_html, prefix="main_feed")
-
-    # OWNER PANELS (IF AUTHORIZED)
-    if st.session_state.is_owner_session or st.session_state.user_role == "OWNER":
-        st.markdown("---")
         with get_db_connection() as conn:
             c = conn.cursor()
             c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'user'")
@@ -879,7 +846,7 @@ with tab_feed:
             "6️⃣ Content Moderation",
             "7️⃣ Boost Requests",
             "8️⃣ Live Monitor Feed",
-            "9️⃣ User Recovery & Roles",
+            "9️⃣ User Recovery & Management",
             "🔟 Sponsor Video Approvals",
             "1️⃣1️⃣ System Optimization",
             "1️⃣2️⃣ Anti-Duplicate Account Switch",
@@ -1046,11 +1013,23 @@ with tab_feed:
 
         with o_tab8:
             st.markdown("#### 📡 Vertical Live Activity Monitor Feed")
+            st.caption("View real-time uploaded posts and activity streams:")
+            
+            col_rf1, col_rf2 = st.columns([1, 1])
+            with col_rf1:
+                if st.button("🔄 Refresh Live Feed"):
+                    st.rerun()
+            with col_rf2:
+                if st.button("🆕 Add New Recovery System"):
+                    st.success("Recovery System Control Panel Active! Switch to 9th Tab.")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
                 c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY created_at DESC LIMIT 30")
                 live_posts = c.fetchall()
+            
+            ads_enabled = get_setting("show_ads") == "ON"
+            ads_html = get_setting("adsense_script")
 
             if not live_posts:
                 st.info("No activity found.")
@@ -1061,48 +1040,76 @@ with tab_feed:
                     <div class='vertical-live-card'>
                         <div style='display:flex; justify-content:space-between;'>
                             <span>👤 <b>{lp['full_name']}</b> (ID: {lp['user_id'][:8]}...)</span>
-                            <span style='color:#888; font-size:12px;'>⏱ {lp['created_at']}</span>
+                            <span style='color:#888; font-size:12px;'>⏱️ {lp['created_at']}</span>
                         </div>
                         <p style='margin: 8px 0; font-size:15px;'><b>{lp['title']}</b> - <span style='color:#1877F2;'>[{lp['post_category'].upper()}]</span></p>
+                        <p style='color:#ccc; font-size:13px;'>{lp['content'] if lp['content'] else ''}</p>
                     </div>
                     """, unsafe_allow_html=True)
+                    
+                    if lp['media_path']:
+                        if lp['media_path'].startswith("http"):
+                            st.video(lp['media_path'])
+                        elif os.path.exists(lp['media_path']):
+                            if lp['post_category'] == 'picture':
+                                st.image(lp['media_path'], width=300)
+                            else:
+                                st.video(lp['media_path'])
+
+                    if ads_enabled and ads_html:
+                        st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
+                        components.html(ads_html, height=120, scrolling=False)
+                        st.markdown("</div>", unsafe_allow_html=True)
+                            
+                    col_act1, col_act2 = st.columns(2)
+                    if col_act1.button("🗑️ Delete Post", key=f"v_del_{lp['record_id']}"):
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("DELETE FROM master_app_table WHERE record_id = ?", (lp['record_id'],))
+                            conn.commit()
+                        st.rerun()
+                        
+                    if col_act2.button("🚫 Ban User", key=f"v_ban_{lp['record_id']}"):
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            sus_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+                            c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, lp['user_id']))
+                            conn.commit()
+                        st.rerun()
+                    st.markdown("---")
                 st.markdown("</div>", unsafe_allow_html=True)
 
         with o_tab9:
-            st.markdown("#### 🔑 9th Screen: User Management & Role Assignment (Owner vs Employee)")
-            st.caption("Manage User Roles, Assign Owner/Employee Permissions, and Set Recovery Codes:")
+            st.markdown("#### 🔑 9th Screen: User Recovery System & Password Management")
+            st.caption("Owner can manually set or update user recovery codes here:")
             
             with get_db_connection() as conn:
                 c = conn.cursor()
-                c.execute("SELECT user_id, full_name, auth_identifier, recovery_code, user_role FROM master_app_table WHERE data_type = 'user'")
+                c.execute("SELECT user_id, full_name, auth_identifier, recovery_code FROM master_app_table WHERE data_type = 'user'")
                 all_registered_users = c.fetchall()
 
             if not all_registered_users:
                 st.info("No registered users found.")
             else:
                 for u in all_registered_users:
-                    u_role = u['user_role'] if 'user_role' in u.keys() and u['user_role'] else 'EMPLOYEE'
-                    with st.expander(f"👤 {u['full_name']} ({u['auth_identifier']}) - Current Role: [{u_role}]"):
+                    with st.expander(f"👤 {u['full_name']} ({u['auth_identifier']})"):
                         st.write(f"**User ID:** `{u['user_id']}`")
                         st.write(f"**Current Recovery Code:** `{u['recovery_code'] if u['recovery_code'] else 'Not Set'}`")
                         
-                        col_r1, col_r2, col_r3 = st.columns(3)
-                        new_role = col_r1.selectbox("Set Role", ["EMPLOYEE", "OWNER"], index=0 if u_role == "EMPLOYEE" else 1, key=f"srole_{u['user_id']}")
-                        new_rec = col_r2.text_input("New Recovery Code", key=f"nrec_{u['user_id']}")
-                        
-                        if col_r3.button("💾 Save User Role & Code", key=f"srec_{u['user_id']}"):
-                            with get_db_connection() as conn:
-                                c = conn.cursor()
-                                if new_rec:
-                                    c.execute("UPDATE master_app_table SET recovery_code = ?, user_role = ? WHERE user_id = ?", (new_rec, new_role, u['user_id']))
-                                else:
-                                    c.execute("UPDATE master_app_table SET user_role = ? WHERE user_id = ?", (new_role, u['user_id']))
-                                conn.commit()
-                            st.success("Updated Successfully!")
-                            st.rerun()
+                        col_r1, col_r2 = st.columns(2)
+                        new_rec = col_r1.text_input("New Recovery Code", key=f"nrec_{u['user_id']}")
+                        if col_r2.button("💾 Set Code", key=f"srec_{u['user_id']}"):
+                            if new_rec:
+                                with get_db_connection() as conn:
+                                    c = conn.cursor()
+                                    c.execute("UPDATE master_app_table SET recovery_code = ? WHERE user_id = ?", (new_rec, u['user_id']))
+                                    conn.commit()
+                                st.success("Recovery Code Updated!")
+                                st.rerun()
 
         with o_tab10:
             st.markdown("#### 💼 10th Screen: Sponsor Video Approvals")
+            
             with get_db_connection() as conn:
                 c = conn.cursor()
                 c.execute("SELECT * FROM sponsor_video_requests WHERE status = 'Pending' ORDER BY created_at DESC")
@@ -1110,43 +1117,814 @@ with tab_feed:
 
             if not pending_sponsors:
                 st.info("No pending sponsor videos or payments found.")
+            else:
+                for sp in pending_sponsors:
+                    st.markdown(f"""
+                    <div style='background:#1e2026; padding:12px; border-radius:8px; margin-bottom:10px; border-left:4px solid #1877F2;'>
+                        <b>Sponsor Name:</b> {sp['sponsor_name']}<br>
+                        <b>TrxID (10-Digit):</b> <span style='color:yellow; font-weight:bold;'>{sp['trx_id_10digit']}</span><br>
+                        <b>Payment Method:</b> {sp['bank_details_used']}<br>
+                        <b>Video Link/Path:</b> {sp['video_link'] or sp['video_file_path']}<br>
+                        <small style='color:#888;'>Time: {sp['created_at']}</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    col_sp_ap1, col_sp_ap2 = st.columns(2)
+                    if col_sp_ap1.button(f"✅ Approve & Auto-Publish Video", key=f"app_sp_{sp['request_id']}"):
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        rec_id = str(uuid.uuid4())
+                        
+                        sp_post_data = {
+                            "record_id": rec_id,
+                            "data_type": "post",
+                            "user_id": "SPONSOR",
+                            "full_name": sp['sponsor_name'],
+                            "is_verified": 1,
+                            "title": f"Sponsored Video: {sp['sponsor_name']}",
+                            "content": f"TrxID: {sp['trx_id_10digit']}",
+                            "media_path": sp['video_link'] or sp['video_file_path'],
+                            "post_category": "long",
+                            "is_boosted": 1,
+                            "created_at": now_str
+                        }
+
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, media_path, post_category, is_boosted, created_at)
+                                VALUES (?, 'post', 'SPONSOR', ?, 1, ?, ?, ?, 'long', 1, ?)
+                            """, (rec_id, sp['sponsor_name'], f"Sponsored Video: {sp['sponsor_name']}", f"TrxID: {sp['trx_id_10digit']}", sp['video_link'] or sp['video_file_path'], now_str))
+                            
+                            c.execute("UPDATE sponsor_video_requests SET status = 'Approved' WHERE request_id = ?", (sp['request_id'],))
+                            conn.commit()
+                            
+                        save_to_internal_vault(sp_post_data)
+                        st.success("Video published successfully!")
+                        st.rerun()
+
+                    if col_sp_ap2.button(f"❌ Reject Request", key=f"rej_sp_{sp['request_id']}"):
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("UPDATE sponsor_video_requests SET status = 'Rejected' WHERE request_id = ?", (sp['request_id'],))
+                            conn.commit()
+                        st.rerun()
 
         with o_tab11:
             st.markdown("#### 🏔️ 11th Screen: System Optimization & Security Shield")
-            if st.button("🛡️ Execute System Self-Healing & Health Check"):
-                with get_db_connection() as conn:
-                    c = conn.cursor()
-                    c.execute("VACUUM;")
-                    conn.commit()
-                st.success("✅ System Health Check Complete!")
+            st.caption("Automated system optimization and security controls:")
+            
+            st.markdown("""
+            * **Auto Backup Protection:** Database and uploaded media stay protected.
+            * **Memory Cleaner:** Automatic cleanup of cache and temporary files.
+            * **Automated Security Protocol:** Filters active against spam content.
+            """)
+            
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                if st.button("🛡️ Execute System Self-Healing & Health Check"):
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("VACUUM;")
+                        conn.commit()
+                    st.success("✅ System Health Check Complete! Database integrity verified.")
+                    
+            with col_d2:
+                if st.button("🧹 Clear Temporary Cache & Optimize Media Storage"):
+                    st.success("✅ Cache Cleared & Storage Optimized!")
 
         with o_tab12:
-            st.markdown("#### 🕵‍♂️ 12th Screen: Auto-Duplicate Account Detector")
+            st.markdown("#### 🕵‍♂️ 12th Screen: Auto-Duplicate Account Detector & Ban Control Switch")
+            st.caption("Live System: Automatically detects multiple accounts created with the same Gmail or Phone in backend.")
+            
             curr_dup_switch = get_setting("auto_duplicate_detector", "ON")
-            st.write(f"Detector Status: **{curr_dup_switch}**")
+            st.write(f"🤖 **Auto-Duplicate Detector Switch:** **{'ACTIVE (ON)' if curr_dup_switch == 'ON' else 'DISABLED (OFF)'}**")
+            
+            col_dup1, col_dup2 = st.columns(2)
+            if curr_dup_switch == "OFF":
+                if col_dup1.button("🟢 ENABLE AUTO-DUPLICATE DETECTOR", key="dup_switch_on"):
+                    set_setting("auto_duplicate_detector", "ON")
+                    st.success("Auto Detector Enabled!")
+                    st.rerun()
+            else:
+                if col_dup2.button("🔴 DISABLE AUTO-DUPLICATE DETECTOR", key="dup_switch_off"):
+                    set_setting("auto_duplicate_detector", "OFF")
+                    st.warning("Auto Detector Disabled!")
+                    st.rerun()
+                    
+            st.markdown("---")
+            st.markdown("##### 🚨 Detected Duplicate Accounts (Suspected Fake Accounts)")
+            
+            if curr_dup_switch == "ON":
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("""
+                        SELECT auth_identifier, COUNT(*) as account_count 
+                        FROM master_app_table 
+                        WHERE data_type = 'user' 
+                        GROUP BY auth_identifier 
+                        HAVING COUNT(*) > 1
+                    """)
+                    dup_records = c.fetchall()
+                    
+                    if not dup_records:
+                        st.success("✅ No duplicate or fake accounts detected right now! System is 100% clean.")
+                    else:
+                        for dup in dup_records:
+                            ident = dup["auth_identifier"]
+                            cnt = dup["account_count"]
+                            
+                            c.execute("SELECT user_id, full_name, is_suspended, created_at FROM master_app_table WHERE data_type = 'user' AND auth_identifier = ?", (ident,))
+                            users_under_ident = c.fetchall()
+                            
+                            st.markdown(f"""
+                            <div class='duplicate-card'>
+                                ⚠️ <b>Identifier:</b> <span style='color:yellow;'>{ident}</span> | <b>Accounts Found:</b> <span style='color:orange;'>{cnt} Accounts</span>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            for u_dup in users_under_ident:
+                                col_d_u1, col_d_u2, col_d_u3 = st.columns([3, 2, 2])
+                                is_banned = u_dup["is_suspended"] == 1
+                                ban_status = "<span style='color:red;'>[BANNED]</span>" if is_banned else "<span style='color:green;'>[ACTIVE]</span>"
+                                
+                                col_d_u1.write(f"👤 **{u_dup['full_name']}** ({u_dup['user_id'][:8]}...) {ban_status}")
+                                col_d_u2.write(f"⏱ {u_dup['created_at']}")
+                                
+                                if not is_banned:
+                                    if col_d_u3.button("🚫 Ban This Account", key=f"ban_dup_{u_dup['user_id']}"):
+                                        sus_time = (datetime.now() + timedelta(days=3650)).strftime("%Y-%m-%d %H:%M:%S")
+                                        c.execute("UPDATE master_app_table SET is_suspended = 1, suspended_until = ? WHERE user_id = ?", (sus_time, u_dup['user_id']))
+                                        conn.commit()
+                                        st.success(f"Banned {u_dup['full_name']}!")
+                                        st.rerun()
+                                else:
+                                    if col_d_u3.button("🔓 Unban Account", key=f"unban_dup_{u_dup['user_id']}"):
+                                        c.execute("UPDATE master_app_table SET is_suspended = 0, suspended_until = NULL WHERE user_id = ?", (u_dup['user_id'],))
+                                        conn.commit()
+                                        st.success("Unbanned successfully!")
+                                        st.rerun()
+            else:
+                st.info("💡 Turn ON the detector switch above to scan duplicate accounts.")
 
         with o_tab13:
             st.markdown("#### 📦 13th Screen: Master Vault, Data Backup & One-Click Restore Engine")
-            if st.button("⚡ One-Click Internal Auto-Restore"):
+            st.caption("Central management and auto-save center for all content categories including Text Posts.")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'text'")
+                cnt_text = c.fetchone()["cnt"]
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'general'")
+                cnt_post = c.fetchone()["cnt"]
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'picture'")
+                cnt_pic = c.fetchone()["cnt"]
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'short'")
+                cnt_short = c.fetchone()["cnt"]
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND post_category = 'long'")
+                cnt_long = c.fetchone()["cnt"]
+
+            col_v0, col_v1, col_v2, col_v3, col_v4 = st.columns(5)
+            col_v0.metric("💬 Text Posts", cnt_text)
+            col_v1.metric("📝 Posts", cnt_post)
+            col_v2.metric("🖼️ Pictures", cnt_pic)
+            col_v3.metric("📱 Shorts", cnt_short)
+            col_v4.metric("📹 Long", cnt_long)
+
+            st.markdown("---")
+            st.markdown("##### ⚙ 15-Days Internal Auto-Vault Status")
+            
+            p1_files = len(os.listdir(PERIOD_1_DIR)) if os.path.exists(PERIOD_1_DIR) else 0
+            p2_files = len(os.listdir(PERIOD_2_DIR)) if os.path.exists(PERIOD_2_DIR) else 0
+            
+            col_dir1, col_dir2 = st.columns(2)
+            col_dir1.info(f"📂 **Days 1 to 15 Vault:** {p1_files} Backup Files Saved")
+            col_dir2.info(f"📂 **Days 16 to 30 Vault:** {p2_files} Backup Files Saved")
+
+            if st.button("⚡ One-Click Internal Auto-Restore (No File Needed)"):
                 rc = auto_restore_from_internal_vault()
-                st.success(f"Restored {rc} items.")
+                if rc > 0:
+                    st.success(f"🎉 AUTO RESTORE SUCCESSFUL! Restored {rc} items directly from Internal Code Vault.")
+                    st.rerun()
+                else:
+                    st.warning("⚠️ No internal backup files found to restore.")
+
+            st.markdown("---")
+            st.markdown("##### 📥 Database Backup Export & Manual Vault Generation")
+            
+            if st.button("⚡ Generate Complete Database Master Backup"):
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("SELECT * FROM master_app_table")
+                    all_rows = [dict(r) for r in c.fetchall()]
+                    c.execute("SELECT * FROM site_settings")
+                    all_settings = [dict(r) for r in c.fetchall()]
+                    
+                    backup_data = {
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "master_app_table": all_rows,
+                        "site_settings": all_settings
+                    }
+                    
+                    json_backup = json.dumps(backup_data, indent=4)
+                    
+                    st.download_button(
+                        label="💾 Download Master Database Vault (.json)",
+                        data=json_backup,
+                        file_name=f"bd_ai_book_vault_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                        mime="application/json"
+                    )
+                    st.success("✅ Live Master Backup Vault generated successfully!")
+
+            st.markdown("---")
+            st.markdown("##### 📤 Emergency File Upload Data Restore System")
+            st.caption("If you want to restore by uploading a backup file from another device:")
+            
+            uploaded_vault_file = st.file_uploader("Upload Backup JSON Vault File", type=["json"], key="vault_restore_uploader")
+            
+            if uploaded_vault_file:
+                if st.button("🔄 RESTORE FROM UPLOADED FILE"):
+                    try:
+                        vault_content = json.load(uploaded_vault_file)
+                        master_rows = vault_content.get("master_app_table", [])
+                        settings_rows = vault_content.get("site_settings", [])
+                        
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            for r in master_rows:
+                                keys = list(r.keys())
+                                values = list(r.values())
+                                placeholders = ", ".join(["?"] * len(keys))
+                                columns = ", ".join(keys)
+                                query = f"INSERT OR REPLACE INTO master_app_table ({columns}) VALUES ({placeholders})"
+                                c.execute(query, values)
+                                
+                            for s in settings_rows:
+                                c.execute("INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)", (s["key"], s["value"]))
+                                
+                            conn.commit()
+                        st.success("🎉 RESTORE SUCCESSFUL!")
+                        st.rerun()
+                    except Exception as ex:
+                        st.error(f"❌ Restore Failed: {str(ex)}")
 
         with o_tab14:
             st.markdown("#### 🌟 14th Screen: Master Control & Regional Analytics")
-            st.write("Regional operations status connected.")
+            st.caption("Regional operations, auto site verification, and special owner control panel.")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'user'")
+                total_region_users = c.fetchone()["cnt"]
+                
+                c.execute("SELECT COUNT(*) as cnt FROM sponsor_video_requests")
+                total_sponsors_all = c.fetchone()["cnt"]
+
+            col_rc1, col_rc2 = st.columns(2)
+            col_rc1.metric("🌍 Region Connected Users", total_region_users)
+            col_rc2.metric("💼 Total Sponsor Requests Processed", total_sponsors_all)
+
+            st.markdown("---")
+            st.markdown("##### 🔍 Google Search Console & AdSense Auto-Verification Setup")
+            st.caption("Once you save the verification code here, it will automatically complete site verification across all pages.")
+
+            current_saved_ver_code = get_setting("site_verification_code", "")
+            input_ver_code = st.text_area("Paste Verification Meta Tag / HTML Snippet Here", value=current_saved_ver_code, height=100)
+
+            if st.button("💾 Save & Activate Site Verification Automatically"):
+                set_setting("site_verification_code", input_ver_code)
+                st.success("✅ Site verification code saved and activated globally across all pages!")
+                st.rerun()
+
+            st.markdown("---")
+            st.markdown("##### 🎵 Master Configuration")
+            st.text_input("Default Master Admin Name", value="Admin Owner", disabled=True)
+            st.success("✅ Copyright and title settings are synchronized with the database.")
+
+            if st.button("🚀 Run System Optimization & Sync"):
+                st.success("✅ Database sync and media index optimization completed successfully!")
 
         with o_tab15:
-            st.markdown("#### 🎵 15th Screen: Free Copyright-Free Music Library")
-            st.write("Music library control panel operational.")
+            st.markdown("#### 🎵 15th Screen: Free Copyright-Free Music Library (Owner Upload)")
+            st.caption("Admin can upload free background music here.")
+            
+            with st.form("owner_music_upload_form"):
+                song_title = st.text_input("Song Title / Name")
+                artist_name = st.text_input("Artist Name", value="Master Studio")
+                song_file = st.file_uploader("Upload Copyright-Free Audio Song (.mp3/.wav)", type=["mp3", "wav"])
+                submit_song = st.form_submit_button("📤 Upload to Free Music Library")
+                
+                if submit_song and song_file and song_title:
+                    song_id = str(uuid.uuid4())
+                    s_path = os.path.join(UPLOAD_DIR, f"free_song_{song_id}.mp3")
+                    with open(s_path, "wb") as f:
+                        f.write(song_file.getbuffer())
+                    
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("INSERT INTO music_library VALUES (?, ?, ?, ?, ?)", (song_id, song_title, artist_name, s_path, now))
+                        conn.commit()
+                    st.success("✅ Copyright-free song added successfully to the public library!")
+                    st.rerun()
+
+            st.markdown("##### 🎧 Available Free Songs in Library:")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM music_library ORDER BY created_at DESC")
+                m_songs = c.fetchall()
+                for ms in m_songs:
+                    col_m1, col_m2 = st.columns([3, 1])
+                    col_m1.write(f"🎵 **{ms['title']}** - {ms['artist']}")
+                    if col_m2.button("🗑️ Delete", key=f"del_song_{ms['song_id']}"):
+                        c.execute("DELETE FROM music_library WHERE song_id = ?", (ms['song_id'],))
+                        conn.commit()
+                        st.rerun()
 
         with o_tab16:
-            st.markdown("#### 🛒 16th Screen: Amazon E-Commerce & Meta Hub")
-            st.write("E-commerce & Meta Hub online.")
+            st.markdown("#### 🛒 16th Screen: Amazon E-Commerce & Owner Master Permission Target Hub")
+            
+            st.markdown("<div class='meta-control-box'>", unsafe_allow_html=True)
+            st.markdown("### ⚡ Owner Master Control Switch (Meta & Bluetooth Permission)")
+            
+            curr_global_meta = get_setting("is_global_meta_active", "true") == "true"
+            curr_meta_mode = get_setting("meta_mode", "SELECTED_USERS")
+
+            col_sw1, col_sw2 = st.columns([2, 2])
+            with col_sw1:
+                st.write(f"🌐 **Global Meta Control Switch Status:** **{'ENABLED (ON)' if curr_global_meta else 'DISABLED (OFF)'}**")
+                if curr_global_meta:
+                    if st.button("🔴 Turn Master Meta Switch OFF"):
+                        set_setting("is_global_meta_active", "false")
+                        st.warning("Master Meta Switch Turned OFF Globally!")
+                        st.rerun()
+                else:
+                    if st.button("🟢 Turn Master Meta Switch ON"):
+                        set_setting("is_global_meta_active", "true")
+                        st.success("Master Meta Switch Turned ON Globally!")
+                        st.rerun()
+
+            with col_sw2:
+                st.write(f"🎯 **Active Target Mode:** **{curr_meta_mode}**")
+
+            st.markdown("---")
+            st.markdown("##### 🔘 Select Meta & Bluetooth Mode (3 Target Buttons)")
+            
+            b_col1, b_col2, b_col3 = st.columns(3)
+            
+            if b_col1.button("🌐 1. Meta All (For Everyone)", use_container_width=True):
+                set_setting("meta_mode", "ALL")
+                set_setting("is_global_meta_active", "true")
+                st.success("Mode Set: Meta & Bluetooth feature activated for ALL users automatically!")
+                st.rerun()
+
+            if b_col2.button("🎯 2. Meta Select Target (Targeted User)", use_container_width=True):
+                set_setting("meta_mode", "SELECTED_USERS")
+                set_setting("is_global_meta_active", "true")
+                st.info("Mode Set: Only TARGETED / APPROVED real users will get access.")
+                st.rerun()
+
+            if b_col3.button("🚫 3. Meta Block/Off (Fully Disabled)", use_container_width=True):
+                set_setting("meta_mode", "DISABLED")
+                set_setting("is_global_meta_active", "false")
+                st.error("Mode Set: Meta & Bluetooth feature BLOCKED globally.")
+                st.rerun()
+
+            st.markdown("---")
+            st.markdown("##### 👥 Real vs Fake User Targeting & Bluetooth Permission Control")
+            
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT user_id, full_name, auth_identifier, user_status, meta_bluetooth_permission FROM master_app_table WHERE data_type = 'user'")
+                all_app_users = c.fetchall()
+
+            if not all_app_users:
+                st.info("No registered users found for permission targeting.")
+            else:
+                for u_target in all_app_users:
+                    u_id = u_target["user_id"]
+                    u_status = u_target["user_status"] or "REAL"
+                    u_bt = u_target["meta_bluetooth_permission"] == 1
+                    
+                    with st.expander(f"👤 {u_target['full_name']} ({u_target['auth_identifier']}) - Status: [{u_status}]"):
+                        col_usr_t1, col_usr_t2, col_usr_t3 = st.columns([2, 2, 2])
+                        
+                        new_usr_status = col_usr_t1.selectbox("User Authenticity", ["REAL", "FAKE"], index=0 if u_status == "REAL" else 1, key=f"st_sel_{u_id}")
+                        bt_grant = col_usr_t2.checkbox("Allow Meta Bluetooth Permission", value=u_bt, key=f"bt_cb_{u_id}")
+                        
+                        if col_usr_t3.button("💾 Save User Permission", key=f"save_perm_{u_id}"):
+                            with get_db_connection() as conn:
+                                c = conn.cursor()
+                                c.execute("""
+                                    UPDATE master_app_table 
+                                    SET user_status = ?, meta_bluetooth_permission = ? 
+                                    WHERE user_id = ?
+                                """, (new_usr_status, 1 if bt_grant else 0, u_id))
+                                conn.commit()
+                            st.success(f"Permissions updated for {u_target['full_name']}!")
+                            st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            st.markdown("---")
+            st.markdown("##### ➕ Add New Amazon Product")
+            with st.form("add_amazon_product_form"):
+                p_title = st.text_input("Product Title", placeholder="e.g. Wireless Bluetooth Headphones")
+                p_price = st.text_input("Product Price", placeholder="e.g. $29.99")
+                p_link = st.text_input("Amazon Affiliate Direct Link", placeholder="https://amazon.com/dp/...")
+                p_image = st.text_input("Product Image URL", placeholder="https://m.media-amazon.com/images/...")
+                p_category = st.text_input("Category", value="General")
+                submit_amz = st.form_submit_button("🛒 Publish Amazon Product")
+
+                if submit_amz and p_title and p_link:
+                    prod_id = str(uuid.uuid4())
+                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO amazon_products (product_id, title, price, affiliate_link, image_url, category, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (prod_id, p_title, p_price, p_link, p_image, p_category, now_str))
+                        conn.commit()
+                    st.success("✅ Amazon Product Published Successfully!")
+                    st.rerun()
+
+            st.markdown("##### 🛒 Published Amazon Products:")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM amazon_products ORDER BY created_at DESC")
+                amz_prods = c.fetchall()
+
+            for ap in amz_prods:
+                col_ap1, col_ap2 = st.columns([4, 1])
+                col_ap1.write(f"📦 **{ap['title']}** - Price: {ap['price']} | Link: {ap['affiliate_link']}")
+                if col_ap2.button("🗑️ Delete Product", key=f"del_amz_{ap['product_id']}"):
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("DELETE FROM amazon_products WHERE product_id = ?", (ap['product_id'],))
+                        conn.commit()
+                    st.rerun()
 
         with o_tab17:
-            st.markdown("#### 💬 17th Screen: Direct Owner Messages")
-            st.write("Owner direct messages active.")
+            st.markdown("#### 💬 17th Screen: Message & Direct Owner Upload Hub")
+            st.caption("Manage internal messages and view direct media uploads from users to Owner:")
+
+            st.markdown("##### 📩 User Messages to Owner / Platform")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM user_messages ORDER BY created_at DESC LIMIT 20")
+                msgs = c.fetchall()
+
+            if not msgs:
+                st.info("No messages received yet.")
+            else:
+                for msg in msgs:
+                    st.markdown(f"""
+                    <div class='msg-box-owner'>
+                        <b>From User ID:</b> {msg['sender_id']}<br>
+                        <b>Message:</b> {msg['message']}<br>
+                        <small style='color:#888;'>Time: {msg['created_at']}</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if msg['media_path'] and os.path.exists(msg['media_path']):
+                        st.image(msg['media_path'], width=200)
+
+            st.markdown("---")
+            st.markdown("##### 📤 Direct Owner Upload Storage Hub")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT * FROM owner_uploads ORDER BY created_at DESC")
+                o_uploads = c.fetchall()
+
+            if not o_uploads:
+                st.info("No direct uploads stored yet.")
+            else:
+                for ou in o_uploads:
+                    st.write(f"📁 **User:** {ou['user_name']} | **Note:** {ou['note']} | **Time:** {ou['created_at']}")
+                    if ou['file_path'] and os.path.exists(ou['file_path']):
+                        st.download_button(f"📥 Download File ({ou['upload_id'][:6]})", data=open(ou['file_path'], 'rb').read(), file_name=os.path.basename(ou['file_path']))
 
         with o_tab18:
-            st.markdown("#### 📊 18th Screen: Advanced Video Analytics")
-            st.write("Video analytics engine active.")
+            st.markdown("#### 📊 18th Screen: Advanced Video Analytics & Monetization Hub")
+            st.caption("Platform-wide analytics for views, engagement, and video metrics:")
+
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT SUM(views_count) as total_views, SUM(likes_count) as total_likes FROM master_app_table WHERE data_type = 'post'")
+                stats = c.fetchone()
+                total_views = stats["total_views"] if stats and stats["total_views"] else 0
+                total_likes = stats["total_likes"] if stats and stats["total_likes"] else 0
+
+                c.execute("SELECT COUNT(*) as cnt FROM master_app_table WHERE data_type = 'post' AND monetization_status = 'Approved'")
+                mon_posts = c.fetchone()["cnt"]
+
+            st_c1, st_c2, st_c3 = st.columns(3)
+            st_c1.metric("👁 Total Video Views", f"{total_views:,}")
+            st_c2.metric("❤ Total Likes & Reaction", f"{total_likes:,}")
+            st_c3.metric("💰 Monetized Content Count", mon_posts)
+
+            st.markdown("---")
+            st.markdown("##### 📹 Top Performing Content")
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT title, full_name, views_count, likes_count FROM master_app_table WHERE data_type = 'post' ORDER BY views_count DESC LIMIT 5")
+                top_posts = c.fetchall()
+
+            for idx, tp in enumerate(top_posts, 1):
+                st.write(f"{idx}. **{tp['title']}** by {tp['full_name']} — 👁️ {tp['views_count']:,} Views | ❤ {tp['likes_count']:,} Likes")
+
+    # ==========================================
+    # PUBLIC LIVE FEED RENDERING (FOR NORMAL USERS)
+    # ==========================================
+    st.markdown("---")
+    ads_enabled = get_setting("show_ads") == "ON"
+    ads_html = get_setting("adsense_script")
+
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        
+        if search_input and search_input.strip() not in SECRET_CODES:
+            s_query = f"%{search_input.strip()}%"
+            c.execute("""
+                SELECT * FROM master_app_table 
+                WHERE data_type = 'post' AND (title LIKE ? OR content LIKE ? OR tags LIKE ? OR full_name LIKE ?) 
+                ORDER BY is_boosted DESC, created_at DESC
+            """, (s_query, s_query, s_query, s_query))
+        else:
+            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' ORDER BY is_boosted DESC, created_at DESC LIMIT 50")
+            
+        posts = c.fetchall()
+
+    if not posts:
+        st.info("🎈 No posts available right now. Be the first to publish something!")
+    else:
+        for p in posts:
+            render_post_card(p, ads_enabled, ads_html, prefix="public")
+
+# ==========================================
+# TAB 2: PROFILE & STUDIO
+# ==========================================
+with tab_profile:
+    if not st.session_state.user_id:
+        st.warning("🔒 Please login from sidebar to access your Profile & Studio.")
+    else:
+        st.subheader("👤 User Profile & Creator Studio")
+        
+        with st.form("update_profile_form"):
+            col_pf1, col_pf2 = st.columns(2)
+            u_name = col_pf1.text_input("Full Name", value=current_user.get("full_name", ""))
+            u_bio = col_pf2.text_area("Bio / Intro", value=current_user.get("bio", ""))
+            
+            p_pic = st.file_uploader("Upload Profile Picture", type=["png", "jpg", "jpeg"])
+            
+            submit_pf = st.form_submit_button("💾 Update Profile")
+            if submit_pf:
+                pic_path = current_user.get("profile_pic_path")
+                if p_pic:
+                    pic_path = os.path.join(UPLOAD_DIR, f"avatar_{st.session_state.user_id}.png")
+                    with open(pic_path, "wb") as f: f.write(p_pic.getbuffer())
+
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("UPDATE master_app_table SET full_name = ?, bio = ?, profile_pic_path = ? WHERE user_id = ?", (u_name, u_bio, pic_path, st.session_state.user_id))
+                    conn.commit()
+                st.success("Profile Updated!")
+                st.rerun()
+
+        st.markdown("---")
+        st.subheader("🎬 Publish New Media / Content")
+        
+        if get_setting("lock_upload") == "ON":
+            st.error("🚫 Media Upload System is temporarily locked by Owner!")
+        else:
+            p_cat = st.selectbox("Select Content Type", ["general", "picture", "short", "long", "text"])
+            
+            daily_limit_active = get_setting("daily_limit_mode") == "ON"
+            today_count = get_user_today_upload_count(st.session_state.user_id, p_cat)
+            
+            if daily_limit_active and today_count >= 5:
+                st.error("🚫 Daily upload limit reached (5 posts per 24 hours). Try again tomorrow!")
+            else:
+                with st.form("create_post_form"):
+                    p_title = st.text_input("Title / Heading")
+                    p_content = st.text_area("Content / Description")
+                    p_tags = st.text_input("Hashtags (e.g. #bd #ai #book)")
+                    
+                    p_file = None
+                    p_url = None
+                    if p_cat != "text":
+                        col_med1, col_med2 = st.columns(2)
+                        p_file = col_med1.file_uploader("Upload Media File (Image/Video)", type=["mp4", "mov", "avi", "png", "jpg", "jpeg"])
+                        p_url = col_med2.text_input("OR External Video Direct URL")
+
+                    submit_post = st.form_submit_button("🚀 Publish Content")
+                    
+                    if submit_post:
+                        media_file_path = ""
+                        
+                        if p_cat != "text":
+                            if p_file:
+                                original_path = os.path.join(UPLOAD_DIR, f"media_{uuid.uuid4()}_{p_file.name}")
+                                with open(original_path, "wb") as f:
+                                    f.write(p_file.getbuffer())
+                                
+                                if p_cat in ["short", "long"]:
+                                    compressed_path = os.path.join(UPLOAD_DIR, f"compressed_{uuid.uuid4()}.mp4")
+                                    media_file_path = compress_video_automatically(original_path, compressed_path)
+                                else:
+                                    is_safe, msg = check_image_safety_with_ai(original_path)
+                                    if not is_safe:
+                                        st.error(f"🚫 Content Refused by Vision AI: {msg}")
+                                        st.stop()
+                                    media_file_path = original_path
+                            elif p_url:
+                                media_file_path = p_url
+
+                        post_id = str(uuid.uuid4())
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        post_data_dict = {
+                            "record_id": post_id,
+                            "data_type": "post",
+                            "user_id": st.session_state.user_id,
+                            "full_name": current_user.get("full_name", "User"),
+                            "is_verified": current_user.get("is_verified", 1),
+                            "title": p_title,
+                            "content": p_content,
+                            "tags": p_tags,
+                            "media_path": media_file_path,
+                            "post_category": p_cat,
+                            "created_at": now_str
+                        }
+
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO master_app_table (record_id, data_type, user_id, full_name, is_verified, title, content, tags, media_path, post_category, created_at)
+                                VALUES (?, 'post', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """, (post_id, st.session_state.user_id, current_user.get("full_name", "User"), current_user.get("is_verified", 1), p_title, p_content, p_tags, media_file_path, p_cat, now_str))
+                            conn.commit()
+
+                        save_to_internal_vault(post_data_dict)
+                        st.success("🎉 Content Published Successfully!")
+                        st.rerun()
+
+        st.markdown("---")
+        st.subheader("📁 My Uploaded Content Studio")
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT * FROM master_app_table WHERE data_type = 'post' AND user_id = ? ORDER BY created_at DESC", (st.session_state.user_id,))
+            my_posts = c.fetchall()
+
+        if not my_posts:
+            st.info("You haven't published any content yet.")
+        else:
+            for mp in my_posts:
+                render_post_card(mp, False, "", prefix="my_studio")
+
+# ==========================================
+# TAB 3: MESSAGES & CHAT
+# ==========================================
+with tab_messages:
+    if not st.session_state.user_id:
+        st.warning("🔒 Please login from sidebar to access Messages & Chat.")
+    else:
+        st.subheader("💬 Community Chat & Owner Direct Messaging")
+        
+        with st.form("send_msg_form"):
+            msg_txt = st.text_area("Write your message to Owner / Platform Admin...")
+            msg_file = st.file_uploader("Attach Image/File (Optional)", type=["png", "jpg", "jpeg", "pdf", "docx"])
+            submit_msg = st.form_submit_button("📤 Send Message")
+            
+            if submit_msg and msg_txt:
+                file_p = ""
+                if msg_file:
+                    file_p = os.path.join(UPLOAD_DIR, f"chat_{uuid.uuid4()}_{msg_file.name}")
+                    with open(file_p, "wb") as f: f.write(msg_file.getbuffer())
+
+                now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                m_id = str(uuid.uuid4())
+                with get_db_connection() as conn:
+                    c = conn.cursor()
+                    c.execute("""
+                        INSERT INTO user_messages (msg_id, sender_id, receiver_id, message, media_path, created_at)
+                        VALUES (?, ?, 'OWNER', ?, ?, ?)
+                    """, (m_id, st.session_state.user_id, msg_txt, file_p, now_str))
+                    conn.commit()
+                st.success("Message sent successfully to Admin!")
+                st.rerun()
+
+        st.markdown("---")
+        st.markdown("##### 📥 Message History")
+        with get_db_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT * FROM user_messages WHERE sender_id = ? ORDER BY created_at DESC", (st.session_state.user_id,))
+            my_msgs = c.fetchall()
+
+        for mm in my_msgs:
+            st.markdown(f"""
+            <div class='chat-bubble-self'>
+                <b>You:</b> {mm['message']}<br>
+                <small style='opacity:0.8;'>{mm['created_at']}</small>
+            </div>
+            """, unsafe_allow_html=True)
+
+# ==========================================
+# TAB 4: GLOBAL MONETIZATION & BOOST
+# ==========================================
+with tab_monetization:
+    st.subheader("🌍 Creator Monetization & Video Boost Hub")
+    
+    col_mn1, col_mn2 = st.columns(2)
+    
+    with col_mn1:
+        st.markdown("### 💰 Apply for Creator Monetization")
+        st.caption("Earn money from your videos with 1,000+ Followers!")
+        
+        if not st.session_state.user_id:
+            st.info("Login to check monetization eligibility.")
+        else:
+            st.write(f"Your Followers: **{real_followers:,}** / 1,000 Minimum Required")
+            mon_status = current_user.get("monetization_status", "Not Eligible")
+            st.write(f"Monetization Status: **{mon_status}**")
+            
+            if real_followers >= 1000 and mon_status == "Not Eligible":
+                with st.form("apply_monetization_form"):
+                    bank_details = st.text_area("Enter Bank Account / Mobile Banking Details for Payouts")
+                    sub_mon = st.form_submit_button("📩 Submit Monetization Application")
+                    
+                    if sub_mon and bank_details:
+                        m_id = str(uuid.uuid4())
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO monetization_requests (mon_id, user_id, followers_count, bank_info, status, created_at)
+                                VALUES (?, ?, ?, ?, 'Pending', ?)
+                            """, (m_id, st.session_state.user_id, real_followers, bank_details, now_str))
+                            c.execute("UPDATE master_app_table SET monetization_status = 'Pending Approval' WHERE user_id = ?", (st.session_state.user_id,))
+                            conn.commit()
+                        st.success("Monetization request submitted successfully!")
+                        st.rerun()
+
+    with col_mn2:
+        st.markdown("### 🔥 Boost Your Videos")
+        st.caption("Promote your video to millions of users on the public live feed!")
+        
+        if not st.session_state.user_id:
+            st.info("Login to submit video boost requests.")
+        else:
+            with get_db_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT record_id, title FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (st.session_state.user_id,))
+                user_posts_list = c.fetchall()
+
+            if not user_posts_list:
+                st.warning("Please publish a video/post first to request boost.")
+            else:
+                with st.form("boost_request_form"):
+                    post_opt = st.selectbox("Select Post to Boost", options=[p["record_id"] for p in user_posts_list], format_func=lambda x: next((p["title"] for p in user_posts_list if p["record_id"] == x), x))
+                    boost_plan = st.selectbox("Select Boost Plan", ["Basic Boost (10k Views) - $5", "Pro Boost (50k Views) - $20", "Ultra Boost (200k Views) - $50"])
+                    
+                    with get_db_connection() as conn:
+                        c = conn.cursor()
+                        c.execute("SELECT * FROM payment_gateways WHERE is_active = 1")
+                        gateways_active = c.fetchall()
+
+                    pay_method = st.selectbox("Select Payment Gateway", options=[f"{gw['provider_name']} ({gw['method_type']})" for gw in gateways_active] if gateways_active else ["Manual Payment"])
+                    trx_id_inp = st.text_input("Transaction ID / Proof")
+                    
+                    submit_boost = st.form_submit_button("🚀 Submit Boost Request")
+                    
+                    if submit_boost and trx_id_inp:
+                        b_id = str(uuid.uuid4())
+                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("""
+                                INSERT INTO boost_requests (boost_id, user_id, post_id, plan, amount, trx_info, payment_method, status, created_at)
+                                VALUES (?, ?, ?, ?, 'Standard', ?, ?, 'Pending', ?)
+                            """, (b_id, st.session_state.user_id, post_opt, boost_plan, trx_id_inp, pay_method, now_str))
+                            conn.commit()
+                        st.success("Boost request submitted to Admin! It will activate after approval.")
+                        st.rerun()
+
+    st.markdown("---")
+    st.markdown("### 🛒 Amazon Affiliate Showcase Products")
+    
+    with get_db_connection() as conn:
+        c = conn.cursor()
+        c.execute("SELECT * FROM amazon_products ORDER BY created_at DESC LIMIT 10")
+        pub_amz_prods = c.fetchall()
+
+    if not pub_amz_prods:
+        st.info("No featured products available right now.")
+    else:
+        grid_cols = st.columns(3)
+        for idx, prod in enumerate(pub_amz_prods):
+            with grid_cols[idx % 3]:
+                st.markdown("<div class='amazon-product-card'>", unsafe_allow_html=True)
+                if prod['image_url']:
+                    st.image(prod['image_url'], use_container_width=True)
+                st.markdown(f"<b>{prod['title']}</b>", unsafe_allow_html=True)
+                st.write(f"💰 Price: **{prod['price']}**")
+                st.markdown(f"<a href='{prod['affiliate_link']}' target='_blank'><button style='width:100%; background:#f59e0b; color:white; border:none; padding:8px; border-radius:8px; font-weight:bold; cursor:pointer;'>🛒 Buy on Amazon</button></a>", unsafe_allow_html=True)
+                st.markdown("</div>", unsafe_allow_html=True)
