@@ -1061,7 +1061,7 @@ with tab_feed:
                     <div class='vertical-live-card'>
                         <div style='display:flex; justify-content:space-between;'>
                             <span>👤 <b>{lp['full_name']}</b> (ID: {lp['user_id'][:8]}...)</span>
-                            <span style='color:#888; font-size:12px;'>⏱️️ {lp['created_at']}</span>
+                            <span style='color:#888; font-size:12px;'>⏱ {lp['created_at']}</span>
                         </div>
                         <p style='margin: 8px 0; font-size:15px;'><b>{lp['title']}</b> - <span style='color:#1877F2;'>[{lp['post_category'].upper()}]</span></p>
                     </div>
