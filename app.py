@@ -2208,31 +2208,31 @@ with tab_monetization:
 
     st.markdown("---")
     st.markdown("### 💼 Third-Party Sponsor, Boost & Video Payment Panel")
-    st.caption("ভিডিও পোস্ট, বুস্টিং বা স্পন্সর শিপের জন্য বাংলা QR দিয়ে পেমেন্ট করুন:")
+    st.caption("Pay via Bangla QR for video posts, boosting, or sponsorships:")
 
     # BANGLA QR DISPLAY FROM OWNER PANEL (TAB 1)
     saved_qr_image = get_setting("bangla_qr_path")
     
     st.markdown("""
     <div style='background:#111827; border:2px solid #1877F2; padding:15px; border-radius:16px; text-align:center; margin-bottom:15px;'>
-        <h3 style='color:#1877F2; margin-bottom:5px;'>📲 বাংলা QR দিয়ে বিকাশ/নগদ/ব্যাংক থেকে পেমেন্ট করুন</h3>
-        <p style='color:#ccc; font-size:14px;'>ভিডিও প্রমোশন, বুস্টিং বা স্পন্সর পোস্টের জন্য QR স্ক্যান করে পেমেন্ট সম্পন্ন করুন</p>
+        <h3 style='color:#1877F2; margin-bottom:5px;'>📲 Pay via Bangla QR (bKash / Nagad / Bank)</h3>
+        <p style='color:#ccc; font-size:14px;'>Scan the QR code to complete payment for video promotions, boosting, or sponsored posts.</p>
     </div>
     """, unsafe_allow_html=True)
 
     col_qr_disp1, col_qr_disp2 = st.columns([1, 1])
     with col_qr_disp1:
         if saved_qr_image and os.path.exists(saved_qr_image):
-            st.image(saved_qr_image, width=320, caption="বাংলা QR কোড (Bangla QR)")
+            st.image(saved_qr_image, width=320, caption="Bangla QR Code")
         else:
-            st.info("📌 ওনার প্যানেলের ১ নম্বর ট্যাবে (Global Branding) বাংলা QR-এর ছবি আপলোড করুন।")
+            st.info("📌 Upload the Bangla QR image in Tab 1 (Global Branding) of the Owner Panel.")
 
     with col_qr_disp2:
         st.markdown("""
         <div style='background:#0d1527; border:1px dashed #f59e0b; padding:20px; border-radius:12px; text-align:center;'>
-            <h4 style='color:#f59e0b; margin:0;'>📞 পেমেন্ট করার পর কল দিয়ে কথা বলুন:</h4>
+            <h4 style='color:#f59e0b; margin:0;'>📞 Contact us after payment:</h4>
             <h2 style='color:#ffffff; margin:10px 0;'>01722-003172</h2>
-            <p style='color:#aaa; font-size:13px; margin:0;'>টাকা পাঠানোর পর ১০ ডিজিটের ট্রানজেকশন আইডি (TrxID) দিয়ে নিচের ফর্মটি পূরণ করুন অথবা সরাসরি এই নম্বরে কল দিন।</p>
+            <p style='color:#aaa; font-size:13px; margin:0;'>After sending money, fill out the form below with your 10-digit Transaction ID (TrxID) or call this number directly.</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -2258,7 +2258,7 @@ with tab_monetization:
             with st.form("sponsor_video_submit_form"):
                 sp_name = st.text_input("Your Name / Company Name")
                 trx_10 = st.text_input("Enter Exactly 10-Digit Transaction ID (TrxID / Ref Code)", max_chars=10)
-                sender_num = st.text_input("Sender Mobile / Account Number (যেখান থেকে টাকা পাঠিয়েছেন)")
+                sender_num = st.text_input("Sender Mobile / Account Number (From which payment was made)")
                 
                 sp_video_url = st.text_input("Video Link (YouTube / Facebook / Direct URL)")
                 sp_video_file = st.file_uploader("OR Upload Video File Direct", type=["mp4", "mov"])
@@ -2291,4 +2291,4 @@ with tab_monetization:
                             """, (req_id, st.session_state.user_id, sp_name, clean_trx, payment_info_note, sp_video_url, v_file_path, now_str))
                             conn.commit()
                             
-                        st.success("✅ পেমেন্ট তথ্য সফলভাবে জমা হয়েছে! ওনার ১০ ডিজিটের TrxID যাচাই করে আপনার ভিডিও বা বুস্টিং চালু করে দেবেন।")
+                        st.success("✅ Payment info submitted successfully! The owner will verify the 10-digit TrxID and activate your video/boost.")
