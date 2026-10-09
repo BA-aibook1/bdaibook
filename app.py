@@ -5,9 +5,36 @@ import hashlib
 import random
 import json
 import base64
+import re
 from datetime import datetime, timedelta
 import streamlit as st
 import streamlit.components.v1 as components
+
+# ==========================================
+# AUTHENTICATION & GLOBAL IDENTIFIER VALIDATION ENGINE
+# ==========================================
+def validate_global_auth_identifier(user_input):
+    """
+    Validates if input is a valid @gmail.com OR valid global phone number (7 to 15 digits).
+    Returns (True/False, "Gmail"/"Phone"/"Invalid")
+    """
+    if not user_input:
+        return False, "Invalid"
+        
+    user_input = user_input.strip()
+    
+    # 1. Strict Gmail Format (must end with @gmail.com)
+    gmail_pattern = r'^[a-zA-Z0-9._%+-]+@gmail\.com$'
+    
+    # 2. Worldwide Phone Number Format (Supports + prefix, 7 to 15 digits)
+    phone_pattern = r'^\+?[1-9]\d{6,14}$'
+    
+    if re.match(gmail_pattern, user_input, re.IGNORECASE):
+        return True, "Gmail"
+    elif re.match(phone_pattern, user_input):
+        return True, "Phone"
+    else:
+        return False, "Invalid"
 
 # ==========================================
 # 0. SECURITY & ENVIRONMENT CONFIGURATION
@@ -599,9 +626,15 @@ if not st.session_state.user_id:
         else:
             if st.sidebar.button("Send OTP", use_container_width=True):
                 if auth_input and auth_pass:
-                    generated_otp = str(random.randint(100000, 999999))
-                    st.session_state.otp_code = generated_otp
-                    st.sidebar.success(f"🔑 Auto Verification Code: **{generated_otp}**")
+                    # STRICT VALIDATION: Check for valid @gmail.com or valid Global Phone Number
+                    is_valid, auth_type = validate_global_auth_identifier(auth_input)
+                    
+                    if not is_valid:
+                        st.sidebar.error("❌ Invalid Format! Provide a valid Gmail (@gmail.com) or valid Global Phone Number.")
+                    else:
+                        generated_otp = str(random.randint(100000, 999999))
+                        st.session_state.otp_code = generated_otp
+                        st.sidebar.success(f"🔑 Auto Verification Code ({auth_type}): **{generated_otp}**")
                 else:
                     st.sidebar.warning("Please provide both Gmail/Phone and Password!")
                     
