@@ -457,6 +457,7 @@ def init_master_database():
             "daily_limit_mode": "OFF",
             "lock_login": "OFF",
             "logo_path": "",
+            "bangla_qr_path": "",
             "adsense_client_id": "ca-pub-0000000000000000",
             "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #1877F2; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
             "show_ads": "ON",
@@ -866,20 +867,41 @@ with tab_feed:
         
         o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16, o_tab17, o_tab18 = o_tabs
         
+        # ==========================================
+        # 1ST SCREEN: GLOBAL BRANDING, LOGO & BANGLA QR
+        # ==========================================
         with o_tab1:
-            st.markdown("#### 🖼️ Global Branding & Logo")
+            st.markdown("#### 🖼️ Global Branding, Logo & Bangla QR Setup")
             new_app_name = st.text_input("Header App Name", value=get_setting("app_name", "BD AI Book"))
             new_announcement = st.text_area("Global Owner Announcement", value=get_setting("owner_announcement", ""))
-            up_logo = st.file_uploader("Change Master Logo", type=["png", "jpg", "jpeg"])
             
-            if st.button("💾 Save Branding Updates"):
+            col_b_img1, col_b_img2 = st.columns(2)
+            with col_b_img1:
+                up_logo = st.file_uploader("Change Master Logo", type=["png", "jpg", "jpeg"], key="up_logo_main")
+                curr_l = get_setting("logo_path")
+                if curr_l and os.path.exists(curr_l):
+                    st.caption("Current Active Logo:")
+                    st.image(curr_l, width=80)
+            
+            with col_b_img2:
+                up_bangla_qr = st.file_uploader("Upload Bangla QR Image (TaliPay / Bank)", type=["png", "jpg", "jpeg"], key="up_bangla_qr_main")
+                curr_qr = get_setting("bangla_qr_path")
+                if curr_qr and os.path.exists(curr_qr):
+                    st.caption("Current Active Bangla QR:")
+                    st.image(curr_qr, width=120)
+            
+            if st.button("💾 Save Branding & QR Updates", use_container_width=True):
                 set_setting("app_name", new_app_name)
                 set_setting("owner_announcement", new_announcement)
                 if up_logo:
                     l_path = os.path.join(UPLOAD_DIR, "site_logo.png")
                     with open(l_path, "wb") as f: f.write(up_logo.getbuffer())
                     set_setting("logo_path", l_path)
-                st.success("Branding Updated!")
+                if up_bangla_qr:
+                    qr_path = os.path.join(UPLOAD_DIR, "bangla_qr_code.png")
+                    with open(qr_path, "wb") as f: f.write(up_bangla_qr.getbuffer())
+                    set_setting("bangla_qr_path", qr_path)
+                st.success("✅ Branding Logo and Bangla QR Image Updated Successfully!")
                 st.rerun()
 
         with o_tab2:
@@ -1598,7 +1620,7 @@ with tab_feed:
                 c.execute("SELECT user_id, full_name FROM master_app_table WHERE data_type = 'user'")
                 all_chat_users = c.fetchall()
             
-            user_dict = {f"{u['full_name']} ({u['user_id'][:6]}...)": u['user_id'] for u in all_chat_users}
+            user_dict = {f"{u['full_name']} ({u['user_id'][:6]}...)" : u['user_id'] for u in all_chat_users}
             
             if user_dict:
                 selected_recip_label = st.selectbox("Select User to Message", list(user_dict.keys()), key="msg_recip_select")
@@ -2061,7 +2083,7 @@ with tab_messages:
                 c.execute("SELECT user_id, full_name FROM master_app_table WHERE data_type = 'user' AND user_id != ?", (st.session_state.user_id,))
                 all_chat_users = c.fetchall()
             
-            user_dict = {f"{u['full_name']} (ID: {u['user_id'][:6]}...)": u['user_id'] for u in all_chat_users}
+            user_dict = {f"{u['full_name']} (ID: {u['user_id'][:6]}...)" : u['user_id'] for u in all_chat_users}
             
             if not user_dict:
                 st.info("No other registered users available to message currently.")
@@ -2156,6 +2178,9 @@ with tab_messages:
                     else:
                         st.error("Please select a photo or file first.")
 
+# ==========================================
+# WORLDWIDE MONETIZATION, BOOST & BANGLA QR PANEL
+# ==========================================
 with tab_monetization:
     st.markdown("### 💸 Worldwide Monetization & Video Boost Center")
     
@@ -2182,8 +2207,36 @@ with tab_monetization:
         st.info(f"📈 **Monetization Progress:** {real_followers}/1,000 Real Followers needed.")
 
     st.markdown("---")
-    st.markdown("### 💼 Third-Party Sponsor & Video Payment Panel")
-    st.caption("Advertisers or third parties can submit video links after completing payment.")
+    st.markdown("### 💼 Third-Party Sponsor, Boost & Video Payment Panel")
+    st.caption("ভিডিও পোস্ট, বুস্টিং বা স্পন্সর শিপের জন্য বাংলা QR দিয়ে পেমেন্ট করুন:")
+
+    # BANGLA QR DISPLAY FROM OWNER PANEL (TAB 1)
+    saved_qr_image = get_setting("bangla_qr_path")
+    
+    st.markdown("""
+    <div style='background:#111827; border:2px solid #1877F2; padding:15px; border-radius:16px; text-align:center; margin-bottom:15px;'>
+        <h3 style='color:#1877F2; margin-bottom:5px;'>📲 বাংলা QR দিয়ে বিকাশ/নগদ/ব্যাংক থেকে পেমেন্ট করুন</h3>
+        <p style='color:#ccc; font-size:14px;'>ভিডিও প্রমোশন, বুস্টিং বা স্পন্সর পোস্টের জন্য QR স্ক্যান করে পেমেন্ট সম্পন্ন করুন</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_qr_disp1, col_qr_disp2 = st.columns([1, 1])
+    with col_qr_disp1:
+        if saved_qr_image and os.path.exists(saved_qr_image):
+            st.image(saved_qr_image, width=320, caption="বাংলা QR কোড (Bangla QR)")
+        else:
+            st.info("📌 ওনার প্যানেলের ১ নম্বর ট্যাবে (Global Branding) বাংলা QR-এর ছবি আপলোড করুন।")
+
+    with col_qr_disp2:
+        st.markdown("""
+        <div style='background:#0d1527; border:1px dashed #f59e0b; padding:20px; border-radius:12px; text-align:center;'>
+            <h4 style='color:#f59e0b; margin:0;'>📞 পেমেন্ট করার পর কল দিয়ে কথা বলুন:</h4>
+            <h2 style='color:#ffffff; margin:10px 0;'>01722-003172</h2>
+            <p style='color:#aaa; font-size:13px; margin:0;'>টাকা পাঠানোর পর ১০ ডিজিটের ট্রানজেকশন আইডি (TrxID) দিয়ে নিচের ফর্মটি পূরণ করুন অথবা সরাসরি এই নম্বরে কল দিন।</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("---")
 
     with st.expander("📥 Submit Sponsored Video & Payment Info", expanded=True):
         if not st.session_state.user_id:
@@ -2205,11 +2258,12 @@ with tab_monetization:
             with st.form("sponsor_video_submit_form"):
                 sp_name = st.text_input("Your Name / Company Name")
                 trx_10 = st.text_input("Enter Exactly 10-Digit Transaction ID (TrxID / Ref Code)", max_chars=10)
+                sender_num = st.text_input("Sender Mobile / Account Number (যেখান থেকে টাকা পাঠিয়েছেন)")
                 
                 sp_video_url = st.text_input("Video Link (YouTube / Facebook / Direct URL)")
                 sp_video_file = st.file_uploader("OR Upload Video File Direct", type=["mp4", "mov"])
                 
-                submit_sp_btn = st.form_submit_button("🚀 Submit to Owner for Approval")
+                submit_sp_btn = st.form_submit_button("🚀 Submit for Owner Approval")
 
                 if submit_sp_btn:
                     clean_trx = trx_10.strip()
@@ -2227,14 +2281,14 @@ with tab_monetization:
                         req_id = str(uuid.uuid4())
                         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         
-                        selected_channel_label = selected_gw_sp_name if active_gateways else "Direct Payment"
+                        payment_info_note = f"Bangla QR (Sender: {sender_num})" if sender_num else "Bangla QR Direct"
                         with get_db_connection() as conn:
                             c = conn.cursor()
                             c.execute("""
                                 INSERT INTO sponsor_video_requests 
                                 (request_id, user_id, sponsor_name, trx_id_10digit, bank_details_used, video_link, video_file_path, status, created_at)
                                 VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', ?)
-                            """, (req_id, st.session_state.user_id, sp_name, clean_trx, selected_channel_label, sp_video_url, v_file_path, now_str))
+                            """, (req_id, st.session_state.user_id, sp_name, clean_trx, payment_info_note, sp_video_url, v_file_path, now_str))
                             conn.commit()
                             
-                        st.success("✅ Payment info and video submitted successfully! The owner will verify the 10-digit TrxID.")
+                        st.success("✅ পেমেন্ট তথ্য সফলভাবে জমা হয়েছে! ওনার ১০ ডিজিটের TrxID যাচাই করে আপনার ভিডিও বা বুস্টিং চালু করে দেবেন।")
