@@ -603,6 +603,9 @@ current_user = {}
 st.sidebar.markdown("### 🔐 User Login / Register")
 login_locked = get_setting("lock_login") == "ON"
 
+# ==========================================
+# AUTHENTICATION SYSTEM LOGIC (UPDATED)
+# ==========================================
 if not st.session_state.user_id:
     if login_locked:
         st.sidebar.error("🚫 Login System is temporarily locked by Owner for maintenance!")
@@ -634,9 +637,8 @@ if not st.session_state.user_id:
                 else:
                     st.sidebar.warning("Fill all details.")
         else:
-            if st.sidebar.button("Send OTP", use_container_width=True):
+            if st.sidebar.button("Login / Proceed", use_container_width=True):
                 if auth_input and auth_pass:
-                    # STRICT VALIDATION: Check for valid @gmail.com or valid Global Phone Number
                     is_valid, auth_type, clean_identifier = validate_global_auth_identifier(auth_input)
                     
                     if not is_valid:
@@ -644,73 +646,68 @@ if not st.session_state.user_id:
                     else:
                         with get_db_connection() as conn:
                             c = conn.cursor()
-                            # Check if account already exists with this email/phone (case-insensitive)
+                            # Check if account already exists
                             c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND (LOWER(auth_identifier) = LOWER(?) OR auth_identifier = ?)", (clean_identifier, clean_identifier))
                             existing_user = c.fetchone()
                             
                             if existing_user:
-                                # User exists -> Mode is Login
+                                # [LATER LOGIN]: User exists -> Direct Login with Password (No OTP)
                                 if existing_user["password_hash"] == hash_pass(auth_pass):
-                                    generated_otp = str(random.randint(100000, 999999))
-                                    st.session_state.otp_code = generated_otp
-                                    st.session_state.pending_auth_identifier = clean_identifier
-                                    st.sidebar.success(f"🔑 Auto Verification Code ({auth_type}): **{generated_otp}**")
+                                    st.session_state.user_id = existing_user["user_id"]
+                                    st.sidebar.success("🎉 Logged In Successfully!")
+                                    st.session_state.otp_code = None
+                                    st.session_state.pending_auth_identifier = None
+                                    st.rerun()
                                 else:
                                     st.sidebar.error("❌ Invalid Password for this Account!")
                             else:
-                                # User does not exist -> Mode is New Registration
+                                # [FIRST SIGNUP]: User does not exist -> Generate OTP for verification
                                 generated_otp = str(random.randint(100000, 999999))
                                 st.session_state.otp_code = generated_otp
                                 st.session_state.pending_auth_identifier = clean_identifier
-                                st.sidebar.success(f"🔑 Auto Verification Code for New Registration ({auth_type}): **{generated_otp}**")
+                                st.session_state.pending_password = auth_pass
+                                st.sidebar.info(f"🔑 First Time Registration Code ({auth_type}): **{generated_otp}**")
                 else:
                     st.sidebar.warning("Please provide both Gmail/Phone and Password!")
                     
             if st.session_state.otp_code:
                 user_otp = st.sidebar.text_input("Enter 6-Digit OTP Code")
-                if st.sidebar.button("Verify & Proceed", use_container_width=True):
+                if st.sidebar.button("Verify OTP & Create Account", use_container_width=True):
                     if user_otp == st.session_state.otp_code:
                         clean_identifier = st.session_state.pending_auth_identifier
+                        pending_pass = st.session_state.get("pending_password", "")
+                        
+                        new_uid = str(uuid.uuid4())
+                        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        user_data_map = {
+                            "record_id": new_uid,
+                            "data_type": "user",
+                            "user_id": new_uid,
+                            "full_name": f"User_{new_uid[:4]}",
+                            "auth_identifier": clean_identifier,
+                            "password_hash": hash_pass(pending_pass),
+                            "is_verified": 1,
+                            "user_status": "REAL",
+                            "meta_bluetooth_permission": 0,
+                            "created_at": now
+                        }
+
                         with get_db_connection() as conn:
                             c = conn.cursor()
-                            c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND (LOWER(auth_identifier) = LOWER(?) OR auth_identifier = ?)", (clean_identifier, clean_identifier))
-                            usr = c.fetchone()
-                            
-                            if usr:
-                                st.session_state.user_id = usr["user_id"]
-                                st.sidebar.success("Logged In Successfully!")
-                                st.session_state.otp_code = None
-                                st.session_state.pending_auth_identifier = None
-                                st.rerun()
-                            else:
-                                new_uid = str(uuid.uuid4())
-                                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                
-                                user_data_map = {
-                                    "record_id": new_uid,
-                                    "data_type": "user",
-                                    "user_id": new_uid,
-                                    "full_name": f"User_{new_uid[:4]}",
-                                    "auth_identifier": clean_identifier,
-                                    "password_hash": hash_pass(auth_pass),
-                                    "is_verified": 1,
-                                    "user_status": "REAL",
-                                    "meta_bluetooth_permission": 0,
-                                    "created_at": now
-                                }
-
-                                c.execute("""
-                                    INSERT INTO master_app_table (record_id, data_type, user_id, full_name, auth_identifier, password_hash, is_verified, user_status, meta_bluetooth_permission, created_at)
-                                    VALUES (?, 'user', ?, ?, ?, ?, 1, 'REAL', 0, ?)
-                                """, (new_uid, new_uid, f"User_{new_uid[:4]}", clean_identifier, hash_pass(auth_pass), now))
-                                conn.commit()
-                                
-                                save_to_internal_vault(user_data_map)
-                                st.session_state.user_id = new_uid
-                                st.session_state.otp_code = None
-                                st.session_state.pending_auth_identifier = None
-                                st.sidebar.success("Registered & Logged In as Normal User!")
-                                st.rerun()
+                            c.execute("""
+                                INSERT INTO master_app_table (record_id, data_type, user_id, full_name, auth_identifier, password_hash, is_verified, user_status, meta_bluetooth_permission, created_at)
+                                VALUES (?, 'user', ?, ?, ?, ?, 1, 'REAL', 0, ?)
+                            """, (new_uid, new_uid, f"User_{new_uid[:4]}", clean_identifier, hash_pass(pending_pass), now))
+                            conn.commit()
+                        
+                        save_to_internal_vault(user_data_map)
+                        st.session_state.user_id = new_uid
+                        st.session_state.otp_code = None
+                        st.session_state.pending_auth_identifier = None
+                        st.session_state.pending_password = None
+                        st.sidebar.success("🎉 Registered & Logged In Successfully!")
+                        st.rerun()
                     else:
                         st.sidebar.error("❌ Invalid OTP Code!")
 else:
