@@ -16,25 +16,30 @@ import streamlit.components.v1 as components
 def validate_global_auth_identifier(user_input):
     """
     Validates if input is a valid @gmail.com OR valid global phone number (7 to 15 digits).
-    Returns (True/False, "Gmail"/"Phone"/"Invalid")
+    Returns (True/False, "Gmail"/"Phone"/"Invalid", Cleaned_Identifier)
     """
     if not user_input:
-        return False, "Invalid"
+        return False, "Invalid", ""
         
     user_input = user_input.strip()
     
-    # 1. Strict Gmail Format (must end with @gmail.com)
+    # Strict Gmail Format (Convert to lowercase to avoid Case-Sensitivity duplicate issue)
     gmail_pattern = r'^[a-zA-Z0-9._%+-]+@gmail\.com$'
     
-    # 2. Worldwide Phone Number Format (Supports + prefix, 7 to 15 digits)
+    # Worldwide Phone Number Format (Supports + prefix, 7 to 15 digits)
     phone_pattern = r'^\+?[1-9]\d{6,14}$'
     
     if re.match(gmail_pattern, user_input, re.IGNORECASE):
-        return True, "Gmail"
+        cleaned_id = user_input.lower()
+        return True, "Gmail", cleaned_id
     elif re.match(phone_pattern, user_input):
-        return True, "Phone"
+        cleaned_id = user_input
+        # Standardize Bangladeshi numbers to prevent duplicates with/without +88
+        if cleaned_id.startswith("01") and len(cleaned_id) == 11:
+            cleaned_id = "+88" + cleaned_id
+        return True, "Phone", cleaned_id
     else:
-        return False, "Invalid"
+        return False, "Invalid", ""
 
 # ==========================================
 # 0. SECURITY & ENVIRONMENT CONFIGURATION
@@ -566,6 +571,7 @@ def check_user_meta_bluetooth_permission(user_id):
 
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
+if "pending_auth_identifier" not in st.session_state: st.session_state.pending_auth_identifier = None
 if "is_owner_session" not in st.session_state: st.session_state.is_owner_session = False
 if "active_tab" not in st.session_state: st.session_state.active_tab = 0
 
@@ -611,30 +617,52 @@ if not st.session_state.user_id:
             new_pass_inp = st.sidebar.text_input("New Password", type="password")
             if st.sidebar.button("Reset Password", use_container_width=True):
                 if auth_input and rec_code_inp and new_pass_inp:
-                    with get_db_connection() as conn:
-                        c = conn.cursor()
-                        c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND auth_identifier = ? AND recovery_code = ?", (auth_input, rec_code_inp))
-                        usr_rec = c.fetchone()
-                        if usr_rec:
-                            c.execute("UPDATE master_app_table SET password_hash = ? WHERE user_id = ?", (hash_pass(new_pass_inp), usr_rec['user_id']))
-                            conn.commit()
-                            st.sidebar.success("Password Reset Success! Login with new password.")
-                        else:
-                            st.sidebar.error("Invalid Identifier or Recovery Code!")
+                    is_valid, auth_type, clean_identifier = validate_global_auth_identifier(auth_input)
+                    if not is_valid:
+                        st.sidebar.error("❌ Invalid Gmail or Phone Number format!")
+                    else:
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND (LOWER(auth_identifier) = LOWER(?) OR auth_identifier = ?) AND recovery_code = ?", (clean_identifier, clean_identifier, rec_code_inp))
+                            usr_rec = c.fetchone()
+                            if usr_rec:
+                                c.execute("UPDATE master_app_table SET password_hash = ? WHERE user_id = ?", (hash_pass(new_pass_inp), usr_rec['user_id']))
+                                conn.commit()
+                                st.sidebar.success("Password Reset Success! Login with new password.")
+                            else:
+                                st.sidebar.error("Invalid Identifier or Recovery Code!")
                 else:
                     st.sidebar.warning("Fill all details.")
         else:
             if st.sidebar.button("Send OTP", use_container_width=True):
                 if auth_input and auth_pass:
                     # STRICT VALIDATION: Check for valid @gmail.com or valid Global Phone Number
-                    is_valid, auth_type = validate_global_auth_identifier(auth_input)
+                    is_valid, auth_type, clean_identifier = validate_global_auth_identifier(auth_input)
                     
                     if not is_valid:
                         st.sidebar.error("❌ Invalid Format! Provide a valid Gmail (@gmail.com) or valid Global Phone Number.")
                     else:
-                        generated_otp = str(random.randint(100000, 999999))
-                        st.session_state.otp_code = generated_otp
-                        st.sidebar.success(f"🔑 Auto Verification Code ({auth_type}): **{generated_otp}**")
+                        with get_db_connection() as conn:
+                            c = conn.cursor()
+                            # Check if account already exists with this email/phone (case-insensitive)
+                            c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND (LOWER(auth_identifier) = LOWER(?) OR auth_identifier = ?)", (clean_identifier, clean_identifier))
+                            existing_user = c.fetchone()
+                            
+                            if existing_user:
+                                # User exists -> Mode is Login
+                                if existing_user["password_hash"] == hash_pass(auth_pass):
+                                    generated_otp = str(random.randint(100000, 999999))
+                                    st.session_state.otp_code = generated_otp
+                                    st.session_state.pending_auth_identifier = clean_identifier
+                                    st.sidebar.success(f"🔑 Auto Verification Code ({auth_type}): **{generated_otp}**")
+                                else:
+                                    st.sidebar.error("❌ Invalid Password for this Account!")
+                            else:
+                                # User does not exist -> Mode is New Registration
+                                generated_otp = str(random.randint(100000, 999999))
+                                st.session_state.otp_code = generated_otp
+                                st.session_state.pending_auth_identifier = clean_identifier
+                                st.sidebar.success(f"🔑 Auto Verification Code for New Registration ({auth_type}): **{generated_otp}**")
                 else:
                     st.sidebar.warning("Please provide both Gmail/Phone and Password!")
                     
@@ -642,18 +670,18 @@ if not st.session_state.user_id:
                 user_otp = st.sidebar.text_input("Enter 6-Digit OTP Code")
                 if st.sidebar.button("Verify & Proceed", use_container_width=True):
                     if user_otp == st.session_state.otp_code:
+                        clean_identifier = st.session_state.pending_auth_identifier
                         with get_db_connection() as conn:
                             c = conn.cursor()
-                            c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND auth_identifier = ?", (auth_input,))
+                            c.execute("SELECT * FROM master_app_table WHERE data_type = 'user' AND (LOWER(auth_identifier) = LOWER(?) OR auth_identifier = ?)", (clean_identifier, clean_identifier))
                             usr = c.fetchone()
                             
                             if usr:
-                                if usr["password_hash"] == hash_pass(auth_pass):
-                                    st.session_state.user_id = usr["user_id"]
-                                    st.sidebar.success("Logged In Successfully!")
-                                    st.rerun()
-                                else:
-                                    st.sidebar.error("❌ Invalid Password!")
+                                st.session_state.user_id = usr["user_id"]
+                                st.sidebar.success("Logged In Successfully!")
+                                st.session_state.otp_code = None
+                                st.session_state.pending_auth_identifier = None
+                                st.rerun()
                             else:
                                 new_uid = str(uuid.uuid4())
                                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -663,7 +691,7 @@ if not st.session_state.user_id:
                                     "data_type": "user",
                                     "user_id": new_uid,
                                     "full_name": f"User_{new_uid[:4]}",
-                                    "auth_identifier": auth_input,
+                                    "auth_identifier": clean_identifier,
                                     "password_hash": hash_pass(auth_pass),
                                     "is_verified": 1,
                                     "user_status": "REAL",
@@ -674,11 +702,13 @@ if not st.session_state.user_id:
                                 c.execute("""
                                     INSERT INTO master_app_table (record_id, data_type, user_id, full_name, auth_identifier, password_hash, is_verified, user_status, meta_bluetooth_permission, created_at)
                                     VALUES (?, 'user', ?, ?, ?, ?, 1, 'REAL', 0, ?)
-                                """, (new_uid, new_uid, f"User_{new_uid[:4]}", auth_input, hash_pass(auth_pass), now))
+                                """, (new_uid, new_uid, f"User_{new_uid[:4]}", clean_identifier, hash_pass(auth_pass), now))
                                 conn.commit()
                                 
                                 save_to_internal_vault(user_data_map)
                                 st.session_state.user_id = new_uid
+                                st.session_state.otp_code = None
+                                st.session_state.pending_auth_identifier = None
                                 st.sidebar.success("Registered & Logged In as Normal User!")
                                 st.rerun()
                     else:
@@ -714,6 +744,7 @@ else:
         st.session_state.user_id = None
         st.session_state.is_owner_session = False
         st.session_state.otp_code = None
+        st.session_state.pending_auth_identifier = None
         st.rerun()
 
 tab_feed, tab_profile, tab_messages, tab_monetization = st.tabs([
@@ -1282,7 +1313,7 @@ with tab_feed:
                         SELECT auth_identifier, COUNT(*) as account_count 
                         FROM master_app_table 
                         WHERE data_type = 'user' 
-                        GROUP BY auth_identifier 
+                        GROUP BY LOWER(auth_identifier) 
                         HAVING COUNT(*) > 1
                     """)
                     dup_records = c.fetchall()
@@ -1294,7 +1325,7 @@ with tab_feed:
                             ident = dup["auth_identifier"]
                             cnt = dup["account_count"]
                             
-                            c.execute("SELECT user_id, full_name, is_suspended, created_at FROM master_app_table WHERE data_type = 'user' AND auth_identifier = ?", (ident,))
+                            c.execute("SELECT user_id, full_name, is_suspended, created_at FROM master_app_table WHERE data_type = 'user' AND (LOWER(auth_identifier) = LOWER(?) OR auth_identifier = ?)", (ident, ident))
                             users_under_ident = c.fetchall()
                             
                             st.markdown(f"""
@@ -1458,7 +1489,7 @@ with tab_feed:
 
             st.markdown("---")
             st.markdown("##### 🎵 Master Configuration")
-            st.text_input("Default Master Admin Name", value="Admin Owner", disabled=True)
+            st.text_input("Default Master Admin Name", value="Sohel Rana", disabled=True)
             st.success("✅ Copyright and title settings are synchronized with the database.")
 
             if st.button("🚀 Run System Optimization & Sync"):
@@ -1470,7 +1501,7 @@ with tab_feed:
             
             with st.form("owner_music_upload_form"):
                 song_title = st.text_input("Song Title / Name")
-                artist_name = st.text_input("Artist Name", value="Master Studio")
+                artist_name = st.text_input("Artist Name", value="Sohel Rana")
                 song_file = st.file_uploader("Upload Copyright-Free Audio Song (.mp3/.wav)", type=["mp3", "wav"])
                 submit_song = st.form_submit_button("📤 Upload to Free Music Library")
                 
