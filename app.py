@@ -938,6 +938,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     media_path = post.get("media_path")
     cat = post.get("post_category", "general")
     
+    # ফিক্সড ভিডিও রেন্ডারিং (HTML5 Video Tag ব্যবহার করা হয়েছে যাতে R2 থেকে ভিডিও পারফেক্টলি প্লে হয়)
     if media_path and cat != "text":
         if media_path.startswith("http://") or media_path.startswith("https://"):
             st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
@@ -948,10 +949,20 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                     st.error("⚠ ছবি লোড করতে সমস্যা হচ্ছে বা লিংকটি সঠিক নয়।")
             elif cat == "short":
                 st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
-                st.video(media_path)
+                st.markdown(f'''
+                    <video width="100%" controls autoplay muted loop playsinline style="border-radius:12px;">
+                        <source src="{media_path}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                ''', unsafe_allow_html=True)
                 st.markdown("</div>", unsafe_allow_html=True)
             else:
-                st.video(media_path)
+                st.markdown(f'''
+                    <video width="100%" controls style="border-radius:12px;">
+                        <source src="{media_path}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                ''', unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
         elif os.path.exists(media_path):
             st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
@@ -959,10 +970,20 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                 st.image(media_path, use_container_width=True)
             elif cat == "short":
                 st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
-                st.video(media_path)
+                st.markdown(f'''
+                    <video width="100%" controls autoplay muted loop playsinline style="border-radius:12px;">
+                        <source src="{media_path}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                ''', unsafe_allow_html=True)
                 st.markdown("</div>", unsafe_allow_html=True)
             else:
-                st.video(media_path)
+                st.markdown(f'''
+                    <video width="100%" controls style="border-radius:12px;">
+                        <source src="{media_path}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                ''', unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
         else:
             st.warning(f"⚠ মিডিয়া ফাইলটি লোকালি পাওয়া যায়নি বা পাথ ভুল রয়েছে: {media_path}")
@@ -1293,12 +1314,22 @@ with tab_feed:
                             if lp['post_category'] == 'picture':
                                 st.image(lp['media_path'], width=300)
                             else:
-                                st.video(lp['media_path'])
+                                st.markdown(f'''
+                                    <video width="100%" controls style="border-radius:12px;">
+                                        <source src="{lp['media_path']}" type="video/mp4">
+                                        Your browser does not support the video tag.
+                                    </video>
+                                ''', unsafe_allow_html=True)
                         elif os.path.exists(lp['media_path']):
                             if lp['post_category'] == 'picture':
                                 st.image(lp['media_path'], width=300)
                             else:
-                                st.video(lp['media_path'])
+                                st.markdown(f'''
+                                    <video width="100%" controls style="border-radius:12px;">
+                                        <source src="{lp['media_path']}" type="video/mp4">
+                                        Your browser does not support the video tag.
+                                    </video>
+                                ''', unsafe_allow_html=True)
 
                     if ads_enabled and ads_html:
                         st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
@@ -1998,12 +2029,22 @@ with tab_feed:
                                 if vi['file_path'].lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
                                     st.image(vi['file_path'], width=250)
                                 else:
-                                    st.video(vi['file_path'])
+                                    st.markdown(f'''
+                                        <video width="100%" controls style="border-radius:12px;">
+                                            <source src="{vi['file_path']}" type="video/mp4">
+                                            Your browser does not support the video tag.
+                                        </video>
+                                    ''', unsafe_allow_html=True)
                             elif os.path.exists(vi['file_path']):
                                 if vi['file_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
                                     st.image(vi['file_path'], width=250)
                                 elif vi['file_path'].lower().endswith('.mp4'):
-                                    st.video(vi['file_path'])
+                                    st.markdown(f'''
+                                        <video width="100%" controls style="border-radius:12px;">
+                                            <source src="{vi['file_path']}" type="video/mp4">
+                                            Your browser does not support the video tag.
+                                        </video>
+                                    ''', unsafe_allow_html=True)
                         st.markdown("---")
 
             with st.expander("💬 Owner Message Center & Message History"):
@@ -2031,12 +2072,22 @@ with tab_feed:
                                 if msg['media_path'].lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
                                     st.image(msg['media_path'], width=200)
                                 else:
-                                    st.video(msg['media_path'])
+                                    st.markdown(f'''
+                                        <video width="100%" controls style="border-radius:12px;">
+                                            <source src="{msg['media_path']}" type="video/mp4">
+                                            Your browser does not support the video tag.
+                                        </video>
+                                    ''', unsafe_allow_html=True)
                             elif os.path.exists(msg['media_path']):
                                 if msg['media_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
                                     st.image(msg['media_path'], width=200)
                                 elif msg['media_path'].lower().endswith('.mp4'):
-                                    st.video(msg['media_path'])
+                                    st.markdown(f'''
+                                        <video width="100%" controls style="border-radius:12px;">
+                                            <source src="{msg['media_path']}" type="video/mp4">
+                                            Your browser does not support the video tag.
+                                        </video>
+                                    ''', unsafe_allow_html=True)
 
         # 18TH SCREEN: ADVANCED VIDEO ANALYTICS
         with o_tab18:
@@ -2472,12 +2523,22 @@ with tab_messages:
                                 if ch['media_path'].lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
                                     st.image(ch['media_path'], width=200)
                                 else:
-                                    st.video(ch['media_path'])
+                                    st.markdown(f'''
+                                        <video width="100%" controls style="border-radius:12px;">
+                                            <source src="{ch['media_path']}" type="video/mp4">
+                                            Your browser does not support the video tag.
+                                        </video>
+                                    ''', unsafe_allow_html=True)
                             elif os.path.exists(ch['media_path']):
                                 if ch['media_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
                                     st.image(ch['media_path'], width=200)
                                 elif ch['media_path'].lower().endswith('.mp4'):
-                                    st.video(ch['media_path'])
+                                    st.markdown(f'''
+                                        <video width="100%" controls style="border-radius:12px;">
+                                            <source src="{ch['media_path']}" type="video/mp4">
+                                            Your browser does not support the video tag.
+                                        </video>
+                                    ''', unsafe_allow_html=True)
                 
                 st.markdown("---")
                 u_msg_text = st.text_area("Type Your Message", key="user_tab_msg_input")
