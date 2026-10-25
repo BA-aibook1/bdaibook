@@ -11,6 +11,52 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ==========================================
+# CLOUDFLARE R2 OBJECT STORAGE CONFIGURATION
+# ==========================================
+try:
+    import boto3
+    R2_AVAILABLE = True
+except ImportError:
+    R2_AVAILABLE = False
+
+# আপনার Cloudflare R2 ক্রডেনশিয়ালস এখানে সেট করুন
+R2_ACCOUNT_ID = "978cadf3e0c8db6ea26f1300ec86dd5d"
+R2_BUCKET_NAME = "bd-ai-book-videos" # আপনার তৈরি করা বাকিটের নাম এখানে দিন
+R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY", "YOUR_R2_ACCESS_KEY")
+R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_KEY", "YOUR_R2_SECRET_KEY")
+R2_ENDPOINT_URL = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+
+def get_r2_client():
+    if not R2_AVAILABLE:
+        return None
+    try:
+        session = boto3.session.Session()
+        client = session.client(
+            's3',
+            endpoint_url=R2_ENDPOINT_URL,
+            aws_access_key_id=R2_ACCESS_KEY_ID,
+            aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+            region_name='auto'
+        )
+        return client
+    except Exception:
+        return None
+
+def upload_file_to_cloudflare_r2(file_path, object_name):
+    """
+    ফাইল সরাসরি Cloudflare R2 বাকেটে আপলোড করার ফাংশন
+    """
+    client = get_r2_client()
+    if not client:
+        return file_path # ক্লায়েন্ট না থাকলে লোকাল পাথ রিটার্ন করবে
+    try:
+        client.upload_file(file_path, R2_BUCKET_NAME, object_name)
+        # পাবলিক এক্সেস ইউআরএল অথবা ফাইল অবজেক্ট নেম রিটার্ন করবে
+        return f"https://pub-r2.dev/{object_name}" # অথবা আপনার কাস্টম ডোমেইন/পাবলিক লিংকের ফরম্যাট
+    except Exception:
+        return file_path
+
+# ==========================================
 # AUTHENTICATION & GLOBAL IDENTIFIER VALIDATION ENGINE
 # ==========================================
 def validate_global_auth_identifier(user_input):
@@ -141,7 +187,6 @@ BANNED_KEYWORDS = ["nude", "sex", "adult", "porn", "xrated", "18+"]
 # FIXED DATABASE CONNECTION ENGINE (WAL MODE ENABLED)
 # ==========================================
 def get_db_connection():
-    # timeout=30 দেওয়া হয়েছে যাতে ডাটাবেস লক থাকলে ৩০ সেকেন্ড অপেক্ষা করে
     conn = sqlite3.connect(LOCAL_DB_FILE, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
     try:
@@ -684,7 +729,6 @@ if not st.session_state.user_id:
                             existing_user = c.fetchone()
                             
                             if existing_user:
-                                # User Exists: Direct Password Login (No OTP required)
                                 if existing_user["password_hash"] == hash_pass(auth_pass):
                                     st.session_state.user_id = existing_user["user_id"]
                                     st.sidebar.success("🎉 Logged In Successfully!")
@@ -694,7 +738,6 @@ if not st.session_state.user_id:
                                 else:
                                     st.sidebar.error("❌ Invalid Password for this Account!")
                             else:
-                                # New Registration: Generate OTP
                                 generated_otp = str(random.randint(100000, 999999))
                                 st.session_state.otp_code = generated_otp
                                 st.session_state.pending_auth_identifier = clean_identifier
@@ -1835,9 +1878,11 @@ with tab_feed:
                     if msg_text or msg_media:
                         m_path = ""
                         if msg_media:
-                            m_path = os.path.join(UPLOAD_DIR, f"msg_{uuid.uuid4()}_{msg_media.name}")
-                            with open(m_path, "wb") as f:
+                            temp_msg_path = os.path.join(UPLOAD_DIR, f"msg_{uuid.uuid4()}_{msg_media.name}")
+                            with open(temp_msg_path, "wb") as f:
                                 f.write(msg_media.getbuffer())
+                            # Cloudflare R2 এ আপলোড
+                            m_path = upload_file_to_cloudflare_r2(temp_msg_path, f"messages/{os.path.basename(temp_msg_path)}")
                         
                         msg_id = str(uuid.uuid4())
                         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1865,9 +1910,12 @@ with tab_feed:
                 
                 if submit_to_owner:
                     if owner_file:
-                        f_path = os.path.join(UPLOAD_DIR, f"owner_vault_{uuid.uuid4()}_{owner_file.name}")
-                        with open(f_path, "wb") as f:
+                        temp_vault_path = os.path.join(UPLOAD_DIR, f"owner_vault_{uuid.uuid4()}_{owner_file.name}")
+                        with open(temp_vault_path, "wb") as f:
                             f.write(owner_file.getbuffer())
+                        
+                        # Cloudflare R2 এ আপলোড
+                        f_path = upload_file_to_cloudflare_r2(temp_vault_path, f"owner_vault/{os.path.basename(temp_vault_path)}")
                             
                         u_name = current_user.get("full_name", "Anonymous/Guest")
                         u_id = st.session_state.user_id or "GUEST"
@@ -1912,11 +1960,17 @@ with tab_feed:
                             <small style='color:#888;'>Time: {vi['created_at']}</small>
                         </div>
                         """, unsafe_allow_html=True)
-                        if vi['file_path'] and os.path.exists(vi['file_path']):
-                            if vi['file_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
-                                st.image(vi['file_path'], width=250)
-                            elif vi['file_path'].lower().endswith('.mp4'):
-                                st.video(vi['file_path'])
+                        if vi['file_path']:
+                            if vi['file_path'].startswith("http"):
+                                if vi['file_path'].lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+                                    st.image(vi['file_path'], width=250)
+                                else:
+                                    st.video(vi['file_path'])
+                            elif os.path.exists(vi['file_path']):
+                                if vi['file_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
+                                    st.image(vi['file_path'], width=250)
+                                elif vi['file_path'].lower().endswith('.mp4'):
+                                    st.video(vi['file_path'])
                         st.markdown("---")
 
             with st.expander("💬 Owner Message Center & Message History"):
@@ -1939,11 +1993,17 @@ with tab_feed:
                             <small style='color:#888;'>Time: {msg['created_at']}</small>
                         </div>
                         """, unsafe_allow_html=True)
-                        if msg['media_path'] and os.path.exists(msg['media_path']):
-                            if msg['media_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
-                                st.image(msg['media_path'], width=200)
-                            elif msg['media_path'].lower().endswith('.mp4'):
-                                st.video(msg['media_path'])
+                        if msg['media_path']:
+                            if msg['media_path'].startswith("http"):
+                                if msg['media_path'].lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+                                    st.image(msg['media_path'], width=200)
+                                else:
+                                    st.video(msg['media_path'])
+                            elif os.path.exists(msg['media_path']):
+                                if msg['media_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
+                                    st.image(msg['media_path'], width=200)
+                                elif msg['media_path'].lower().endswith('.mp4'):
+                                    st.video(msg['media_path'])
 
         # 18TH SCREEN: ADVANCED VIDEO ANALYTICS
         with o_tab18:
@@ -2090,8 +2150,11 @@ with tab_profile:
         
         col_p1, col_p2 = st.columns([1, 4])
         with col_p1:
-            if profile_path and os.path.exists(profile_path):
-                st.image(profile_path, width=120)
+            if profile_path:
+                if profile_path.startswith("http"):
+                    st.image(profile_path, width=120)
+                elif os.path.exists(profile_path):
+                    st.image(profile_path, width=120)
             else:
                 st.info("No Profile Pic")
         with col_p2:
@@ -2136,8 +2199,10 @@ with tab_profile:
             if st.button("Save Profile"):
                 p_path = profile_path
                 if up_prof:
-                    p_path = os.path.join(UPLOAD_DIR, f"dp_{st.session_state.user_id}.png")
-                    with open(p_path, "wb") as f: f.write(up_prof.getbuffer())
+                    temp_dp_path = os.path.join(UPLOAD_DIR, f"dp_{st.session_state.user_id}.png")
+                    with open(temp_dp_path, "wb") as f: f.write(up_prof.getbuffer())
+                    # Cloudflare R2 এ আপলোড
+                    p_path = upload_file_to_cloudflare_r2(temp_dp_path, f"profiles/{os.path.basename(temp_dp_path)}")
                     
                 conn = get_db_connection()
                 try:
@@ -2248,24 +2313,36 @@ with tab_profile:
                         f.write(uploaded_media.getbuffer())
 
                     final_ext = ".mp4" if (not use_live_camera and temp_ext.lower() in ['.mp4', '.mov', '.avi', '.mkv']) else temp_ext
-                    m_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{final_ext}")
+                    compressed_path = os.path.join(UPLOAD_DIR, f"comp_{uuid.uuid4()}{final_ext}")
 
                     if not use_live_camera and final_ext == ".mp4":
                         with st.spinner("⏳ Compressing and optimizing video size (Auto-Compression)..."):
-                            compress_video_automatically(temp_path, m_path)
+                            compress_video_automatically(temp_path, compressed_path)
                         if os.path.exists(temp_path):
                             os.remove(temp_path)
                     else:
-                        if temp_path != m_path:
-                            os.rename(temp_path, m_path)
+                        if temp_path != compressed_path:
+                            os.rename(temp_path, compressed_path)
 
                     if final_ext.lower() in ['.jpg', '.jpeg', '.png']:
-                        is_safe, msg = check_image_safety_with_ai(m_path)
+                        is_safe, msg = check_image_safety_with_ai(compressed_path)
                         if not is_safe:
-                            if os.path.exists(m_path):
-                                os.remove(m_path)
+                            if os.path.exists(compressed_path):
+                                os.remove(compressed_path)
                             st.error("🚫 Google AI Auto-Moderation: Inappropriate content detected in image! Post rejected.")
                             st.stop()
+
+                    # ফাইলটি এখন সরাসরি Cloudflare R2-এ আপলোড হবে
+                    with st.spinner("☁️ Uploading media directly to Cloudflare R2 Object Storage..."):
+                        r2_object_key = f"posts/{uuid.uuid4()}{final_ext}"
+                        m_path = upload_file_to_cloudflare_r2(compressed_path, r2_object_key)
+                    
+                    # লোকাল ফাইল ক্লিনআপ
+                    if os.path.exists(compressed_path):
+                        try:
+                            os.remove(compressed_path)
+                        except Exception:
+                            pass
 
                     rec_id = str(uuid.uuid4())
                     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -2298,7 +2375,7 @@ with tab_profile:
                         conn.close()
                         
                     save_to_internal_vault(post_data_map)
-                    st.success("Published Successfully with Auto-Optimized Size!")
+                    st.success("Published Successfully & Uploaded to Cloudflare R2!")
                     st.rerun()
                 else:
                     st.warning("Please provide a title and necessary content/media for your post.")
@@ -2363,11 +2440,17 @@ with tab_messages:
                         <div style='clear:both;'></div>
                         """, unsafe_allow_html=True)
                         
-                        if ch['media_path'] and os.path.exists(ch['media_path']):
-                            if ch['media_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
-                                st.image(ch['media_path'], width=200)
-                            elif ch['media_path'].lower().endswith('.mp4'):
-                                st.video(ch['media_path'])
+                        if ch['media_path']:
+                            if ch['media_path'].startswith("http"):
+                                if ch['media_path'].lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+                                    st.image(ch['media_path'], width=200)
+                                else:
+                                    st.video(ch['media_path'])
+                            elif os.path.exists(ch['media_path']):
+                                if ch['media_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
+                                    st.image(ch['media_path'], width=200)
+                                elif ch['media_path'].lower().endswith('.mp4'):
+                                    st.video(ch['media_path'])
                 
                 st.markdown("---")
                 u_msg_text = st.text_area("Type Your Message", key="user_tab_msg_input")
@@ -2377,9 +2460,10 @@ with tab_messages:
                     if u_msg_text or u_msg_media:
                         m_path = ""
                         if u_msg_media:
-                            m_path = os.path.join(UPLOAD_DIR, f"msg_{uuid.uuid4()}_{u_msg_media.name}")
-                            with open(m_path, "wb") as f:
+                            temp_chat_path = os.path.join(UPLOAD_DIR, f"msg_{uuid.uuid4()}_{u_msg_media.name}")
+                            with open(temp_chat_path, "wb") as f:
                                 f.write(u_msg_media.getbuffer())
+                            m_path = upload_file_to_cloudflare_r2(temp_chat_path, f"chats/{os.path.basename(temp_chat_path)}")
                         
                         msg_id = str(uuid.uuid4())
                         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -2406,9 +2490,11 @@ with tab_messages:
                 
                 if submit_to_owner:
                     if owner_file:
-                        f_path = os.path.join(UPLOAD_DIR, f"owner_vault_{uuid.uuid4()}_{owner_file.name}")
-                        with open(f_path, "wb") as f:
+                        temp_owner_path = os.path.join(UPLOAD_DIR, f"owner_vault_{uuid.uuid4()}_{owner_file.name}")
+                        with open(temp_owner_path, "wb") as f:
                             f.write(owner_file.getbuffer())
+                            
+                        f_path = upload_file_to_cloudflare_r2(temp_owner_path, f"owner_vault/{os.path.basename(temp_owner_path)}")
                             
                         u_name = current_user.get("full_name", "User")
                         u_id = st.session_state.user_id
@@ -2475,8 +2561,11 @@ with tab_monetization:
 
     col_qr_disp1, col_qr_disp2 = st.columns([1, 1])
     with col_qr_disp1:
-        if saved_qr_image and os.path.exists(saved_qr_image):
-            st.image(saved_qr_image, width=320, caption="Bangla QR Code")
+        if saved_qr_image:
+            if saved_qr_image.startswith("http"):
+                st.image(saved_qr_image, width=320, caption="Bangla QR Code")
+            elif os.path.exists(saved_qr_image):
+                st.image(saved_qr_image, width=320, caption="Bangla QR Code")
         else:
             st.info("📌 Upload the Bangla QR image in Tab 1 (Global Branding) of the Owner Panel.")
 
@@ -2530,9 +2619,10 @@ with tab_monetization:
                     else:
                         v_file_path = ""
                         if sp_video_file:
-                            v_file_path = os.path.join(UPLOAD_DIR, f"sp_{uuid.uuid4()}.mp4")
-                            with open(v_file_path, "wb") as f:
+                            temp_sp_path = os.path.join(UPLOAD_DIR, f"sp_{uuid.uuid4()}.mp4")
+                            with open(temp_sp_path, "wb") as f:
                                 f.write(sp_video_file.getbuffer())
+                            v_file_path = upload_file_to_cloudflare_r2(temp_sp_path, f"sponsor/{os.path.basename(temp_sp_path)}")
 
                         req_id = str(uuid.uuid4())
                         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
