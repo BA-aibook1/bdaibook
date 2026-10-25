@@ -52,7 +52,6 @@ def upload_file_to_cloudflare_r2(file_path, object_name):
     if not client:
         return f"{R2_PUBLIC_DEV_URL.rstrip('/')}/{object_name}"
     try:
-        # ফাইল ফরম্যাট অনুযায়ী সঠিক ContentType সেট করা হয়েছে যাতে R2 তে ফাইল পারফেক্টলি আপলোড হয়
         content_type = 'application/octet-stream'
         lower_path = file_path.lower()
         if lower_path.endswith(('.jpg', '.jpeg')):
@@ -80,10 +79,6 @@ def upload_file_to_cloudflare_r2(file_path, object_name):
 # AUTHENTICATION & GLOBAL IDENTIFIER VALIDATION ENGINE
 # ==========================================
 def validate_global_auth_identifier(user_input):
-    """
-    Validates if input is a valid @gmail.com OR valid global phone number (7 to 15 digits).
-    Returns (True/False, "Gmail"/"Phone"/"Invalid", Cleaned_Identifier)
-    """
     if not user_input:
         return False, "Invalid", ""
         
@@ -118,9 +113,6 @@ except ImportError:
     MOVIEPY_AVAILABLE = False
 
 def compress_video_automatically(input_path, output_path):
-    """
-    Auto compression logic to reduce large video size (MB) and ensure fast upload.
-    """
     if not MOVIEPY_AVAILABLE:
         with open(input_path, 'rb') as f_in, open(output_path, 'wb') as f_out:
             f_out.write(f_in.read())
@@ -938,7 +930,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     media_path = post.get("media_path")
     cat = post.get("post_category", "general")
     
-    # ফিক্সড ভিডিও রেন্ডারিং (HTML5 Video Tag ব্যবহার করা হয়েছে যাতে R2 থেকে ভিডিও পারফেক্টলি প্লে হয়)
+    # শতভাগ কার্যকরী ব্রাউজার কমপ্যাটিবল HTML5 ভিডিও রেন্ডারিং ফিক্স
     if media_path and cat != "text":
         if media_path.startswith("http://") or media_path.startswith("https://"):
             st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
@@ -950,7 +942,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
             elif cat == "short":
                 st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
                 st.markdown(f'''
-                    <video width="100%" controls autoplay muted loop playsinline style="border-radius:12px;">
+                    <video width="100%" controls preload="metadata" playsinline webkit-playsinline style="border-radius:12px; background:#000;">
                         <source src="{media_path}" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
@@ -958,7 +950,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                 st.markdown("</div>", unsafe_allow_html=True)
             else:
                 st.markdown(f'''
-                    <video width="100%" controls style="border-radius:12px;">
+                    <video width="100%" controls preload="metadata" playsinline webkit-playsinline style="border-radius:12px; background:#000;">
                         <source src="{media_path}" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
@@ -971,7 +963,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
             elif cat == "short":
                 st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
                 st.markdown(f'''
-                    <video width="100%" controls autoplay muted loop playsinline style="border-radius:12px;">
+                    <video width="100%" controls preload="metadata" playsinline webkit-playsinline style="border-radius:12px; background:#000;">
                         <source src="{media_path}" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
@@ -979,7 +971,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                 st.markdown("</div>", unsafe_allow_html=True)
             else:
                 st.markdown(f'''
-                    <video width="100%" controls style="border-radius:12px;">
+                    <video width="100%" controls preload="metadata" playsinline webkit-playsinline style="border-radius:12px; background:#000;">
                         <source src="{media_path}" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
@@ -1083,7 +1075,6 @@ with tab_feed:
         
         o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16, o_tab17, o_tab18 = o_tabs
         
-        # 1ST SCREEN: GLOBAL BRANDING
         with o_tab1:
             st.markdown("#### 🖼️ Global Branding, Logo & QR Setup")
             new_app_name = st.text_input("Header App Name", value=get_setting("app_name", "BD AI Book"))
@@ -1315,7 +1306,7 @@ with tab_feed:
                                 st.image(lp['media_path'], width=300)
                             else:
                                 st.markdown(f'''
-                                    <video width="100%" controls style="border-radius:12px;">
+                                    <video width="100%" controls preload="metadata" playsinline style="border-radius:12px; background:#000;">
                                         <source src="{lp['media_path']}" type="video/mp4">
                                         Your browser does not support the video tag.
                                     </video>
@@ -1325,7 +1316,7 @@ with tab_feed:
                                 st.image(lp['media_path'], width=300)
                             else:
                                 st.markdown(f'''
-                                    <video width="100%" controls style="border-radius:12px;">
+                                    <video width="100%" controls preload="metadata" playsinline style="border-radius:12px; background:#000;">
                                         <source src="{lp['media_path']}" type="video/mp4">
                                         Your browser does not support the video tag.
                                     </video>
@@ -2030,7 +2021,7 @@ with tab_feed:
                                     st.image(vi['file_path'], width=250)
                                 else:
                                     st.markdown(f'''
-                                        <video width="100%" controls style="border-radius:12px;">
+                                        <video width="100%" controls preload="metadata" playsinline style="border-radius:12px; background:#000;">
                                             <source src="{vi['file_path']}" type="video/mp4">
                                             Your browser does not support the video tag.
                                         </video>
@@ -2040,7 +2031,7 @@ with tab_feed:
                                     st.image(vi['file_path'], width=250)
                                 elif vi['file_path'].lower().endswith('.mp4'):
                                     st.markdown(f'''
-                                        <video width="100%" controls style="border-radius:12px;">
+                                        <video width="100%" controls preload="metadata" playsinline style="border-radius:12px; background:#000;">
                                             <source src="{vi['file_path']}" type="video/mp4">
                                             Your browser does not support the video tag.
                                         </video>
@@ -2073,7 +2064,7 @@ with tab_feed:
                                     st.image(msg['media_path'], width=200)
                                 else:
                                     st.markdown(f'''
-                                        <video width="100%" controls style="border-radius:12px;">
+                                        <video width="100%" controls preload="metadata" playsinline style="border-radius:12px; background:#000;">
                                             <source src="{msg['media_path']}" type="video/mp4">
                                             Your browser does not support the video tag.
                                         </video>
@@ -2083,13 +2074,12 @@ with tab_feed:
                                     st.image(msg['media_path'], width=200)
                                 elif msg['media_path'].lower().endswith('.mp4'):
                                     st.markdown(f'''
-                                        <video width="100%" controls style="border-radius:12px;">
+                                        <video width="100%" controls preload="metadata" playsinline style="border-radius:12px; background:#000;">
                                             <source src="{msg['media_path']}" type="video/mp4">
                                             Your browser does not support the video tag.
                                         </video>
                                     ''', unsafe_allow_html=True)
 
-        # 18TH SCREEN: ADVANCED VIDEO ANALYTICS
         with o_tab18:
             st.markdown("#### 📊 18th Screen: Advanced Video Analytics & Monetization Hub")
             st.caption("Special owner panel to analyze video performance, total views, engagement, and overall platform earnings.")
@@ -2524,7 +2514,7 @@ with tab_messages:
                                     st.image(ch['media_path'], width=200)
                                 else:
                                     st.markdown(f'''
-                                        <video width="100%" controls style="border-radius:12px;">
+                                        <video width="100%" controls preload="metadata" playsinline style="border-radius:12px; background:#000;">
                                             <source src="{ch['media_path']}" type="video/mp4">
                                             Your browser does not support the video tag.
                                         </video>
@@ -2534,7 +2524,7 @@ with tab_messages:
                                     st.image(ch['media_path'], width=200)
                                 elif ch['media_path'].lower().endswith('.mp4'):
                                     st.markdown(f'''
-                                        <video width="100%" controls style="border-radius:12px;">
+                                        <video width="100%" controls preload="metadata" playsinline style="border-radius:12px; background:#000;">
                                             <source src="{ch['media_path']}" type="video/mp4">
                                             Your browser does not support the video tag.
                                         </video>
