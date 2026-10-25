@@ -25,6 +25,7 @@ R2_BUCKET_NAME = "bd-ai-book-videos" # আপনার তৈরি করা �
 R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY", "YOUR_R2_ACCESS_KEY")
 R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_KEY", "YOUR_R2_SECRET_KEY")
 R2_ENDPOINT_URL = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+R2_PUBLIC_DEV_URL = "https://pub-0e1a987c6fd240bcb4cdec3133f1165f.r2.dev"
 
 def get_r2_client():
     if not R2_AVAILABLE:
@@ -44,15 +45,15 @@ def get_r2_client():
 
 def upload_file_to_cloudflare_r2(file_path, object_name):
     """
-    ফাইল সরাসরি Cloudflare R2 বাকেটে আপলোড করার ফাংশন
+    ফাইল সরাসরি Cloudflare R2 বাকেটে আপলোড করার ফাংশন এবং সঠিক পাবলিক ইউআরএল রিটার্ন করার ব্যবস্থা
     """
     client = get_r2_client()
     if not client:
         return file_path # ক্লায়েন্ট না থাকলে লোকাল পাথ রিটার্ন করবে
     try:
         client.upload_file(file_path, R2_BUCKET_NAME, object_name)
-        # পাবলিক এক্সেস ইউআরএল অথবা ফাইল অবজেক্ট নেম রিটার্ন করবে
-        return f"https://pub-r2.dev/{object_name}" # অথবা আপনার কাস্টম ডোমেইন/পাবলিক লিংকের ফরম্যাট
+        # সঠিক পাবলিক ডেভেলপমেন্ট ইউআরএল ফরম্যাট
+        return f"{R2_PUBLIC_DEV_URL}/{object_name}"
     except Exception:
         return file_path
 
@@ -925,7 +926,16 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     
     if media_path and cat != "text":
         if media_path.startswith("http://") or media_path.startswith("https://"):
-            st.video(media_path)
+            st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
+            if cat == "picture":
+                st.image(media_path, use_container_width=True)
+            elif cat == "short":
+                st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
+                st.video(media_path)
+                st.markdown("</div>", unsafe_allow_html=True)
+            else:
+                st.video(media_path)
+            st.markdown("</div>", unsafe_allow_html=True)
         elif os.path.exists(media_path):
             st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
             if cat == "picture":
@@ -937,6 +947,8 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
             else:
                 st.video(media_path)
             st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            st.warning(f"⚠ Media file not found locally or invalid path: {media_path}")
 
     if ads_enabled and ads_html:
         st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
