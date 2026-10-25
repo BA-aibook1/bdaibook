@@ -22,8 +22,8 @@ except ImportError:
 # Your Verified Cloudflare R2 Credentials & Public URL Configured
 R2_ACCOUNT_ID = "978cadf3e0c8db6ea26f1300ec86dd5d"
 R2_BUCKET_NAME = "bd-ai-book-videos" 
-R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY", "YOUR_R2_ACCESS_KEY")
-R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_KEY", "YOUR_R2_SECRET_KEY")
+R2_ACCESS_KEY_ID = "25c838dc2e25513ee54e9cb7ba8d7f98"
+R2_SECRET_ACCESS_KEY = "9198394a4929d07f4932e3cedb49fb72b41b3f7c09984da3cdb1a5e59b0432af"
 R2_ENDPOINT_URL = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 R2_PUBLIC_DEV_URL = "https://pub-0e1a987c6fd240bcb4cdec3133f1165f.r2.dev"
 
@@ -48,14 +48,15 @@ def upload_file_to_cloudflare_r2(file_path, object_name):
     Function to upload files directly to Cloudflare R2 bucket and return public URL
     """
     client = get_r2_client()
+    object_name = object_name.lstrip("/")
     if not client:
-        return f"{R2_PUBLIC_DEV_URL}/{object_name}"
+        return f"{R2_PUBLIC_DEV_URL.rstrip('/')}/{object_name}"
     try:
         client.upload_file(file_path, R2_BUCKET_NAME, object_name)
-        return f"{R2_PUBLIC_DEV_URL}/{object_name}"
+        return f"{R2_PUBLIC_DEV_URL.rstrip('/')}/{object_name}"
     except Exception as e:
         print(f"R2 Upload Failed: {e}")
-        return f"{R2_PUBLIC_DEV_URL}/{object_name}"
+        return f"{R2_PUBLIC_DEV_URL.rstrip('/')}/{object_name}"
 
 # ==========================================
 # AUTHENTICATION & GLOBAL IDENTIFIER VALIDATION ENGINE
