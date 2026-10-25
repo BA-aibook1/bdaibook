@@ -1,3 +1,5 @@
 streamlit
-psycopg2-binary
-google-cloud-storage
+pillow
+moviepy
+google-cloud-vision
+boto3
