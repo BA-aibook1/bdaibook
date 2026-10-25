@@ -52,8 +52,26 @@ def upload_file_to_cloudflare_r2(file_path, object_name):
     if not client:
         return f"{R2_PUBLIC_DEV_URL.rstrip('/')}/{object_name}"
     try:
-        client.upload_file(file_path, R2_BUCKET_NAME, object_name)
-        return f"{R2_PUBLIC_DEV_URL.rstrip('/')}/{object_name}"
+        # ফাইল ফরম্যাট অনুযায়ী সঠিক ContentType সেট করা হয়েছে যাতে R2 তে ফাইল পারফেক্টলি আপলোড হয়
+        content_type = 'application/octet-stream'
+        lower_path = file_path.lower()
+        if lower_path.endswith(('.jpg', '.jpeg')):
+            content_type = 'image/jpeg'
+        elif lower_path.endswith('.png'):
+            content_type = 'image/png'
+        elif lower_path.endswith('.mp4'):
+            content_type = 'video/mp4'
+        elif lower_path.endswith('.webm'):
+            content_type = 'video/webm'
+
+        client.upload_file(
+            file_path, 
+            R2_BUCKET_NAME, 
+            object_name,
+            ExtraArgs={'ContentType': content_type}
+        )
+        public_url = f"{R2_PUBLIC_DEV_URL.rstrip('/')}/{object_name}"
+        return public_url
     except Exception as e:
         print(f"R2 Upload Failed: {e}")
         return f"{R2_PUBLIC_DEV_URL.rstrip('/')}/{object_name}"
