@@ -1,5 +1,5 @@
 streamlit
-pillow
+boto3
 moviepy
 google-cloud-vision
-boto3
+pillow
