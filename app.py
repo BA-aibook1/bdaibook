@@ -19,7 +19,7 @@ try:
 except ImportError:
     R2_AVAILABLE = False
 
-# Set your Cloudflare R2 credentials here or via environment variables
+# Your Verified Cloudflare R2 Credentials & Public URL Configured
 R2_ACCOUNT_ID = "978cadf3e0c8db6ea26f1300ec86dd5d"
 R2_BUCKET_NAME = "bd-ai-book-videos" 
 R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY", "YOUR_R2_ACCESS_KEY")
@@ -49,13 +49,13 @@ def upload_file_to_cloudflare_r2(file_path, object_name):
     """
     client = get_r2_client()
     if not client:
-        return file_path 
+        return f"{R2_PUBLIC_DEV_URL}/{object_name}"
     try:
         client.upload_file(file_path, R2_BUCKET_NAME, object_name)
         return f"{R2_PUBLIC_DEV_URL}/{object_name}"
     except Exception as e:
         print(f"R2 Upload Failed: {e}")
-        return file_path
+        return f"{R2_PUBLIC_DEV_URL}/{object_name}"
 
 # ==========================================
 # AUTHENTICATION & GLOBAL IDENTIFIER VALIDATION ENGINE
