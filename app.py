@@ -19,9 +19,9 @@ try:
 except ImportError:
     R2_AVAILABLE = False
 
-# আপনার Cloudflare R2 ক্রডেনশিয়ালস এখানে সেট করুন
+# Set your Cloudflare R2 credentials here or via environment variables
 R2_ACCOUNT_ID = "978cadf3e0c8db6ea26f1300ec86dd5d"
-R2_BUCKET_NAME = "bd-ai-book-videos" # আপনার তৈরি করা বাকিটের নাম এখানে দিন
+R2_BUCKET_NAME = "bd-ai-book-videos" 
 R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY", "YOUR_R2_ACCESS_KEY")
 R2_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_KEY", "YOUR_R2_SECRET_KEY")
 R2_ENDPOINT_URL = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
@@ -31,8 +31,7 @@ def get_r2_client():
     if not R2_AVAILABLE:
         return None
     try:
-        session = boto3.session.Session()
-        client = session.client(
+        client = boto3.client(
             's3',
             endpoint_url=R2_ENDPOINT_URL,
             aws_access_key_id=R2_ACCESS_KEY_ID,
@@ -40,21 +39,22 @@ def get_r2_client():
             region_name='auto'
         )
         return client
-    except Exception:
+    except Exception as e:
+        print(f"R2 Client Error: {e}")
         return None
 
 def upload_file_to_cloudflare_r2(file_path, object_name):
     """
-    ফাইল সরাসরি Cloudflare R2 বাকেটে আপলোড করার ফাংশন এবং সঠিক পাবলিক ইউআরএল রিটার্ন করার ব্যবস্থা
+    Function to upload files directly to Cloudflare R2 bucket and return public URL
     """
     client = get_r2_client()
     if not client:
-        return file_path # ক্লায়েন্ট না থাকলে লোকাল পাথ রিটার্ন করবে
+        return file_path 
     try:
         client.upload_file(file_path, R2_BUCKET_NAME, object_name)
-        # সঠিক পাবলিক ডেভেলপমেন্ট ইউআরএল ফরম্যাট
         return f"{R2_PUBLIC_DEV_URL}/{object_name}"
-    except Exception:
+    except Exception as e:
+        print(f"R2 Upload Failed: {e}")
         return file_path
 
 # ==========================================
@@ -69,11 +69,7 @@ def validate_global_auth_identifier(user_input):
         return False, "Invalid", ""
         
     user_input = user_input.strip()
-    
-    # Strict Gmail Format
     gmail_pattern = r'^[a-zA-Z0-9._%+-]+@gmail\.com$'
-    
-    # Worldwide Phone Number Format (Supports + prefix, 7 to 15 digits)
     phone_pattern = r'^\+?[1-9]\d{6,14}$'
     
     if re.match(gmail_pattern, user_input, re.IGNORECASE):
@@ -81,7 +77,6 @@ def validate_global_auth_identifier(user_input):
         return True, "Gmail", cleaned_id
     elif re.match(phone_pattern, user_input):
         cleaned_id = user_input
-        # Standardize Bangladeshi numbers to prevent duplicates with/without +88
         if cleaned_id.startswith("01") and len(cleaned_id) == 11:
             cleaned_id = "+88" + cleaned_id
         return True, "Phone", cleaned_id
@@ -1047,7 +1042,7 @@ with tab_feed:
         
         # 1ST SCREEN: GLOBAL BRANDING
         with o_tab1:
-            st.markdown("#### 🖼️ Global Branding, Logo & Bangla QR Setup")
+            st.markdown("#### 🖼️ Global Branding, Logo & QR Setup")
             new_app_name = st.text_input("Header App Name", value=get_setting("app_name", "BD AI Book"))
             new_announcement = st.text_area("Global Owner Announcement", value=get_setting("owner_announcement", ""))
             
@@ -1060,10 +1055,10 @@ with tab_feed:
                     st.image(curr_l, width=80)
             
             with col_b_img2:
-                up_bangla_qr = st.file_uploader("Upload Bangla QR Image (TaliPay / Bank)", type=["png", "jpg", "jpeg"], key="up_bangla_qr_main")
+                up_bangla_qr = st.file_uploader("Upload QR Image (TaliPay / Bank)", type=["png", "jpg", "jpeg"], key="up_bangla_qr_main")
                 curr_qr = get_setting("bangla_qr_path")
                 if curr_qr and os.path.exists(curr_qr):
-                    st.caption("Current Active Bangla QR:")
+                    st.caption("Current Active QR:")
                     st.image(curr_qr, width=120)
             
             if st.button("💾 Save Branding & QR Updates", use_container_width=True):
@@ -1077,7 +1072,7 @@ with tab_feed:
                     qr_path = os.path.join(UPLOAD_DIR, "bangla_qr_code.png")
                     with open(qr_path, "wb") as f: f.write(up_bangla_qr.getbuffer())
                     set_setting("bangla_qr_path", qr_path)
-                st.success("✅ Branding Logo and Bangla QR Image Updated Successfully!")
+                st.success("✅ Branding Logo and QR Image Updated Successfully!")
                 st.rerun()
 
         with o_tab2:
@@ -1128,8 +1123,8 @@ with tab_feed:
         with o_tab4:
             st.markdown("#### 🏦 Dynamic Payment Gateway Control")
             with st.form("add_new_payment_method"):
-                m_type = st.selectbox("Method Type", ["Mobile Banking", "Bank Transfer (Foreign)", "Bank Transfer (BD)", "Crypto / International"])
-                p_name = st.text_input("Provider / Bank Name", placeholder="e.g. Clear Bank / Islami Bank / USDT TRC20")
+                m_type = st.selectbox("Method Type", ["Mobile Banking", "Bank Transfer (Foreign)", "Bank Transfer (Local)", "Crypto / International"])
+                p_name = st.text_input("Provider / Bank Name", placeholder="e.g. Clear Bank / Commercial Bank / USDT TRC20")
                 p_details = st.text_area("Account Details / Number", placeholder="e.g. Account No / IBAN / Crypto Address")
                 submit_gw = st.form_submit_button("➕ Add New Payment Method")
                 
@@ -1893,7 +1888,6 @@ with tab_feed:
                             temp_msg_path = os.path.join(UPLOAD_DIR, f"msg_{uuid.uuid4()}_{msg_media.name}")
                             with open(temp_msg_path, "wb") as f:
                                 f.write(msg_media.getbuffer())
-                            # Cloudflare R2 এ আপলোড
                             m_path = upload_file_to_cloudflare_r2(temp_msg_path, f"messages/{os.path.basename(temp_msg_path)}")
                         
                         msg_id = str(uuid.uuid4())
@@ -1926,7 +1920,6 @@ with tab_feed:
                         with open(temp_vault_path, "wb") as f:
                             f.write(owner_file.getbuffer())
                         
-                        # Cloudflare R2 এ আপলোড
                         f_path = upload_file_to_cloudflare_r2(temp_vault_path, f"owner_vault/{os.path.basename(temp_vault_path)}")
                             
                         u_name = current_user.get("full_name", "Anonymous/Guest")
@@ -2213,7 +2206,6 @@ with tab_profile:
                 if up_prof:
                     temp_dp_path = os.path.join(UPLOAD_DIR, f"dp_{st.session_state.user_id}.png")
                     with open(temp_dp_path, "wb") as f: f.write(up_prof.getbuffer())
-                    # Cloudflare R2 এ আপলোড
                     p_path = upload_file_to_cloudflare_r2(temp_dp_path, f"profiles/{os.path.basename(temp_dp_path)}")
                     
                 conn = get_db_connection()
@@ -2290,7 +2282,7 @@ with tab_profile:
                     st.rerun()
                 elif uploaded_media and title:
                     if not use_live_camera:
-                        MAX_FILE_SIZE_MB = 700 * 1024 * 1024  # 700 MB limit
+                        MAX_FILE_SIZE_MB = 700 * 1024 * 1024
                         if uploaded_media.size > MAX_FILE_SIZE_MB:
                             st.error("🚫 File size cannot exceed 700 MB!")
                             st.stop()
@@ -2344,12 +2336,10 @@ with tab_profile:
                             st.error("🚫 Google AI Auto-Moderation: Inappropriate content detected in image! Post rejected.")
                             st.stop()
 
-                    # ফাইলটি এখন সরাসরি Cloudflare R2-এ আপলোড হবে
                     with st.spinner("☁️ Uploading media directly to Cloudflare R2 Object Storage..."):
                         r2_object_key = f"posts/{uuid.uuid4()}{final_ext}"
                         m_path = upload_file_to_cloudflare_r2(compressed_path, r2_object_key)
                     
-                    # লোকাল ফাইল ক্লিনআপ
                     if os.path.exists(compressed_path):
                         try:
                             os.remove(compressed_path)
@@ -2528,7 +2518,7 @@ with tab_messages:
                         st.error("Please select a photo or file first.")
 
 # ==========================================
-# WORLDWIDE MONETIZATION, BOOST & BANGLA QR PANEL
+# WORLDWIDE MONETIZATION, BOOST & QR PANEL
 # ==========================================
 with tab_monetization:
     st.markdown("### 💸 Worldwide Monetization & Video Boost Center")
@@ -2560,13 +2550,13 @@ with tab_monetization:
 
     st.markdown("---")
     st.markdown("### 💼 Third-Party Sponsor, Boost & Video Payment Panel")
-    st.caption("Pay via Bangla QR for video posts, boosting, or sponsorships:")
+    st.caption("Pay via QR for video posts, boosting, or sponsorships:")
 
     saved_qr_image = get_setting("bangla_qr_path")
     
     st.markdown("""
     <div style='background:#111827; border:2px solid #1877F2; padding:15px; border-radius:16px; text-align:center; margin-bottom:15px;'>
-        <h3 style='color:#1877F2; margin-bottom:5px;'>📲 Pay via Bangla QR (bKash / Nagad / Bank)</h3>
+        <h3 style='color:#1877F2; margin-bottom:5px;'>📲 Pay via QR Code</h3>
         <p style='color:#ccc; font-size:14px;'>Scan the QR code to complete payment for video promotions, boosting, or sponsored posts.</p>
     </div>
     """, unsafe_allow_html=True)
@@ -2575,11 +2565,11 @@ with tab_monetization:
     with col_qr_disp1:
         if saved_qr_image:
             if saved_qr_image.startswith("http"):
-                st.image(saved_qr_image, width=320, caption="Bangla QR Code")
+                st.image(saved_qr_image, width=320, caption="QR Code")
             elif os.path.exists(saved_qr_image):
-                st.image(saved_qr_image, width=320, caption="Bangla QR Code")
+                st.image(saved_qr_image, width=320, caption="QR Code")
         else:
-            st.info("📌 Upload the Bangla QR image in Tab 1 (Global Branding) of the Owner Panel.")
+            st.info("📌 Upload the QR image in Tab 1 (Global Branding) of the Owner Panel.")
 
     with col_qr_disp2:
         st.markdown("""
@@ -2639,7 +2629,7 @@ with tab_monetization:
                         req_id = str(uuid.uuid4())
                         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         
-                        payment_info_note = f"Bangla QR (Sender: {sender_num})" if sender_num else "Bangla QR Direct"
+                        payment_info_note = f"QR Code (Sender: {sender_num})" if sender_num else "QR Code Direct"
                         conn = get_db_connection()
                         try:
                             c = conn.cursor()
