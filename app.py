@@ -853,7 +853,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     finally:
         conn.close()
 
-    author_pic = author["profile_pic_path"] if author and author["profile_pic_path"] and os.path.exists(author["profile_pic_path"]) else None
+    author_pic = author["profile_pic_path"] if author and author["profile_pic_path"] and (author["profile_pic_path"].startswith("http") or os.path.exists(author["profile_pic_path"])) else None
     
     col_h1, col_h2 = st.columns([3, 2])
     with col_h1:
@@ -924,7 +924,10 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         if media_path.startswith("http://") or media_path.startswith("https://"):
             st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
             if cat == "picture":
-                st.image(media_path, use_container_width=True)
+                try:
+                    st.image(media_path, use_container_width=True)
+                except Exception:
+                    st.error("⚠ ছবি লোড করতে সমস্যা হচ্ছে বা লিংকটি সঠিক নয়।")
             elif cat == "short":
                 st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
                 st.video(media_path)
@@ -944,7 +947,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                 st.video(media_path)
             st.markdown("</div>", unsafe_allow_html=True)
         else:
-            st.warning(f"⚠ Media file not found locally or invalid path: {media_path}")
+            st.warning(f"⚠ মিডিয়া ফাইলটি লোকালি পাওয়া যায়নি বা পাথ ভুল রয়েছে: {media_path}")
 
     if ads_enabled and ads_html:
         st.markdown("<div class='ad-container'>", unsafe_allow_html=True)
@@ -1051,14 +1054,14 @@ with tab_feed:
             with col_b_img1:
                 up_logo = st.file_uploader("Change Master Logo", type=["png", "jpg", "jpeg"], key="up_logo_main")
                 curr_l = get_setting("logo_path")
-                if curr_l and os.path.exists(curr_l):
+                if curr_l and (curr_l.startswith("http") or os.path.exists(curr_l)):
                     st.caption("Current Active Logo:")
                     st.image(curr_l, width=80)
             
             with col_b_img2:
                 up_bangla_qr = st.file_uploader("Upload QR Image (TaliPay / Bank)", type=["png", "jpg", "jpeg"], key="up_bangla_qr_main")
                 curr_qr = get_setting("bangla_qr_path")
-                if curr_qr and os.path.exists(curr_qr):
+                if curr_qr and (curr_qr.startswith("http") or os.path.exists(curr_qr)):
                     st.caption("Current Active QR:")
                     st.image(curr_qr, width=120)
             
@@ -1066,12 +1069,14 @@ with tab_feed:
                 set_setting("app_name", new_app_name)
                 set_setting("owner_announcement", new_announcement)
                 if up_logo:
-                    l_path = os.path.join(UPLOAD_DIR, "site_logo.png")
-                    with open(l_path, "wb") as f: f.write(up_logo.getbuffer())
+                    l_temp_path = os.path.join(UPLOAD_DIR, "site_logo.png")
+                    with open(l_temp_path, "wb") as f: f.write(up_logo.getbuffer())
+                    l_path = upload_file_to_cloudflare_r2(l_temp_path, "branding/site_logo.png")
                     set_setting("logo_path", l_path)
                 if up_bangla_qr:
-                    qr_path = os.path.join(UPLOAD_DIR, "bangla_qr_code.png")
-                    with open(qr_path, "wb") as f: f.write(up_bangla_qr.getbuffer())
+                    qr_temp_path = os.path.join(UPLOAD_DIR, "bangla_qr_code.png")
+                    with open(qr_temp_path, "wb") as f: f.write(up_bangla_qr.getbuffer())
+                    qr_path = upload_file_to_cloudflare_r2(qr_temp_path, "branding/bangla_qr_code.png")
                     set_setting("bangla_qr_path", qr_path)
                 st.success("✅ Branding Logo and QR Image Updated Successfully!")
                 st.rerun()
@@ -1267,7 +1272,10 @@ with tab_feed:
                     
                     if lp['media_path']:
                         if lp['media_path'].startswith("http"):
-                            st.video(lp['media_path'])
+                            if lp['post_category'] == 'picture':
+                                st.image(lp['media_path'], width=300)
+                            else:
+                                st.video(lp['media_path'])
                         elif os.path.exists(lp['media_path']):
                             if lp['post_category'] == 'picture':
                                 st.image(lp['media_path'], width=300)
@@ -1672,9 +1680,10 @@ with tab_feed:
                 
                 if submit_song and song_file and song_title:
                     song_id = str(uuid.uuid4())
-                    s_path = os.path.join(UPLOAD_DIR, f"free_song_{song_id}.mp3")
-                    with open(s_path, "wb") as f:
+                    s_temp_path = os.path.join(UPLOAD_DIR, f"free_song_{song_id}.mp3")
+                    with open(s_temp_path, "wb") as f:
                         f.write(song_file.getbuffer())
+                    s_path = upload_file_to_cloudflare_r2(s_temp_path, f"music/free_song_{song_id}.mp3")
                     
                     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     conn = get_db_connection()
@@ -2156,11 +2165,8 @@ with tab_profile:
         
         col_p1, col_p2 = st.columns([1, 4])
         with col_p1:
-            if profile_path:
-                if profile_path.startswith("http"):
-                    st.image(profile_path, width=120)
-                elif os.path.exists(profile_path):
-                    st.image(profile_path, width=120)
+            if profile_path and (profile_path.startswith("http") or os.path.exists(profile_path)):
+                st.image(profile_path, width=120)
             else:
                 st.info("No Profile Pic")
         with col_p2:
@@ -2207,7 +2213,7 @@ with tab_profile:
                 if up_prof:
                     temp_dp_path = os.path.join(UPLOAD_DIR, f"dp_{st.session_state.user_id}.png")
                     with open(temp_dp_path, "wb") as f: f.write(up_prof.getbuffer())
-                    p_path = upload_file_to_cloudflare_r2(temp_dp_path, f"profiles/{os.path.basename(temp_dp_path)}")
+                    p_path = upload_file_to_cloudflare_r2(temp_dp_path, f"profiles/dp_{st.session_state.user_id}.png")
                     
                 conn = get_db_connection()
                 try:
@@ -2565,9 +2571,7 @@ with tab_monetization:
     col_qr_disp1, col_qr_disp2 = st.columns([1, 1])
     with col_qr_disp1:
         if saved_qr_image:
-            if saved_qr_image.startswith("http"):
-                st.image(saved_qr_image, width=320, caption="QR Code")
-            elif os.path.exists(saved_qr_image):
+            if saved_qr_image.startswith("http") or os.path.exists(saved_qr_image):
                 st.image(saved_qr_image, width=320, caption="QR Code")
         else:
             st.info("📌 Upload the QR image in Tab 1 (Global Branding) of the Owner Panel.")
