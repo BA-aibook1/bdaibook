@@ -11,6 +11,27 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ==========================================
+# GEMINI AI API CONFIGURATION & ENGINE
+# ==========================================
+try:
+    import google.generativeai as genai
+    GEMINI_API_KEY = "AQ.Ab8RN6KNn-aC8BXjCv-oFLinyxiHmMeKmL_SacdYhCuVvyPz0w"
+    genai.configure(api_key=GEMINI_API_KEY)
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+
+def ask_gemini_ai_assistant(prompt_text):
+    if not GEMINI_AVAILABLE:
+        return "Gemini library not available."
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt_text)
+        return response.text
+    except Exception as e:
+        return f"Gemini AI Error: {str(e)}"
+
+# ==========================================
 # CLOUDFLARE R2 OBJECT STORAGE CONFIGURATION
 # ==========================================
 try:
@@ -562,7 +583,8 @@ def init_master_database():
             "auto_duplicate_detector": "ON",
             "site_verification_code": "",
             "is_global_meta_active": "true",
-            "meta_mode": "SELECTED_USERS"
+            "meta_mode": "SELECTED_USERS",
+            "payout_rate_per_1k": "0.50"
         }
         
         for k, v in default_settings.items():
@@ -650,6 +672,33 @@ def check_user_meta_bluetooth_permission(user_id):
         finally:
             conn.close()
     return False
+
+# ==========================================
+# AUTOMATED VIEW-BASED 50-50 MONETIZATION ENGINE
+# ==========================================
+def calculate_user_earnings(user_id):
+    conn = get_db_connection()
+    try:
+        c = conn.cursor()
+        c.execute("SELECT post_category, views_count FROM master_app_table WHERE data_type = 'post' AND user_id = ?", (user_id,))
+        posts = c.fetchall()
+    finally:
+        conn.close()
+
+    total_gross = 0.0
+    for p in posts:
+        cat = p["post_category"]
+        views = p["views_count"] or 0
+        if cat in ["short", "long"]:
+            total_gross += (views / 1000.0) * 0.10
+        elif cat == "picture":
+            total_gross += (views / 2000.0) * 0.10
+        elif cat == "text":
+            total_gross += (views / 50000.0) * 0.10
+
+    owner_share = total_gross * 0.50
+    user_share = total_gross * 0.50
+    return total_gross, owner_share, user_share
 
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "otp_code" not in st.session_state: st.session_state.otp_code = None
@@ -930,7 +979,6 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     media_path = post.get("media_path")
     cat = post.get("post_category", "general")
     
-    # শতভাগ কার্যকরী ব্রাউজার কমপ্যাটিবল HTML5 ভিডিও রেন্ডারিং ফিক্স
     if media_path and cat != "text":
         if media_path.startswith("http://") or media_path.startswith("https://"):
             st.markdown(f"<div class='video-watermark-wrapper'><div class='video-watermark-badge'>{app_name}</div>", unsafe_allow_html=True)
@@ -2248,19 +2296,19 @@ with tab_profile:
         finally:
             conn.close()
 
-        estimated_user_earnings = total_user_views * 0.0005
+        total_gross_earn, owner_earn_share, user_earn_share = calculate_user_earnings(st.session_state.user_id)
         followers_needed = max(0, 1000 - real_followers)
         
         u_col1, u_col2, u_col3, u_col4 = st.columns(4)
         u_col1.metric("🎬 Total Uploads", f"{total_user_videos:,}")
         u_col2.metric("👥 Followers / Subs", f"{real_followers:,}")
         u_col3.metric("👁️ Total Views", f"{total_user_views:,}")
-        u_col4.metric("💰 Estimated Earnings", f"${estimated_user_earnings:,.2f}")
+        u_col4.metric("💰 Your Net Earnings (50%)", f"${user_earn_share:,.2f}")
 
         if real_followers >= 1000:
             st.success("🎉 Congratulations! You have reached 1,000+ followers and are fully eligible for monetization!")
         else:
-            st.info(f"💡 Only **{followers_needed:,}** more followers needed to reach 1,000 subscribers/followers. Keep uploading regularly to achieve your goal!")
+            st.info(f"💡 Only **{followers_needed:,}** more followers needed to reach 1,000 subscribers/followers to unlock monetization. Keep uploading regularly!")
 
         with st.expander("⚙️ Edit Profile"):
             u_name = st.text_input("Name", value=current_user.get("full_name", ""))
@@ -2601,11 +2649,8 @@ with tab_monetization:
     
     mon_status = current_user.get("monetization_status", "Not Eligible")
     
-    if mon_status == "Approved":
-        st.success(f"🎉 **Monetization Active & Approved!**")
-        st.metric("Estimated Earning Balance", "$1,250.00 USD")
-    elif real_followers >= 1000:
-        st.success(f"🎉 **You are eligible for Monetization!**")
+    if real_followers >= 1000:
+        st.success(f"🎉 **Congratulations! You have reached 1,000+ followers and are eligible for monetization!**")
         with st.expander("📝 Apply for Monetization Payout"):
             bank_info_input = st.text_area("Enter Your Bank Account / Mobile Banking Details for Payouts")
             if st.button("Submit Monetization Application"):
@@ -2620,9 +2665,9 @@ with tab_monetization:
                         conn.commit()
                     finally:
                         conn.close()
-                    st.success("Application Submitted!")
+                    st.success("Application Submitted Successfully!")
     else:
-        st.info(f"📈 **Monetization Progress:** {real_followers}/1,000 Real Followers needed.")
+        st.info(f"📈 **Monetization Progress:** {real_followers}/1,000 Real Followers needed to unlock monetization.")
 
     st.markdown("---")
     st.markdown("### 💼 Third-Party Sponsor, Boost & Video Payment Panel")
