@@ -2238,7 +2238,7 @@ with tab_feed:
                     render_post_card(post, ads_enabled, ads_html, prefix="text")
 
         with sub_feed4:
-            short_posts = [p for p in posts if p.get("post_category") == "short"]
+            short_posts = [p for p in posts if p.get("post_category"] == "short"]
             if not short_posts:
                 st.info("No Reels / Short Videos uploaded yet.")
             else:
@@ -2497,118 +2497,151 @@ with tab_profile:
                     st.warning("Please provide a title and necessary content/media for your post.")
 
 # ==========================================
-# 3. USER MESSAGES & CHAT TAB
+# 3. USER MESSAGES & CHAT TAB (UPDATED WITH GEMINI & OWNER HANDOFF)
 # ==========================================
 with tab_messages:
-    st.markdown("### 💬 User Message System & Direct Chat")
+    st.markdown("### 💬 User Message System & Direct Chat with AI & Owner")
     
     if not st.session_state.user_id:
         st.warning("🔒 Please login first to send or view messages.")
     else:
-        chat_sub_tab1, chat_sub_tab2 = st.tabs(["📩 Send Message & Chat", "📤 Upload File Directly to Owner"])
+        chat_sub_tab1, chat_sub_tab2, chat_sub_tab3 = st.tabs(["🤖 Gemini AI Assistant", "📩 Inbox & Owner Chat", "📤 Upload File Directly to Owner"])
         
+        # TAB 1: GEMINI AI ASSISTANT (First Line Support & Plan Guidance)
         with chat_sub_tab1:
-            st.markdown("#### 💬 Message & Media Exchange with Users")
+            st.markdown("#### 🤖 Gemini AI Smart Assistant")
+            st.caption("Ask anything about monetization, plans, guidelines, or platform rules in Bangla or English.")
             
-            conn = get_db_connection()
-            try:
-                c = conn.cursor()
-                c.execute("SELECT user_id, full_name FROM master_app_table WHERE data_type = 'user' AND user_id != ?", (st.session_state.user_id,))
-                all_chat_users = c.fetchall()
-            finally:
-                conn.close()
+            if "ai_chat_history" not in st.session_state:
+                st.session_state.ai_chat_history = [
+                    {"role": "assistant", "content": "হ্যালো! আমি BD AI Book-এর এআই সহকারী। মনিটাইজেশন, প্ল্যান বা যেকোনো সহায়তার জন্য আমাকে বলুন। আপনি যদি সরাসরি মালিকের (Owner) সাথে কথা বলতে চান, তবে লিখুন: **'আমি মালিকের সাথে কথা বলতে চাই'**।"}
+                ]
             
-            user_dict = {f"{u['full_name']} (ID: {u['user_id'][:6]}...)" : u['user_id'] for u in all_chat_users}
-            
-            if not user_dict:
-                st.info("No other registered users available to message currently.")
-            else:
-                selected_recip_label = st.selectbox("Select User to Message:", list(user_dict.keys()), key="user_chat_recip_select")
-                target_recip_id = user_dict[selected_recip_label]
-                
-                st.markdown("##### 📜 Chat History")
-                conn = get_db_connection()
-                try:
-                    c = conn.cursor()
-                    c.execute("""
-                        SELECT * FROM user_messages 
-                        WHERE (sender_id = ? AND receiver_id = ?) 
-                           OR (sender_id = ? AND receiver_id = ?)
-                        ORDER BY created_at ASC
-                    """, (st.session_state.user_id, target_recip_id, target_recip_id, st.session_state.user_id))
-                    chat_history = c.fetchall()
-                finally:
-                    conn.close()
-                
-                if not chat_history:
-                    st.caption("No conversations yet. Send the first message!")
+            for message in st.session_state.ai_chat_history:
+                if message["role"] == "user":
+                    st.markdown(f"<div class='chat-bubble-self'><b>You:</b> {message['content']}</div><div style='clear:both;'></div>", unsafe_allow_html=True)
                 else:
-                    for ch in chat_history:
-                        is_me = (ch['sender_id'] == st.session_state.user_id)
-                        bubble_class = "chat-bubble-self" if is_me else "chat-bubble-other"
-                        sender_label = "You" if is_me else "User"
-                        
-                        st.markdown(f"""
-                        <div class='{bubble_class}'>
-                            <small style='color:#ddd;'><b>{sender_label}</b> • {ch['created_at']}</small><br>
-                            {ch['message']}
-                        </div>
-                        <div style='clear:both;'></div>
-                        """, unsafe_allow_html=True)
-                        
-                        if ch['media_path']:
-                            if ch['media_path'].startswith("http"):
-                                if ch['media_path'].lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
-                                    st.image(ch['media_path'], width=200)
-                                else:
-                                    st.markdown(f'''
-                                        <video width="100%" controls preload="metadata" playsinline style="border-radius:12px; background:#000;">
-                                            <source src="{ch['media_path']}" type="video/mp4">
-                                            Your browser does not support the video tag.
-                                        </video>
-                                    ''', unsafe_allow_html=True)
-                            elif os.path.exists(ch['media_path']):
-                                if ch['media_path'].lower().endswith(('.png', '.jpg', '.jpeg')):
-                                    st.image(ch['media_path'], width=200)
-                                elif ch['media_path'].lower().endswith('.mp4'):
-                                    st.markdown(f'''
-                                        <video width="100%" controls preload="metadata" playsinline style="border-radius:12px; background:#000;">
-                                            <source src="{ch['media_path']}" type="video/mp4">
-                                            Your browser does not support the video tag.
-                                        </video>
-                                    ''', unsafe_allow_html=True)
-                
-                st.markdown("---")
-                u_msg_text = st.text_area("Type Your Message", key="user_tab_msg_input")
-                u_msg_media = st.file_uploader("Attach Photo or Media (Optional)", type=["png", "jpg", "jpeg", "mp4"], key="user_tab_msg_media")
-                
-                if st.button("🚀 Send Message", key="user_tab_send_msg_btn"):
-                    if u_msg_text or u_msg_media:
-                        m_path = ""
-                        if u_msg_media:
-                            temp_chat_path = os.path.join(UPLOAD_DIR, f"msg_{uuid.uuid4()}_{u_msg_media.name}")
-                            with open(temp_chat_path, "wb") as f:
-                                f.write(u_msg_media.getbuffer())
-                            m_path = upload_file_to_cloudflare_r2(temp_chat_path, f"chats/{os.path.basename(temp_chat_path)}")
-                        
-                        msg_id = str(uuid.uuid4())
-                        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        
+                    st.markdown(f"<div class='chat-bubble-other'><b>Gemini AI:</b> {message['content']}</div><div style='clear:both;'></div>", unsafe_allow_html=True)
+            
+            ai_user_prompt = st.text_input("Type your question for Gemini AI...", key="ai_prompt_input")
+            if st.button("Ask AI", key="ask_ai_btn"):
+                if ai_user_prompt:
+                    st.session_state.ai_chat_history.append({"role": "user", "content": ai_user_prompt})
+                    
+                    # Check if user wants to talk to owner
+                    if "মালিকের সাথে কথা বলতে চাই" in ai_user_prompt or "talk to owner" in ai_user_prompt.lower() or "owner" in ai_user_prompt.lower():
+                        ai_reply = "⚠️ আপনার অনুরোধটি মালিকের কাছে পাঠানো হয়েছে। মালিক শীঘ্রই আপনার সাথে সরাসরি চ্যাট বক্সে যোগাযোগ করবেন।"
+                        # Automatically send a notification message to Owner Inbox
                         conn = get_db_connection()
                         try:
                             c = conn.cursor()
                             c.execute("""
                                 INSERT INTO user_messages (msg_id, sender_id, receiver_id, message, media_path, created_at)
-                                VALUES (?, ?, ?, ?, ?, ?)
-                            """, (msg_id, st.session_state.user_id, target_recip_id, u_msg_text, m_path, now_str))
+                                VALUES (?, ?, ?, ?, '', ?)
+                            """, (str(uuid.uuid4()), st.session_state.user_id, "OWNER", f"🔔 [Escalated from AI]: User requested direct chat. Last query: {ai_user_prompt}", datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
                             conn.commit()
                         finally:
                             conn.close()
-                        st.success("✅ Message sent successfully!")
-                        st.rerun()
+                    else:
+                        system_prompt = f"You are an assistant for 'BD AI Book'. Guide the user in Bengali or English regarding monetization (50-50 revenue share, 1000 followers requirement), video boosting, and platform rules. User query: {ai_user_prompt}"
+                        ai_reply = ask_gemini_ai_assistant(system_prompt)
+                    
+                    st.session_state.ai_chat_history.append({"role": "assistant", "content": ai_reply})
+                    st.rerun()
 
+        # TAB 2: INBOX & OWNER CHAT (Direct User-Owner & User-User Messaging)
         with chat_sub_tab2:
-            st.markdown("#### 📤 2. Upload Photo / File directly to Owner")
+            st.markdown("#### 📩 Direct Inbox & Owner Chat")
+            
+            conn = get_db_connection()
+            try:
+                c = conn.cursor()
+                c.execute("""
+                    SELECT * FROM user_messages 
+                    WHERE sender_id = ? OR receiver_id = ?
+                    ORDER BY created_at ASC
+                """, (st.session_state.user_id, st.session_state.user_id))
+                my_messages = c.fetchall()
+            finally:
+                conn.close()
+            
+            if not my_messages:
+                st.info("No messages in your inbox yet. Send a message to Owner or other users below.")
+            else:
+                for msg in my_messages:
+                    is_me = (msg['sender_id'] == st.session_state.user_id)
+                    bubble_class = "chat-bubble-self" if is_me else "chat-bubble-other"
+                    sender_lbl = "You" if is_me else "Owner / Admin"
+                    
+                    st.markdown(f"""
+                    <div class='{bubble_class}'>
+                        <small style='color:#ddd;'><b>{sender_lbl}</b> • {msg['created_at']}</small><br>
+                        {msg['message']}
+                    </div>
+                    <div style='clear:both;'></div>
+                    """, unsafe_allow_html=True)
+                    
+                    if msg['media_path']:
+                        if msg['media_path'].startswith("http"):
+                            if msg['media_path'].lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+                                st.image(msg['media_path'], width=200)
+                            else:
+                                st.markdown(f'''
+                                    <video width="100%" controls preload="metadata" playsinline style="border-radius:12px; background:#000;">
+                                        <source src="{msg['media_path']}" type="video/mp4">
+                                    </video>
+                                ''', unsafe_allow_html=True)
+
+            st.markdown("---")
+            st.markdown("##### Send Message to Owner or Support")
+            
+            target_recipient = st.selectbox("Send To:", ["👑 Owner / Admin (Direct Support)", "Other Users"], key="msg_recipient_type")
+            
+            if target_recipient == "👑 Owner / Admin (Direct Support)":
+                recipient_id = "OWNER"
+            else:
+                conn = get_db_connection()
+                try:
+                    c = conn.cursor()
+                    c.execute("SELECT user_id, full_name FROM master_app_table WHERE data_type = 'user' AND user_id != ?", (st.session_state.user_id,))
+                    other_usr = c.fetchall()
+                finally:
+                    conn.close()
+                usr_dict = {f"{u['full_name']}": u['user_id'] for u in other_usr}
+                sel_usr_lbl = st.selectbox("Select User", list(usr_dict.keys()), key="sel_other_user")
+                recipient_id = usr_dict.get(sel_usr_lbl, "OWNER") if usr_dict else "OWNER"
+
+            chat_msg_text = st.text_area("Type your message here...", key="chat_msg_txt")
+            chat_msg_media = st.file_uploader("Attach Photo or Media (Optional)", type=["png", "jpg", "jpeg", "mp4"], key="chat_msg_med")
+            
+            if st.button("🚀 Send Message / Notify Owner", key="send_chat_msg_btn"):
+                if chat_msg_text or chat_msg_media:
+                    m_path = ""
+                    if chat_msg_media:
+                        temp_path = os.path.join(UPLOAD_DIR, f"chat_{uuid.uuid4()}_{chat_msg_media.name}")
+                        with open(temp_path, "wb") as f:
+                            f.write(chat_msg_media.getbuffer())
+                        m_path = upload_file_to_cloudflare_r2(temp_path, f"chats/{os.path.basename(temp_path)}")
+                    
+                    msg_id = str(uuid.uuid4())
+                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    conn = get_db_connection()
+                    try:
+                        c = conn.cursor()
+                        c.execute("""
+                            INSERT INTO user_messages (msg_id, sender_id, receiver_id, message, media_path, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (msg_id, st.session_state.user_id, recipient_id, chat_msg_text, m_path, now_str))
+                        conn.commit()
+                    finally:
+                        conn.close()
+                    st.success("✅ Message sent successfully and notification sent to Owner!")
+                    st.rerun()
+
+        # TAB 3: UPLOAD FILE DIRECTLY TO OWNER
+        with chat_sub_tab3:
+            st.markdown("#### 📤 3. Upload Photo / File directly to Owner")
             with st.form("user_tab_owner_upload_form"):
                 upload_note = st.text_area("Note or Message for Owner")
                 owner_file = st.file_uploader("Select Photo or File", type=["jpg", "png", "jpeg", "mp4", "pdf"])
