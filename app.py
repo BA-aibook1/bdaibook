@@ -11,187 +11,10 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ==========================================
-# GEMINI AI API CONFIGURATION & ENGINE
-# ==========================================
-try:
-    import google.generativeai as genai
-    GEMINI_API_KEY = "AQ.Ab8RN6KNn-aC8BXjCv-oFLinyxiHmMeKmL_SacdYhCuVvyPz0w"
-    genai.configure(api_key=GEMINI_API_KEY)
-    GEMINI_AVAILABLE = True
-except ImportError:
-    GEMINI_AVAILABLE = False
-
-def ask_gemini_ai_assistant(prompt_text):
-    if not GEMINI_AVAILABLE:
-        return "Gemini library not available."
-    try:
-        model = genai.GenerativeModel('gemini-1.5-pro')
-        response = model.generate_content(prompt_text)
-        return response.text
-    except Exception as e:
-        return f"Gemini AI Error: {str(e)}"
-
-# ==========================================
-# CLOUDFLARE R2 OBJECT STORAGE CONFIGURATION
-# ==========================================
-try:
-    import boto3
-    R2_AVAILABLE = True
-except ImportError:
-    R2_AVAILABLE = False
-
-# Your Verified Cloudflare R2 Credentials & Public URL Configured
-R2_ACCOUNT_ID = "978cadf3e0c8db6ea26f1300ec86dd5d"
-R2_BUCKET_NAME = "bd-ai-book-videos" 
-R2_ACCESS_KEY_ID = "25c838dc2e25513ee54e9cb7ba8d7f98"
-R2_SECRET_ACCESS_KEY = "9198394a4929d07f4932e3cedb49fb72b41b3f7c09984da3cdb1a5e59b0432af"
-R2_ENDPOINT_URL = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
-R2_PUBLIC_DEV_URL = "https://pub-0e1a987c6fd240bcb4cdec3133f1165f.r2.dev"
-
-def get_r2_client():
-    if not R2_AVAILABLE:
-        return None
-    try:
-        client = boto3.client(
-            's3',
-            endpoint_url=R2_ENDPOINT_URL,
-            aws_access_key_id=R2_ACCESS_KEY_ID,
-            aws_secret_access_key=R2_SECRET_ACCESS_KEY,
-            region_name='auto'
-        )
-        return client
-    except Exception as e:
-        print(f"R2 Client Error: {e}")
-        return None
-
-def upload_file_to_cloudflare_r2(file_path, object_name):
-    """
-    Function to upload files directly to Cloudflare R2 bucket and return public URL
-    """
-    client = get_r2_client()
-    object_name = object_name.lstrip("/")
-    if not client:
-        return f"{R2_PUBLIC_DEV_URL.rstrip('/')}/{object_name}"
-    try:
-        content_type = 'application/octet-stream'
-        lower_path = file_path.lower()
-        if lower_path.endswith(('.jpg', '.jpeg')):
-            content_type = 'image/jpeg'
-        elif lower_path.endswith('.png'):
-            content_type = 'image/png'
-        elif lower_path.endswith('.mp4'):
-            content_type = 'video/mp4'
-        elif lower_path.endswith('.webm'):
-            content_type = 'video/webm'
-
-        client.upload_file(
-            file_path, 
-            R2_BUCKET_NAME, 
-            object_name,
-            ExtraArgs={'ContentType': content_type}
-        )
-        public_url = f"{R2_PUBLIC_DEV_URL.rstrip('/')}/{object_name}"
-        return public_url
-    except Exception as e:
-        print(f"R2 Upload Failed: {e}")
-        return f"{R2_PUBLIC_DEV_URL.rstrip('/')}/{object_name}"
-
-# ==========================================
-# AUTHENTICATION & GLOBAL IDENTIFIER VALIDATION ENGINE
-# ==========================================
-def validate_global_auth_identifier(user_input):
-    if not user_input:
-        return False, "Invalid", ""
-        
-    user_input = user_input.strip()
-    gmail_pattern = r'^[a-zA-Z0-9._%+-]+@gmail\.com$'
-    phone_pattern = r'^\+?[1-9]\d{6,14}$'
-    
-    if re.match(gmail_pattern, user_input, re.IGNORECASE):
-        cleaned_id = user_input.lower()
-        return True, "Gmail", cleaned_id
-    elif re.match(phone_pattern, user_input):
-        cleaned_id = user_input
-        if cleaned_id.startswith("01") and len(cleaned_id) == 11:
-            cleaned_id = "+88" + cleaned_id
-        return True, "Phone", cleaned_id
-    else:
-        return False, "Invalid", ""
-
-# ==========================================
-# 0. SECURITY & ENVIRONMENT CONFIGURATION
-# ==========================================
-NEW_OWNER_SECRET_KEY = os.getenv("OWNER_SECRET", "S$s123456789112233BDAIBOOK@MDSOHELRANA")
-SECRET_CODES = [NEW_OWNER_SECRET_KEY]
-
-# ==========================================
-# AUTO VIDEO COMPRESSION ENGINE
-# ==========================================
-try:
-    from moviepy.editor import VideoFileClip
-    MOVIEPY_AVAILABLE = True
-except ImportError:
-    MOVIEPY_AVAILABLE = False
-
-def compress_video_automatically(input_path, output_path):
-    if not MOVIEPY_AVAILABLE:
-        with open(input_path, 'rb') as f_in, open(output_path, 'wb') as f_out:
-            f_out.write(f_in.read())
-        return output_path
-
-    try:
-        clip = VideoFileClip(input_path)
-        if clip.size[1] > 720:
-            clip = clip.resize(height=720)
-        
-        clip.write_videofile(
-            output_path,
-            codec="libx264",
-            audio_codec="aac",
-            bitrate="1000k",
-            preset="ultrafast",
-            logger=None
-        )
-        clip.close()
-        return output_path
-    except Exception:
-        with open(input_path, 'rb') as f_in, open(output_path, 'wb') as f_out:
-            f_out.write(f_in.read())
-        return output_path
-
-# ==========================================
-# GOOGLE VISION AI AUTO-MODERATION ENGINE
-# ==========================================
-try:
-    from google.cloud import vision
-    VISION_AI_AVAILABLE = True
-except ImportError:
-    VISION_AI_AVAILABLE = False
-
-def check_image_safety_with_ai(image_path):
-    if not VISION_AI_AVAILABLE:
-        return True, "Vision AI Library Not Installed"
-    
-    try:
-        client = vision.ImageAnnotatorClient()
-        with open(image_path, "rb") as image_file:
-            content = image_file.read()
-        
-        image = vision.Image(content=content)
-        response = client.safe_search_detection(image=image)
-        safe = response.safe_search_annotation
-
-        if safe.adult >= 4 or safe.violence >= 4 or safe.racy >= 4:
-            return False, "Inappropriate Content Detected by AI (Adult/Violence/Racy)"
-        return True, "Safe"
-    except Exception as e:
-        return True, f"AI Check Skipped/Error: {str(e)}"
-
-# ==========================================
 # 1. PAGE SETUP & STORAGE DIRECTORY
 # ==========================================
 st.set_page_config(
-    page_title="BD AI Book",
+    page_title="BDAIBOOK 1",
     page_icon="📖",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -224,179 +47,6 @@ def get_db_connection():
         pass
     return conn
 
-def save_to_internal_vault(data_dict):
-    try:
-        now = datetime.now()
-        day = now.day
-        target_dir = PERIOD_1_DIR if 1 <= day <= 15 else PERIOD_2_DIR
-        
-        file_id = str(uuid.uuid4())[:8]
-        file_name = f"vault_{now.strftime('%Y%m%d_%H%M%S')}_{file_id}.json"
-        file_path = os.path.join(target_dir, file_name)
-        
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data_dict, f, ensure_ascii=False, indent=4)
-    except Exception:
-        pass
-
-def auto_restore_from_internal_vault():
-    restored_count = 0
-    for folder in [PERIOD_1_DIR, PERIOD_2_DIR]:
-        if not os.path.exists(folder):
-            continue
-        for file in os.listdir(folder):
-            if file.endswith(".json"):
-                fp = os.path.join(folder, file)
-                try:
-                    with open(fp, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                        conn = get_db_connection()
-                        try:
-                            c = conn.cursor()
-                            keys = [k for k in data.keys() if k in [
-                                'record_id', 'data_type', 'user_id', 'full_name', 'auth_identifier',
-                                'password_hash', 'address', 'bio', 'profile_pic_path', 'cover_pic_path',
-                                'fb_link', 'tiktok_link', 'yt_link', 'website_link', 'followers_count',
-                                'is_verified', 'violation_count', 'is_suspended', 'suspended_until',
-                                'title', 'content', 'tags', 'media_path', 'post_category', 'likes_count',
-                                'views_count', 'is_boosted', 'monetization_status', 'country',
-                                'is_owner_post', 'created_at', 'recovery_code', 'user_status', 'meta_bluetooth_permission'
-                            ]]
-                            values = [data[k] for k in keys]
-                            placeholders = ", ".join(["?"] * len(keys))
-                            cols = ", ".join(keys)
-                            c.execute(f"INSERT OR REPLACE INTO master_app_table ({cols}) VALUES ({placeholders})", values)
-                            conn.commit()
-                            restored_count += 1
-                        finally:
-                            conn.close()
-                except Exception:
-                    pass
-    return restored_count
-
-# ==========================================
-# MODERN UI / CSS ENHANCEMENTS
-# ==========================================
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-    
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
-    }
-    .block-container { 
-        padding-top: 1.5rem !important; 
-        max-width: 1200px;
-    }
-    div[data-testid="stHeader"] {
-        position: fixed; top: 0; left: 0; width: 100%;
-        background-color: rgba(14, 17, 23, 0.95);
-        backdrop-filter: blur(10px);
-        z-index: 99999; border-bottom: 1px solid #1f2937;
-    }
-    
-    .app-header-title {
-        color: #1877F2 !important;
-        font-weight: 800;
-        font-size: 1.8rem;
-        text-align: center;
-        margin: 0;
-        letter-spacing: -0.5px;
-    }
-    
-    img { border-radius: 12px; }
-    .stImage > img {
-        border-radius: 50% !important; 
-        object-fit: cover !important; 
-        border: 2px solid #1877F2 !important;
-        box-shadow: 0 4px 12px rgba(24, 119, 242, 0.25);
-    }
-    
-    .fb-post-card {
-        background: #111827; 
-        padding: 20px; 
-        border-radius: 16px; 
-        margin-bottom: 24px; 
-        border: 1px solid #1f2937;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-        transition: transform 0.2s ease, border-color 0.2s ease;
-    }
-    .fb-post-card:hover {
-        border-color: #374151;
-    }
-    
-    .video-watermark-wrapper { position: relative; border-radius: 12px; overflow: hidden; }
-    .video-watermark-badge {
-        position: absolute; top: 12px; right: 15px; 
-        background: rgba(24, 119, 242, 0.9);
-        backdrop-filter: blur(4px);
-        color: white; padding: 4px 12px; border-radius: 20px; 
-        font-size: 11px; font-weight: 700; z-index: 99; pointer-events: none;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    }
-    .tiktok-container { 
-        max-width: 380px; margin: 0 auto; border-radius: 16px; 
-        overflow: hidden; border: 1px solid #1f2937; background: #000; 
-    }
-    .announcement-box {
-        background: linear-gradient(135deg, #1877F2 0%, #0d5cb6 100%); 
-        color: #ffffff; padding: 12px 20px; border-radius: 12px; 
-        text-align: center; margin-bottom: 20px; font-weight: 600; font-size: 14px;
-        box-shadow: 0 4px 12px rgba(24, 119, 242, 0.25);
-        border: 1px solid rgba(255,255,255,0.1);
-    }
-    .ad-container { 
-        margin-top: 15px; margin-bottom: 15px; padding: 12px; 
-        background: #0b0f17; border-radius: 12px; text-align: center; 
-        border: 1px dashed #374151;
-    }
-    .vertical-live-feed-box { 
-        max-height: 600px; overflow-y: auto; background: #0b0f17; 
-        padding: 18px; border-radius: 16px; border: 1px solid #1f2937; 
-    }
-    .vertical-live-card { 
-        background: #111827; border-left: 4px solid #1877F2; 
-        padding: 14px; margin-bottom: 15px; border-radius: 8px; color: #fff; 
-    }
-    .duplicate-card { 
-        background: #1f1315; border-left: 4px solid #ef4444; 
-        padding: 14px; margin-bottom: 12px; border-radius: 8px; color: #fff; 
-    }
-    .amazon-product-card { 
-        background: #111827; border: 1px solid #f59e0b; 
-        padding: 18px; border-radius: 12px; margin-bottom: 15px; 
-    }
-    .meta-control-box { 
-        background: #0d1527; border: 1px solid #1877F2; 
-        padding: 20px; border-radius: 16px; margin-bottom: 20px; 
-    }
-    .msg-box-owner { 
-        background: #111827; border: 1px solid #1f2937; 
-        padding: 14px; border-radius: 10px; margin-bottom: 10px; 
-    }
-    .chat-bubble-self { 
-        background: #1877F2; color: white; padding: 12px 16px; 
-        border-radius: 16px 16px 2px 16px; margin-bottom: 10px; 
-        max-width: 80%; float: right; clear: both;
-        box-shadow: 0 2px 8px rgba(24, 119, 242, 0.3);
-    }
-    .chat-bubble-other { 
-        background: #1f2937; color: white; padding: 12px 16px; 
-        border-radius: 16px 16px 16px 2px; margin-bottom: 10px; 
-        max-width: 80%; float: left; clear: both;
-    }
-
-    .stButton>button {
-        border-radius: 10px !important;
-        font-weight: 600 !important;
-        transition: all 0.2s ease !important;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# ==========================================
-# 2. MASTER DATABASE ENGINE & CONFIG SYSTEM
-# ==========================================
 def init_master_database():
     conn = get_db_connection()
     try:
@@ -569,8 +219,8 @@ def init_master_database():
         """)
         
         default_settings = {
-            "app_name": "BD AI Book",
-            "owner_announcement": "Welcome to BD AI Book - Next-Gen Social & Media Platform!",
+            "app_name": "BDAIBOOK 1",
+            "owner_announcement": "Welcome to BDAIBOOK 1 - Next-Gen Social & Media Platform!",
             "lock_upload": "OFF",
             "daily_limit_mode": "OFF",
             "lock_login": "OFF",
@@ -584,7 +234,8 @@ def init_master_database():
             "site_verification_code": "",
             "is_global_meta_active": "true",
             "meta_mode": "SELECTED_USERS",
-            "payout_rate_per_1k": "0.50"
+            "payout_rate_per_1k": "0.50",
+            "gemini_api_key": "AQ.Ab8RN6KNn-aC8BXjCv-oFLinyxiHmMeKmL_SacdYhCuVvyPz0w"
         }
         
         for k, v in default_settings.items():
@@ -614,6 +265,343 @@ def set_setting(key, value):
         conn.commit()
     finally:
         conn.close()
+
+# ==========================================
+# GEMINI AI API CONFIGURATION & ENGINE (DYNAMIC)
+# ==========================================
+try:
+    import google.generativeai as genai
+    ACTIVE_GEMINI_KEY = get_setting("gemini_api_key", "AQ.Ab8RN6KNn-aC8BXjCv-oFLinyxiHmMeKmL_SacdYhCuVvyPz0w")
+    if ACTIVE_GEMINI_KEY:
+        genai.configure(api_key=ACTIVE_GEMINI_KEY)
+        GEMINI_AVAILABLE = True
+    else:
+        GEMINI_AVAILABLE = False
+except ImportError:
+    GEMINI_AVAILABLE = False
+
+def ask_gemini_ai_assistant(prompt_text):
+    if not GEMINI_AVAILABLE:
+        return "Gemini library not available or API key missing."
+    try:
+        model = genai.GenerativeModel('gemini-1.5-pro')
+        response = model.generate_content(prompt_text)
+        return response.text
+    except Exception as e:
+        return f"Gemini AI Error: {str(e)}"
+
+# ==========================================
+# CLOUDFLARE R2 OBJECT STORAGE CONFIGURATION
+# ==========================================
+try:
+    import boto3
+    R2_AVAILABLE = True
+except ImportError:
+    R2_AVAILABLE = False
+
+R2_ACCOUNT_ID = "978cadf3e0c8db6ea26f1300ec86dd5d"
+R2_BUCKET_NAME = "bd-ai-book-videos" 
+R2_ACCESS_KEY_ID = "25c838dc2e25513ee54e9cb7ba8d7f98"
+R2_SECRET_ACCESS_KEY = "9198394a4929d07f4932e3cedb49fb72b41b3f7c09984da3cdb1a5e59b0432af"
+R2_ENDPOINT_URL = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+R2_PUBLIC_DEV_URL = "https://pub-0e1a987c6fd240bcb4cdec3133f1165f.r2.dev"
+
+def get_r2_client():
+    if not R2_AVAILABLE:
+        return None
+    try:
+        client = boto3.client(
+            's3',
+            endpoint_url=R2_ENDPOINT_URL,
+            aws_access_key_id=R2_ACCESS_KEY_ID,
+            aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+            region_name='auto'
+        )
+        return client
+    except Exception as e:
+        print(f"R2 Client Error: {e}")
+        return None
+
+def upload_file_to_cloudflare_r2(file_path, object_name):
+    client = get_r2_client()
+    object_name = object_name.lstrip("/")
+    if not client:
+        return f"{R2_PUBLIC_DEV_URL.rstrip('/')}/{object_name}"
+    try:
+        content_type = 'application/octet-stream'
+        lower_path = file_path.lower()
+        if lower_path.endswith(('.jpg', '.jpeg')):
+            content_type = 'image/jpeg'
+        elif lower_path.endswith('.png'):
+            content_type = 'image/png'
+        elif lower_path.endswith('.mp4'):
+            content_type = 'video/mp4'
+        elif lower_path.endswith('.webm'):
+            content_type = 'video/webm'
+
+        client.upload_file(
+            file_path, 
+            R2_BUCKET_NAME, 
+            object_name,
+            ExtraArgs={'ContentType': content_type}
+        )
+        public_url = f"{R2_PUBLIC_DEV_URL.rstrip('/')}/{object_name}"
+        return public_url
+    except Exception as e:
+        print(f"R2 Upload Failed: {e}")
+        return f"{R2_PUBLIC_DEV_URL.rstrip('/')}/{object_name}"
+
+# ==========================================
+# AUTHENTICATION & GLOBAL IDENTIFIER VALIDATION ENGINE
+# ==========================================
+def validate_global_auth_identifier(user_input):
+    if not user_input:
+        return False, "Invalid", ""
+        
+    user_input = user_input.strip()
+    gmail_pattern = r'^[a-zA-Z0-9._%+-]+@gmail\.com$'
+    phone_pattern = r'^\+?[1-9]\d{6,14}$'
+    
+    if re.match(gmail_pattern, user_input, re.IGNORECASE):
+        cleaned_id = user_input.lower()
+        return True, "Gmail", cleaned_id
+    elif re.match(phone_pattern, user_input):
+        cleaned_id = user_input
+        if cleaned_id.startswith("01") and len(cleaned_id) == 11:
+            cleaned_id = "+88" + cleaned_id
+        return True, "Phone", cleaned_id
+    else:
+        return False, "Invalid", ""
+
+NEW_OWNER_SECRET_KEY = os.getenv("OWNER_SECRET", "S$s123456789112233BDAIBOOK@MDSOHELRANA")
+SECRET_CODES = [NEW_OWNER_SECRET_KEY]
+
+try:
+    from moviepy.editor import VideoFileClip
+    MOVIEPY_AVAILABLE = True
+except ImportError:
+    MOVIEPY_AVAILABLE = False
+
+def compress_video_automatically(input_path, output_path):
+    if not MOVIEPY_AVAILABLE:
+        with open(input_path, 'rb') as f_in, open(output_path, 'wb') as f_out:
+            f_out.write(f_in.read())
+        return output_path
+
+    try:
+        clip = VideoFileClip(input_path)
+        if clip.size[1] > 720:
+            clip = clip.resize(height=720)
+        
+        clip.write_videofile(
+            output_path,
+            codec="libx264",
+            audio_codec="aac",
+            bitrate="1000k",
+            preset="ultrafast",
+            logger=None
+        )
+        clip.close()
+        return output_path
+    except Exception:
+        with open(input_path, 'rb') as f_in, open(output_path, 'wb') as f_out:
+            f_out.write(f_in.read())
+        return output_path
+
+try:
+    from google.cloud import vision
+    VISION_AI_AVAILABLE = True
+except ImportError:
+    VISION_AI_AVAILABLE = False
+
+def check_image_safety_with_ai(image_path):
+    if not VISION_AI_AVAILABLE:
+        return True, "Vision AI Library Not Installed"
+    
+    try:
+        client = vision.ImageAnnotatorClient()
+        with open(image_path, "rb") as image_file:
+            content = image_file.read()
+        
+        image = vision.Image(content=content)
+        response = client.safe_search_detection(image=image)
+        safe = response.safe_search_annotation
+
+        if safe.adult >= 4 or safe.violence >= 4 or safe.racy >= 4:
+            return False, "Inappropriate Content Detected by AI (Adult/Violence/Racy)"
+        return True, "Safe"
+    except Exception as e:
+        return True, f"AI Check Skipped/Error: {str(e)}"
+
+def save_to_internal_vault(data_dict):
+    try:
+        now = datetime.now()
+        day = now.day
+        target_dir = PERIOD_1_DIR if 1 <= day <= 15 else PERIOD_2_DIR
+        
+        file_id = str(uuid.uuid4())[:8]
+        file_name = f"vault_{now.strftime('%Y%m%d_%H%M%S')}_{file_id}.json"
+        file_path = os.path.join(target_dir, file_name)
+        
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(data_dict, f, ensure_ascii=False, indent=4)
+    except Exception:
+        pass
+
+def auto_restore_from_internal_vault():
+    restored_count = 0
+    for folder in [PERIOD_1_DIR, PERIOD_2_DIR]:
+        if not os.path.exists(folder):
+            continue
+        for file in os.listdir(folder):
+            if file.endswith(".json"):
+                fp = os.path.join(folder, file)
+                try:
+                    with open(fp, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        conn = get_db_connection()
+                        try:
+                            c = conn.cursor()
+                            keys = [k for k in data.keys() if k in [
+                                'record_id', 'data_type', 'user_id', 'full_name', 'auth_identifier',
+                                'password_hash', 'address', 'bio', 'profile_pic_path', 'cover_pic_path',
+                                'fb_link', 'tiktok_link', 'yt_link', 'website_link', 'followers_count',
+                                'is_verified', 'violation_count', 'is_suspended', 'suspended_until',
+                                'title', 'content', 'tags', 'media_path', 'post_category', 'likes_count',
+                                'views_count', 'is_boosted', 'monetization_status', 'country',
+                                'is_owner_post', 'created_at', 'recovery_code', 'user_status', 'meta_bluetooth_permission'
+                            ]]
+                            values = [data[k] for k in keys]
+                            placeholders = ", ".join(["?"] * len(keys))
+                            cols = ", ".join(keys)
+                            c.execute(f"INSERT OR REPLACE INTO master_app_table ({cols}) VALUES ({placeholders})", values)
+                            conn.commit()
+                            restored_count += 1
+                        finally:
+                            conn.close()
+                except Exception:
+                    pass
+    return restored_count
+
+# ==========================================
+# MODERN UI / CSS ENHANCEMENTS
+# ==========================================
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+    .block-container { 
+        padding-top: 1.5rem !important; 
+        max-width: 1200px;
+    }
+    div[data-testid="stHeader"] {
+        position: fixed; top: 0; left: 0; width: 100%;
+        background-color: rgba(14, 17, 23, 0.95);
+        backdrop-filter: blur(10px);
+        z-index: 99999; border-bottom: 1px solid #1f2937;
+    }
+    
+    .app-header-title {
+        color: #1877F2 !important;
+        font-weight: 800;
+        font-size: 1.8rem;
+        text-align: center;
+        margin: 0;
+        letter-spacing: -0.5px;
+    }
+    
+    img { border-radius: 12px; }
+    .stImage > img {
+        border-radius: 50% !important; 
+        object-fit: cover !important; 
+        border: 2px solid #1877F2 !important;
+        box-shadow: 0 4px 12px rgba(24, 119, 242, 0.25);
+    }
+    
+    .fb-post-card {
+        background: #111827; 
+        padding: 20px; 
+        border-radius: 16px; 
+        margin-bottom: 24px; 
+        border: 1px solid #1f2937;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .fb-post-card:hover {
+        border-color: #374151;
+    }
+    
+    .video-watermark-wrapper { position: relative; border-radius: 12px; overflow: hidden; }
+    .video-watermark-badge {
+        position: absolute; top: 12px; right: 15px; 
+        background: rgba(24, 119, 242, 0.9);
+        backdrop-filter: blur(4px);
+        color: white; padding: 4px 12px; border-radius: 20px; 
+        font-size: 11px; font-weight: 700; z-index: 99; pointer-events: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .tiktok-container { 
+        max-width: 380px; margin: 0 auto; border-radius: 16px; 
+        overflow: hidden; border: 1px solid #1f2937; background: #000; 
+    }
+    .announcement-box {
+        background: linear-gradient(135deg, #1877F2 0%, #0d5cb6 100%); 
+        color: #ffffff; padding: 12px 20px; border-radius: 12px; 
+        text-align: center; margin-bottom: 20px; font-weight: 600; font-size: 14px;
+        box-shadow: 0 4px 12px rgba(24, 119, 242, 0.25);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    .ad-container { 
+        margin-top: 15px; margin-bottom: 15px; padding: 12px; 
+        background: #0b0f17; border-radius: 12px; text-align: center; 
+        border: 1px dashed #374151;
+    }
+    .vertical-live-feed-box { 
+        max-height: 600px; overflow-y: auto; background: #0b0f17; 
+        padding: 18px; border-radius: 16px; border: 1px solid #1f2937; 
+    }
+    .vertical-live-card { 
+        background: #111827; border-left: 4px solid #1877F2; 
+        padding: 14px; margin-bottom: 15px; border-radius: 8px; color: #fff; 
+    }
+    .duplicate-card { 
+        background: #1f1315; border-left: 4px solid #ef4444; 
+        padding: 14px; margin-bottom: 12px; border-radius: 8px; color: #fff; 
+    }
+    .amazon-product-card { 
+        background: #111827; border: 1px solid #f59e0b; 
+        padding: 18px; border-radius: 12px; margin-bottom: 15px; 
+    }
+    .meta-control-box { 
+        background: #0d1527; border: 1px solid #1877F2; 
+        padding: 20px; border-radius: 16px; margin-bottom: 20px; 
+    }
+    .msg-box-owner { 
+        background: #111827; border: 1px solid #1f2937; 
+        padding: 14px; border-radius: 10px; margin-bottom: 10px; 
+    }
+    .chat-bubble-self { 
+        background: #1877F2; color: white; padding: 12px 16px; 
+        border-radius: 16px 16px 2px 16px; margin-bottom: 10px; 
+        max-width: 80%; float: right; clear: both;
+        box-shadow: 0 2px 8px rgba(24, 119, 242, 0.3);
+    }
+    .chat-bubble-other { 
+        background: #1f2937; color: white; padding: 12px 16px; 
+        border-radius: 16px 16px 16px 2px; margin-bottom: 10px; 
+        max-width: 80%; float: left; clear: both;
+    }
+
+    .stButton>button {
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 site_ver_code = get_setting("site_verification_code")
 if site_ver_code:
@@ -673,9 +661,6 @@ def check_user_meta_bluetooth_permission(user_id):
             conn.close()
     return False
 
-# ==========================================
-# AUTOMATED VIEW-BASED 50-50 MONETIZATION ENGINE
-# ==========================================
 def calculate_user_earnings(user_id):
     conn = get_db_connection()
     try:
@@ -707,7 +692,7 @@ if "is_owner_session" not in st.session_state: st.session_state.is_owner_session
 if "active_tab" not in st.session_state: st.session_state.active_tab = 0
 
 site_logo_path = get_setting("logo_path")
-app_name = get_setting("app_name", "BD AI Book")
+app_name = get_setting("app_name", "BDAIBOOK 1")
 announcement = get_setting("owner_announcement", "")
 
 top_col1, top_col2, top_col3 = st.columns([1, 3, 1])
@@ -734,9 +719,6 @@ current_user = {}
 st.sidebar.markdown("### 🔐 User Login / Register")
 login_locked = get_setting("lock_login") == "ON"
 
-# ==========================================
-# AUTHENTICATION SYSTEM LOGIC
-# ==========================================
 if not st.session_state.user_id:
     if login_locked:
         st.sidebar.error("🚫 Login System is temporarily locked by Owner for maintenance!")
@@ -1101,7 +1083,7 @@ with tab_feed:
         st.markdown("### 🎛 Owner Master Control Power Panels (1 to 18)")
         
         o_tabs = st.tabs([
-            "1️⃣ Global Branding", 
+            "1️⃣ Global Branding & AI Setup", 
             "2️⃣ Upload Control", 
             "3️⃣ Emergency Kill-Switch", 
             "4️⃣ Dynamic Payment Methods",
@@ -1124,9 +1106,14 @@ with tab_feed:
         o_tab1, o_tab2, o_tab3, o_tab4, o_tab5, o_tab6, o_tab7, o_tab8, o_tab9, o_tab10, o_tab11, o_tab12, o_tab13, o_tab14, o_tab15, o_tab16, o_tab17, o_tab18 = o_tabs
         
         with o_tab1:
-            st.markdown("#### 🖼️ Global Branding, Logo & QR Setup")
-            new_app_name = st.text_input("Header App Name", value=get_setting("app_name", "BD AI Book"))
+            st.markdown("#### 🖼️ Global Branding, Logo, QR & Gemini AI API Setup")
+            new_app_name = st.text_input("Header App Name", value=get_setting("app_name", "BDAIBOOK 1"))
             new_announcement = st.text_area("Global Owner Announcement", value=get_setting("owner_announcement", ""))
+            
+            st.markdown("---")
+            st.markdown("##### 🤖 Gemini AI API Key Configuration (Live Auto-Activation)")
+            current_api_key = get_setting("gemini_api_key", "AQ.Ab8RN6KNn-aC8BXjCv-oFLinyxiHmMeKmL_SacdYhCuVvyPz0w")
+            new_api_key_input = st.text_input("Enter/Update Gemini API Key", value=current_api_key, type="password")
             
             col_b_img1, col_b_img2 = st.columns(2)
             with col_b_img1:
@@ -1143,9 +1130,11 @@ with tab_feed:
                     st.caption("Current Active QR:")
                     st.image(curr_qr, width=120)
             
-            if st.button("💾 Save Branding & QR Updates", use_container_width=True):
+            if st.button("💾 Save Branding, QR & Gemini API Key Updates", use_container_width=True):
                 set_setting("app_name", new_app_name)
                 set_setting("owner_announcement", new_announcement)
+                if new_api_key_input:
+                    set_setting("gemini_api_key", new_api_key_input.strip())
                 if up_logo:
                     l_temp_path = os.path.join(UPLOAD_DIR, "site_logo.png")
                     with open(l_temp_path, "wb") as f: f.write(up_logo.getbuffer())
@@ -1156,7 +1145,7 @@ with tab_feed:
                     with open(qr_temp_path, "wb") as f: f.write(up_bangla_qr.getbuffer())
                     qr_path = upload_file_to_cloudflare_r2(qr_temp_path, "branding/bangla_qr_code.png")
                     set_setting("bangla_qr_path", qr_path)
-                st.success("✅ Branding Logo and QR Image Updated Successfully!")
+                st.success("✅ Branding, QR and Gemini API Key updated and activated live successfully!")
                 st.rerun()
 
         with o_tab2:
@@ -2496,9 +2485,6 @@ with tab_profile:
                 else:
                     st.warning("Please provide a title and necessary content/media for your post.")
 
-# ==========================================
-# 3. USER MESSAGES & CHAT TAB (UPDATED WITH GEMINI & OWNER HANDOFF)
-# ==========================================
 with tab_messages:
     st.markdown("### 💬 User Message System & Direct Chat with AI & Owner")
     
@@ -2507,14 +2493,13 @@ with tab_messages:
     else:
         chat_sub_tab1, chat_sub_tab2, chat_sub_tab3 = st.tabs(["🤖 Gemini AI Assistant", "📩 Inbox & Owner Chat", "📤 Upload File Directly to Owner"])
         
-        # TAB 1: GEMINI AI ASSISTANT (First Line Support & Plan Guidance)
         with chat_sub_tab1:
             st.markdown("#### 🤖 Gemini AI Smart Assistant")
             st.caption("Ask anything about monetization, plans, guidelines, or platform rules in Bangla or English.")
             
             if "ai_chat_history" not in st.session_state:
                 st.session_state.ai_chat_history = [
-                    {"role": "assistant", "content": "হ্যালো! আমি BD AI Book-এর এআই সহকারী। মনিটাইজেশন, প্ল্যান বা যেকোনো সহায়তার জন্য আমাকে বলুন। আপনি যদি সরাসরি মালিকের (Owner) সাথে কথা বলতে চান, তবে লিখুন: **'আমি মালিকের সাথে কথা বলতে চাই'**।"}
+                    {"role": "assistant", "content": "হ্যালো! আমি BDAIBOOK 1-এর এআই সহকারী। মনিটাইজেশন, প্ল্যান বা যেকোনো সহায়তার জন্য আমাকে বলুন। আপনি যদি সরাসরি মালিকের (Owner) সাথে কথা বলতে চান, তবে লিখুন: **'আমি মালিকের সাথে কথা বলতে চাই'**।"}
                 ]
             
             for message in st.session_state.ai_chat_history:
@@ -2528,10 +2513,8 @@ with tab_messages:
                 if ai_user_prompt:
                     st.session_state.ai_chat_history.append({"role": "user", "content": ai_user_prompt})
                     
-                    # Check if user wants to talk to owner
                     if "মালিকের সাথে কথা বলতে চাই" in ai_user_prompt or "talk to owner" in ai_user_prompt.lower() or "owner" in ai_user_prompt.lower():
                         ai_reply = "⚠️ আপনার অনুরোধটি মালিকের কাছে পাঠানো হয়েছে। মালিক শীঘ্রই আপনার সাথে সরাসরি চ্যাট বক্সে যোগাযোগ করবেন।"
-                        # Automatically send a notification message to Owner Inbox
                         conn = get_db_connection()
                         try:
                             c = conn.cursor()
@@ -2543,13 +2526,12 @@ with tab_messages:
                         finally:
                             conn.close()
                     else:
-                        system_prompt = f"You are an assistant for 'BD AI Book'. Guide the user in Bengali or English regarding monetization (50-50 revenue share, 1000 followers requirement), video boosting, and platform rules. User query: {ai_user_prompt}"
+                        system_prompt = f"You are an assistant for 'BDAIBOOK 1'. Guide the user in Bengali or English regarding monetization (50-50 revenue share, 1000 followers requirement), video boosting, and platform rules. User query: {ai_user_prompt}"
                         ai_reply = ask_gemini_ai_assistant(system_prompt)
                     
                     st.session_state.ai_chat_history.append({"role": "assistant", "content": ai_reply})
                     st.rerun()
 
-        # TAB 2: INBOX & OWNER CHAT (Direct User-Owner & User-User Messaging)
         with chat_sub_tab2:
             st.markdown("#### 📩 Direct Inbox & Owner Chat")
             
@@ -2639,7 +2621,6 @@ with tab_messages:
                     st.success("✅ Message sent successfully and notification sent to Owner!")
                     st.rerun()
 
-        # TAB 3: UPLOAD FILE DIRECTLY TO OWNER
         with chat_sub_tab3:
             st.markdown("#### 📤 3. Upload Photo / File directly to Owner")
             with st.form("user_tab_owner_upload_form"):
@@ -2674,9 +2655,6 @@ with tab_messages:
                     else:
                         st.error("Please select a photo or file first.")
 
-# ==========================================
-# WORLDWIDE MONETIZATION, BOOST & QR PANEL
-# ==========================================
 with tab_monetization:
     st.markdown("### 💸 Worldwide Monetization & Video Boost Center")
     
