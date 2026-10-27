@@ -1,4 +1,5 @@
 streamlit
+google-generativeai
 boto3
 moviepy
 google-cloud-vision
