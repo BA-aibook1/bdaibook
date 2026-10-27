@@ -282,15 +282,10 @@ except ImportError:
 
 def ask_gemini_ai_assistant(prompt_text):
     if not GEMINI_AVAILABLE:
-        return "⚠️ এআই সহকারী এই মুহূর্তে ঘুমন্ত অবস্থায় আছে। মালিক প্যানেলের ১ নম্বর ট্যাবে গিয়ে নিজের হাতে জেমিনি এপিআই কি (API Key) বসিয়ে একে জীবন্ত বা লাইভ করুন।"
+        return "⚠️ এআই সহকারী এই মুহূর্তে সচল নয়। মালিক প্যানেল থেকে সঠিক জেমিনি এপিআই কি (API Key) যুক্ত করুন।"
     try:
-        model_name = 'gemini-pro'
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                model_name = m.name
-                break
-                
-        model = genai.GenerativeModel(model_name)
+        # বর্তমানে সচল এবং বিশ্বস্ত মডেল ব্যবহার করা হলো যাতে 404 এরর না আসে
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         system_context = (
             "You are the official AI Assistant for 'BDAIBOOK 1'. "
