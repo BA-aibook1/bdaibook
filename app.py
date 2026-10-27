@@ -235,7 +235,7 @@ def init_master_database():
             "is_global_meta_active": "true",
             "meta_mode": "SELECTED_USERS",
             "payout_rate_per_1k": "0.50",
-            "gemini_api_key": "AQ.Ab8RN6KNn-aC8BXjCv-oFLinyxiHmMeKmL_SacdYhCuVvyPz0w"
+            "gemini_api_key": ""
         }
         
         for k, v in default_settings.items():
@@ -267,11 +267,11 @@ def set_setting(key, value):
         conn.close()
 
 # ==========================================
-# GEMINI AI API CONFIGURATION & ENGINE (DYNAMIC)
+# GEMINI AI API CONFIGURATION & ENGINE (DYNAMIC & AUTOMATIC)
 # ==========================================
 try:
     import google.generativeai as genai
-    ACTIVE_GEMINI_KEY = get_setting("gemini_api_key", "AQ.Ab8RN6KNn-aC8BXjCv-oFLinyxiHmMeKmL_SacdYhCuVvyPz0w")
+    ACTIVE_GEMINI_KEY = get_setting("gemini_api_key", "")
     if ACTIVE_GEMINI_KEY:
         genai.configure(api_key=ACTIVE_GEMINI_KEY)
         GEMINI_AVAILABLE = True
@@ -282,13 +282,28 @@ except ImportError:
 
 def ask_gemini_ai_assistant(prompt_text):
     if not GEMINI_AVAILABLE:
-        return "Gemini library not available or API key missing."
+        return "⚠️ এআই সহকারী এই মুহূর্তে ঘুমন্ত অবস্থায় আছে। মালিক প্যানেলের ১ নম্বর ট্যাবে গিয়ে নিজের হাতে জেমিনি এপিআই কি (API Key) বসিয়ে একে জীবন্ত বা লাইভ করুন।"
     try:
-        model = genai.GenerativeModel('gemini-1.5-pro')
-        response = model.generate_content(prompt_text)
+        model_name = 'gemini-pro'
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                model_name = m.name
+                break
+                
+        model = genai.GenerativeModel(model_name)
+        
+        system_context = (
+            "You are the official AI Assistant for 'BDAIBOOK 1'. "
+            "Your job is to answer user queries regarding platform rules, monetization (50-50 revenue share, 1000 followers requirement), "
+            "video boosting, upload guidelines, and troubleshooting in Bengali or English. "
+            "Do not disclose private secrets or owner data. "
+            "Answer strictly based on BDAIBOOK 1 platform features."
+        )
+        
+        response = model.generate_content(f"{system_context}\n\nUser Query: {prompt_text}")
         return response.text
     except Exception as e:
-        return f"Gemini AI Error: {str(e)}"
+        return f"BDAIBOOK 1 AI Live Error: {str(e)}"
 
 # ==========================================
 # CLOUDFLARE R2 OBJECT STORAGE CONFIGURATION
@@ -1112,7 +1127,7 @@ with tab_feed:
             
             st.markdown("---")
             st.markdown("##### 🤖 Gemini AI API Key Configuration (Live Auto-Activation)")
-            current_api_key = get_setting("gemini_api_key", "AQ.Ab8RN6KNn-aC8BXjCv-oFLinyxiHmMeKmL_SacdYhCuVvyPz0w")
+            current_api_key = get_setting("gemini_api_key", "")
             new_api_key_input = st.text_input("Enter/Update Gemini API Key", value=current_api_key, type="password")
             
             col_b_img1, col_b_img2 = st.columns(2)
