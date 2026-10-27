@@ -2238,7 +2238,6 @@ with tab_feed:
                     render_post_card(post, ads_enabled, ads_html, prefix="text")
 
         with sub_feed4:
-            # ত্রুটি সংশোধন করা হয়েছে: পিন্ড বা ক্লোজিং ব্র্যাকেট ঠিক করা হয়েছে
             short_posts = [p for p in posts if p.get("post_category") == "short"]
             if not short_posts:
                 st.info("No Reels / Short Videos uploaded yet.")
