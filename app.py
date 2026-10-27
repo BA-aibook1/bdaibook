@@ -25,7 +25,7 @@ def ask_gemini_ai_assistant(prompt_text):
     if not GEMINI_AVAILABLE:
         return "Gemini library not available."
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-pro')
         response = model.generate_content(prompt_text)
         return response.text
     except Exception as e:
