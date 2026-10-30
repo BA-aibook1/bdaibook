@@ -1,4 +1,4 @@
-import os
+
 import sqlite3
 import uuid
 import hashlib
@@ -2821,4 +2821,4 @@ with tab_monetization:
                         finally:
                             conn.close()
                             
-                        st.success("✅ Payment info submitted successfully! The owner will verify the 10-digit TrxID and activate your video/boost.")
+                        st.success("✅ Payment info submitted
