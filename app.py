@@ -227,7 +227,7 @@ def init_master_database():
             "logo_path": "",
             "bangla_qr_path": "",
             "adsense_client_id": "ca-pub-0000000000000000",
-            "adsense_script": """<div style="background:#222; color:#fff; text-align:center; padding:15px; border:1px dashed #1877F2; border-radius:8px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
+            "adsense_script": """<div style="background:#1e293b; color:#fff; text-align:center; padding:15px; border:1px dashed #3b82f6; border-radius:12px;">📢 <b>Google AdSense Banner Placeholder</b><br><small>Replace code in Owner Panel</small></div>""",
             "show_ads": "ON",
             "global_notify_msg": "System Active Globally",
             "auto_duplicate_detector": "ON",
@@ -284,9 +284,7 @@ def ask_gemini_ai_assistant(prompt_text):
     if not GEMINI_AVAILABLE:
         return "⚠️ এআই সহকারী এই মুহূর্তে সচল নয়। মালিক প্যানেল থেকে সঠিক জেমিনি এপিআই কি (API Key) যুক্ত করুন।"
     try:
-        # বর্তমানে সচল এবং বিশ্বস্ত মডেল ব্যবহার করা হলো যাতে 404 এরর না আসে
         model = genai.GenerativeModel('gemini-1.5-flash')
-        
         system_context = (
             "You are the official AI Assistant for 'BDAIBOOK 1'. "
             "Your job is to answer user queries regarding platform rules, monetization (50-50 revenue share, 1000 followers requirement), "
@@ -294,14 +292,13 @@ def ask_gemini_ai_assistant(prompt_text):
             "Do not disclose private secrets or owner data. "
             "Answer strictly based on BDAIBOOK 1 platform features."
         )
-        
         response = model.generate_content(f"{system_context}\n\nUser Query: {prompt_text}")
         return response.text
     except Exception as e:
         return f"BDAIBOOK 1 AI Live Error: {str(e)}"
 
 # ==========================================
-# CLOUDFLARE R2 OBJECT STORAGE CONFIGURATION
+# CLOUDFLARE R2 OBJECT STORAGE CONFIGURATION (UPDATED)
 # ==========================================
 try:
     import boto3
@@ -311,9 +308,9 @@ except ImportError:
 
 R2_ACCOUNT_ID = "978cadf3e0c8db6ea26f1300ec86dd5d"
 R2_BUCKET_NAME = "bd-ai-book-videos" 
-R2_ACCESS_KEY_ID = "25c838dc2e25513ee54e9cb7ba8d7f98"
-R2_SECRET_ACCESS_KEY = "9198394a4929d07f4932e3cedb49fb72b41b3f7c09984da3cdb1a5e59b0432af"
-R2_ENDPOINT_URL = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+R2_ACCESS_KEY_ID = "cfut_ZYbsy6opEEQbSNTViyVxvROzCa6c96izhQ0oMuZv68991578"
+R2_SECRET_ACCESS_KEY = "73b1be49a7921d6a7d6ed82ec673c47a6cc6d21ff128f81da1e8df412e534026"
+R2_ENDPOINT_URL = "https://978cadf3e0c8db6ea26f1300ec86dd5d.r2.cloudflarestorage.com"
 R2_PUBLIC_DEV_URL = "https://pub-0e1a987c6fd240bcb4cdec3133f1165f.r2.dev"
 
 def get_r2_client():
@@ -494,121 +491,163 @@ def auto_restore_from_internal_vault():
     return restored_count
 
 # ==========================================
-# MODERN UI / CSS ENHANCEMENTS
+# MODERN ULTRA-PREMIUM UI / CSS ENHANCEMENTS
 # ==========================================
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
     
     html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        background-color: #090d16;
+        color: #f3f4f6;
     }
+    
     .block-container { 
         padding-top: 1.5rem !important; 
-        max-width: 1200px;
+        max-width: 1250px;
     }
+    
     div[data-testid="stHeader"] {
         position: fixed; top: 0; left: 0; width: 100%;
-        background-color: rgba(14, 17, 23, 0.95);
-        backdrop-filter: blur(10px);
-        z-index: 99999; border-bottom: 1px solid #1f2937;
+        background: rgba(9, 13, 22, 0.85);
+        backdrop-filter: blur(12px);
+        z-index: 99999; 
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     
     .app-header-title {
-        color: #1877F2 !important;
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         font-weight: 800;
-        font-size: 1.8rem;
+        font-size: 2rem;
         text-align: center;
         margin: 0;
         letter-spacing: -0.5px;
     }
     
-    img { border-radius: 12px; }
-    .stImage > img {
-        border-radius: 50% !important; 
-        object-fit: cover !important; 
-        border: 2px solid #1877F2 !important;
-        box-shadow: 0 4px 12px rgba(24, 119, 242, 0.25);
-    }
-    
     .fb-post-card {
-        background: #111827; 
-        padding: 20px; 
-        border-radius: 16px; 
+        background: linear-gradient(145deg, #111827 0%, #0f172a 100%);
+        padding: 24px; 
+        border-radius: 20px; 
         margin-bottom: 24px; 
-        border: 1px solid #1f2937;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-        transition: transform 0.2s ease, border-color 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.5);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .fb-post-card:hover {
-        border-color: #374151;
+        border-color: rgba(59, 130, 246, 0.4);
+        box-shadow: 0 16px 40px -10px rgba(59, 130, 246, 0.15);
+        transform: translateY(-2px);
     }
     
-    .video-watermark-wrapper { position: relative; border-radius: 12px; overflow: hidden; }
+    .video-watermark-wrapper { 
+        position: relative; 
+        border-radius: 16px; 
+        overflow: hidden; 
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
     .video-watermark-badge {
-        position: absolute; top: 12px; right: 15px; 
-        background: rgba(24, 119, 242, 0.9);
-        backdrop-filter: blur(4px);
-        color: white; padding: 4px 12px; border-radius: 20px; 
-        font-size: 11px; font-weight: 700; z-index: 99; pointer-events: none;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        position: absolute; top: 14px; right: 16px; 
+        background: rgba(59, 130, 246, 0.85);
+        backdrop-filter: blur(6px);
+        color: white; padding: 6px 14px; border-radius: 30px; 
+        font-size: 12px; font-weight: 700; z-index: 99; pointer-events: none;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }
+    
     .tiktok-container { 
-        max-width: 380px; margin: 0 auto; border-radius: 16px; 
-        overflow: hidden; border: 1px solid #1f2937; background: #000; 
+        max-width: 380px; margin: 0 auto; border-radius: 20px; 
+        overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); background: #000; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
     }
+    
     .announcement-box {
-        background: linear-gradient(135deg, #1877F2 0%, #0d5cb6 100%); 
-        color: #ffffff; padding: 12px 20px; border-radius: 12px; 
-        text-align: center; margin-bottom: 20px; font-weight: 600; font-size: 14px;
-        box-shadow: 0 4px 12px rgba(24, 119, 242, 0.25);
-        border: 1px solid rgba(255,255,255,0.1);
+        background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); 
+        color: #ffffff; padding: 14px 24px; border-radius: 16px; 
+        text-align: center; margin-bottom: 24px; font-weight: 600; font-size: 15px;
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.15);
     }
+    
     .ad-container { 
-        margin-top: 15px; margin-bottom: 15px; padding: 12px; 
-        background: #0b0f17; border-radius: 12px; text-align: center; 
-        border: 1px dashed #374151;
+        margin-top: 16px; margin-bottom: 16px; padding: 14px; 
+        background: #0b0f19; border-radius: 16px; text-align: center; 
+        border: 1px dashed rgba(255, 255, 255, 0.12);
     }
+    
     .vertical-live-feed-box { 
-        max-height: 600px; overflow-y: auto; background: #0b0f17; 
-        padding: 18px; border-radius: 16px; border: 1px solid #1f2937; 
+        max-height: 600px; overflow-y: auto; background: #0b0f19; 
+        padding: 20px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.06); 
     }
     .vertical-live-card { 
-        background: #111827; border-left: 4px solid #1877F2; 
-        padding: 14px; margin-bottom: 15px; border-radius: 8px; color: #fff; 
+        background: #111827; border-left: 4px solid #3b82f6; 
+        padding: 16px; margin-bottom: 16px; border-radius: 12px; color: #fff; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
     .duplicate-card { 
-        background: #1f1315; border-left: 4px solid #ef4444; 
-        padding: 14px; margin-bottom: 12px; border-radius: 8px; color: #fff; 
+        background: #1e1114; border-left: 4px solid #ef4444; 
+        padding: 16px; margin-bottom: 14px; border-radius: 12px; color: #fff; 
     }
     .amazon-product-card { 
-        background: #111827; border: 1px solid #f59e0b; 
-        padding: 18px; border-radius: 12px; margin-bottom: 15px; 
+        background: linear-gradient(145deg, #111827 0%, #0f172a 100%); 
+        border: 1px solid rgba(245, 158, 11, 0.3); 
+        padding: 20px; border-radius: 16px; margin-bottom: 18px; 
+        box-shadow: 0 8px 20px rgba(0,0,0,0.3);
     }
     .meta-control-box { 
-        background: #0d1527; border: 1px solid #1877F2; 
-        padding: 20px; border-radius: 16px; margin-bottom: 20px; 
+        background: linear-gradient(145deg, #0f172a 0%, #0d1526 100%); 
+        border: 1px solid rgba(59, 130, 246, 0.3); 
+        padding: 24px; border-radius: 20px; margin-bottom: 24px; 
+        box-shadow: 0 10px 25px rgba(0,0,0,0.4);
     }
     .msg-box-owner { 
-        background: #111827; border: 1px solid #1f2937; 
-        padding: 14px; border-radius: 10px; margin-bottom: 10px; 
+        background: #111827; border: 1px solid rgba(255, 255, 255, 0.08); 
+        padding: 16px; border-radius: 14px; margin-bottom: 12px; 
     }
+    
     .chat-bubble-self { 
-        background: #1877F2; color: white; padding: 12px 16px; 
-        border-radius: 16px 16px 2px 16px; margin-bottom: 10px; 
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); 
+        color: white; padding: 14px 18px; 
+        border-radius: 20px 20px 4px 20px; margin-bottom: 12px; 
         max-width: 80%; float: right; clear: both;
-        box-shadow: 0 2px 8px rgba(24, 119, 242, 0.3);
+        box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        font-size: 14px;
     }
     .chat-bubble-other { 
-        background: #1f2937; color: white; padding: 12px 16px; 
-        border-radius: 16px 16px 16px 2px; margin-bottom: 10px; 
+        background: #1f2937; color: white; padding: 14px 18px; 
+        border-radius: 20px 20px 20px 4px; margin-bottom: 12px; 
         max-width: 80%; float: left; clear: both;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        font-size: 14px;
     }
 
     .stButton>button {
-        border-radius: 10px !important;
+        border-radius: 12px !important;
         font-weight: 600 !important;
-        transition: all 0.2s ease !important;
+        transition: all 0.25s ease !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%) !important;
+        color: #ffffff !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+    }
+    .stButton>button:hover {
+        border-color: #3b82f6 !important;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4) !important;
+        transform: translateY(-1px);
+    }
+    
+    .stTextInput>div>div>input, .stTextArea>div>div>textarea, .stSelectbox>div>div>div {
+        background-color: #111827 !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 12px !important;
+        color: #ffffff !important;
+    }
+    .stTextInput>div>div>input:focus, .stTextArea>div>div>textarea:focus {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -621,8 +660,8 @@ def hash_pass(pwd):
     return hashlib.sha256(pwd.encode()).hexdigest()
 
 def get_meta_blue_badge():
-    return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 4px; display: inline-block; flex-shrink: 0;">
-        <path fill="#1877F2" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.668.258-.955.088-2.025-.508-2.822-.797-.797-1.867-.967-2.822-.508C16.31 4.233 14.94 3.5 13.36 3.5c-1.58 0-2.95.875-3.668 2.148-.955-.258-2.025-.088-2.822.508-.797.797-.967 1.867-.508 2.822C5.108 9.69 4.375 11.06 4.375 12.64c0 1.58.875 2.95 2.148 3.668-.258.955-.088 2.025.508 2.822.797.797 1.867.967 2.822.508 1.16 1.13 2.53 1.863 4.11 1.863 1.58 0 2.95-.875 3.668-2.148.955.258 2.025.088 2.822-.508.797-.797.967-1.867.508-2.822 1.273-.718 2.048-2.088 2.048-3.668z"/>
+    return """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" style="vertical-align: middle; margin-left: 6px; display: inline-block; flex-shrink: 0;">
+        <path fill="#3b82f6" d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.668.258-.955.088-2.025-.508-2.822-.797-.797-1.867-.967-2.822-.508C16.31 4.233 14.94 3.5 13.36 3.5c-1.58 0-2.95.875-3.668 2.148-.955-.258-2.025-.088-2.822.508-.797.797-.967 1.867-.508 2.822C5.108 9.69 4.375 11.06 4.375 12.64c0 1.58.875 2.95 2.148 3.668-.258.955-.088 2.025.508 2.822.797.797 1.867.967 2.822.508 1.16 1.13 2.53 1.863 4.11 1.863 1.58 0 2.95-.875 3.668-2.148.955.258 2.025.088 2.822-.508.797-.797.967-1.867.508-2.822 1.273-.718 2.048-2.088 2.048-3.668z"/>
         <path fill="#FFFFFF" d="M10.25 15.75l-3.5-3.5 1.41-1.41 2.09 2.08 5.67-5.67 1.41 1.41z"/>
     </svg>"""
 
@@ -917,7 +956,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
         with col_info:
             tick = get_meta_blue_badge() if post.get("is_verified") else ""
             boost_badge = "🔥 [BOOSTED]" if post.get("is_boosted") else ""
-            st.markdown(f"<div style='display: flex; align-items: center; flex-wrap: wrap;'><b>{post.get('full_name')}</b>{tick} <span style='color:orange; margin-left: 6px;'>{boost_badge}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='display: flex; align-items: center; flex-wrap: wrap;'><b>{post.get('full_name')}</b>{tick} <span style='color:#f59e0b; margin-left: 6px;'>{boost_badge}</span></div>", unsafe_allow_html=True)
             st.caption(f"👥 Followers: {author_followers:,} | Category: {post.get('post_category')}")
         
     with col_h2:
@@ -938,7 +977,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
 
     if post.get("title"): st.subheader(post["title"])
     if post.get("content"): st.write(post["content"])
-    if post.get("tags"): st.markdown(f"<span style='color:#1877F2;'>{post['tags']}</span>", unsafe_allow_html=True)
+    if post.get("tags"): st.markdown(f"<span style='color:#3b82f6;'>{post['tags']}</span>", unsafe_allow_html=True)
 
     if st.session_state.user_id and st.session_state.user_id == post.get("user_id"):
         with st.expander("✏ Edit or Delete Post"):
@@ -982,7 +1021,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
             elif cat == "short":
                 st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
                 st.markdown(f'''
-                    <video width="100%" controls preload="metadata" playsinline webkit-playsinline style="border-radius:12px; background:#000;">
+                    <video width="100%" controls preload="metadata" playsinline webkit-playsinline style="border-radius:16px; background:#000;">
                         <source src="{media_path}" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
@@ -990,7 +1029,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                 st.markdown("</div>", unsafe_allow_html=True)
             else:
                 st.markdown(f'''
-                    <video width="100%" controls preload="metadata" playsinline webkit-playsinline style="border-radius:12px; background:#000;">
+                    <video width="100%" controls preload="metadata" playsinline webkit-playsinline style="border-radius:16px; background:#000;">
                         <source src="{media_path}" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
@@ -1003,7 +1042,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
             elif cat == "short":
                 st.markdown("<div class='tiktok-container'>", unsafe_allow_html=True)
                 st.markdown(f'''
-                    <video width="100%" controls preload="metadata" playsinline webkit-playsinline style="border-radius:12px; background:#000;">
+                    <video width="100%" controls preload="metadata" playsinline webkit-playsinline style="border-radius:16px; background:#000;">
                         <source src="{media_path}" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
@@ -1011,7 +1050,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
                 st.markdown("</div>", unsafe_allow_html=True)
             else:
                 st.markdown(f'''
-                    <video width="100%" controls preload="metadata" playsinline webkit-playsinline style="border-radius:12px; background:#000;">
+                    <video width="100%" controls preload="metadata" playsinline webkit-playsinline style="border-radius:16px; background:#000;">
                         <source src="{media_path}" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
@@ -1038,7 +1077,7 @@ def render_post_card(post, ads_enabled, ads_html, prefix="feed"):
     finally:
         conn.close()
 
-    st.markdown("<hr style='margin:12px 0; border-color:#1f2937;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin:16px 0; border-color:rgba(255,255,255,0.08);'>", unsafe_allow_html=True)
     col_b1, col_b2, col_b3 = st.columns(3)
     col_b1.write(f"👁️ **{(post.get('views_count', 0) + 1):,}** Views")
     
@@ -1342,7 +1381,7 @@ with tab_feed:
                             <span>👤 <b>{lp['full_name']}</b> (ID: {lp['user_id'][:8]}...)</span>
                             <span style='color:#888; font-size:12px;'>⏱️ {lp['created_at']}</span>
                         </div>
-                        <p style='margin: 8px 0; font-size:15px;'><b>{lp['title']}</b> - <span style='color:#1877F2;'>[{lp['post_category'].upper()}]</span></p>
+                        <p style='margin: 8px 0; font-size:15px;'><b>{lp['title']}</b> - <span style='color:#3b82f6;'>[{lp['post_category'].upper()}]</span></p>
                         <p style='color:#ccc; font-size:13px;'>{lp['content'] if lp['content'] else ''}</p>
                     </div>
                     """, unsafe_allow_html=True)
@@ -1448,9 +1487,9 @@ with tab_feed:
             else:
                 for sp in pending_sponsors:
                     st.markdown(f"""
-                    <div style='background:#1e2026; padding:12px; border-radius:8px; margin-bottom:10px; border-left:4px solid #1877F2;'>
+                    <div style='background:#1e2026; padding:14px; border-radius:12px; margin-bottom:12px; border-left:4px solid #3b82f6;'>
                         <b>Sponsor Name:</b> {sp['sponsor_name']}<br>
-                        <b>TrxID (10-Digit):</b> <span style='color:yellow; font-weight:bold;'>{sp['trx_id_10digit']}</span><br>
+                        <b>TrxID (10-Digit):</b> <span style='color:#f59e0b; font-weight:bold;'>{sp['trx_id_10digit']}</span><br>
                         <b>Payment Method:</b> {sp['bank_details_used']}<br>
                         <b>Video Link/Path:</b> {sp['video_link'] or sp['video_file_path']}<br>
                         <small style='color:#888;'>Time: {sp['created_at']}</small>
@@ -1576,14 +1615,14 @@ with tab_feed:
                             
                             st.markdown(f"""
                             <div class='duplicate-card'>
-                                ⚠️ <b>Identifier:</b> <span style='color:yellow;'>{ident}</span> | <b>Accounts Found:</b> <span style='color:orange;'>{cnt} Accounts</span>
+                                ⚠️ <b>Identifier:</b> <span style='color:#f59e0b;'>{ident}</span> | <b>Accounts Found:</b> <span style='color:#ef4444;'>{cnt} Accounts</span>
                             </div>
                             """, unsafe_allow_html=True)
                             
                             for u_dup in users_under_ident:
                                 col_d_u1, col_d_u2, col_d_u3 = st.columns([3, 2, 2])
                                 is_banned = u_dup["is_suspended"] == 1
-                                ban_status = "<span style='color:red;'>[BANNED]</span>" if is_banned else "<span style='color:green;'>[ACTIVE]</span>"
+                                ban_status = "<span style='color:#ef4444;'>[BANNED]</span>" if is_banned else "<span style='color:#10b981;'>[ACTIVE]</span>"
                                 
                                 col_d_u1.write(f"👤 **{u_dup['full_name']}** ({u_dup['user_id'][:8]}...) {ban_status}")
                                 col_d_u2.write(f"⏱ {u_dup['created_at']}")
@@ -2164,7 +2203,7 @@ with tab_feed:
             else:
                 for tv in top_videos:
                     st.markdown(f"""
-                    <div style='background:#161b22; padding:12px; border-radius:8px; margin-bottom:8px; border-left:4px solid #10b981;'>
+                    <div style='background:#161b22; padding:14px; border-radius:12px; margin-bottom:10px; border-left:4px solid #10b981;'>
                         <b>📌 Title:</b> {tv['title'] or 'Untitled'} <br>
                         <b>👤 Creator:</b> {tv['full_name']} | <b>Category:</b> [{tv['post_category'].upper()}]<br>
                         <b>👁️ Views:</b> {tv['views_count']:,} | <small style='color:#888;'>Upload Time: {tv['created_at']}</small>
@@ -2225,7 +2264,7 @@ with tab_feed:
                         """, unsafe_allow_html=True)
                         if ap['image_url']:
                             st.image(ap['image_url'], use_container_width=True)
-                        st.markdown(f"<a href='{ap['affiliate_link']}' target='_blank'><button style='width:100%; background:#f59e0b; color:#000; border:none; padding:10px; border-radius:8px; font-weight:bold; cursor:pointer;'>🛒 Buy Now on Amazon</button></a>", unsafe_allow_html=True)
+                        st.markdown(f"<a href='{ap['affiliate_link']}' target='_blank'><button style='width:100%; background:#f59e0b; color:#000; border:none; padding:10px; border-radius:12px; font-weight:bold; cursor:pointer;'>🛒 Buy Now on Amazon</button></a>", unsafe_allow_html=True)
                         st.markdown("<br>", unsafe_allow_html=True)
 
         with sub_feed3:
@@ -2697,9 +2736,9 @@ with tab_monetization:
     saved_qr_image = get_setting("bangla_qr_path")
     
     st.markdown("""
-    <div style='background:#111827; border:2px solid #1877F2; padding:15px; border-radius:16px; text-align:center; margin-bottom:15px;'>
-        <h3 style='color:#1877F2; margin-bottom:5px;'>📲 Pay via QR Code</h3>
-        <p style='color:#ccc; font-size:14px;'>Scan the QR code to complete payment for video promotions, boosting, or sponsored posts.</p>
+    <div style='background:linear-gradient(145deg, #111827 0%, #0f172a 100%); border:2px solid #3b82f6; padding:20px; border-radius:20px; text-align:center; margin-bottom:20px; box-shadow: 0 10px 30px rgba(59,130,246,0.15);'>
+        <h3 style='color:#3b82f6; margin-bottom:8px;'>📲 Pay via QR Code</h3>
+        <p style='color:#cbd5e1; font-size:14px; margin:0;'>Scan the QR code to complete payment for video promotions, boosting, or sponsored posts.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2713,10 +2752,10 @@ with tab_monetization:
 
     with col_qr_disp2:
         st.markdown("""
-        <div style='background:#0d1527; border:1px dashed #f59e0b; padding:20px; border-radius:12px; text-align:center;'>
+        <div style='background:linear-gradient(145deg, #0f172a 0%, #0d1526 100%); border:1px dashed #f59e0b; padding:24px; border-radius:16px; text-align:center; box-shadow: 0 8px 20px rgba(0,0,0,0.3);'>
             <h4 style='color:#f59e0b; margin:0;'>📞 Contact us after payment:</h4>
-            <h2 style='color:#ffffff; margin:10px 0;'>01722-003172</h2>
-            <p style='color:#aaa; font-size:13px; margin:0;'>After sending money, fill out the form below with your 10-digit Transaction ID (TrxID) or call this number directly.</p>
+            <h2 style='color:#ffffff; margin:12px 0; font-weight:800;'>01722-003172</h2>
+            <p style='color:#94a3b8; font-size:13px; margin:0;'>After sending money, fill out the form below with your 10-digit Transaction ID (TrxID) or call this number directly.</p>
         </div>
         """, unsafe_allow_html=True)
 
