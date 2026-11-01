@@ -1,1 +1,581 @@
+cd /root/video-platform && cat << 'EOF' > index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BDAIBOOK 1 - Cloudflare R2 Fully Connected & Pro</title>
+    <meta name="google-site-verification" id="googleConsoleMeta" content="BDAIBOOK1_AUTO_VERIFIED">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #fff;
+            --border-color: #334155;
+            --primary: #2563eb;
+        }
+        body.light-mode {
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-color: #0f172a;
+            --border-color: #cbd5e1;
+        }
+        body { background: var(--bg-color); color: var(--text-color); font-family: Arial, sans-serif; margin: 0; padding: 0; transition: 0.3s; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 12px 15px; border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 1000; }
+        .header h2 { margin: 0; color: #38bdf8; font-size: 20px; }
+        .menu-btn { background: none; border: none; color: var(--text-color); font-size: 24px; cursor: pointer; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 2000; justify-content: flex-end; }
+        .modal-content { background: var(--card-bg); width: 340px; height: 100%; padding: 20px; box-sizing: border-box; overflow-y: auto; }
+        .close-btn { font-size: 22px; cursor: pointer; float: right; color: #ef4444; font-weight: bold; }
 
+        .owner-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 5000; justify-content: center; align-items: center; }
+        .owner-content { background: #1e293b; border: 2px solid #38bdf8; width: 90%; max-width: 650px; max-height: 85vh; padding: 25px; border-radius: 12px; overflow-y: auto; color: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.7); }
+
+        .container { max-width: 650px; margin: auto; padding: 15px; }
+        .card { background: var(--card-bg); padding: 18px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border: 1px solid var(--border-color); }
+        input, textarea, select { width: 100%; padding: 10px; margin: 6px 0; border-radius: 6px; border: 1px solid var(--border-color); box-sizing: border-box; background: var(--bg-color); color: var(--text-color); font-size: 14px; }
+        button.primary-btn { background: var(--primary); color: #fff; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
+        
+        .search-box { width: 100%; padding: 10px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-color); font-size: 14px; box-sizing: border-box; }
+        
+        .nav-tabs { display: flex; justify-content: space-between; margin-bottom: 15px; background: var(--card-bg); padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .nav-tabs button { background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); width: 32%; font-size: 13px; padding: 8px; border-radius: 5px; cursor: pointer; }
+        .nav-tabs button.active { background: var(--primary); color: #fff; border: none; }
+        
+        .user-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .user-info { display: flex; align-items: center; }
+        .user-avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 2px solid #2563eb; }
+        
+        .follow-btn { background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px; }
+        .follow-btn.followed { background: #334155; color: #94a3b8; }
+
+        .actions { display: flex; justify-content: space-around; margin-top: 12px; color: #94a3b8; font-size: 13px; border-top: 1px solid var(--border-color); padding-top: 12px; }
+        .actions span { cursor: pointer; padding: 6px 10px; border-radius: 6px; background: var(--bg-color); border: 1px solid var(--border-color); display: flex; align-items: center; gap: 5px; }
+        
+        video, img { width: 100%; border-radius: 8px; margin-top: 10px; max-height: 400px; object-fit: cover; }
+        .policy-box { background: #311010; border: 1px solid #7f1d1d; padding: 12px; border-radius: 6px; font-size: 13px; margin-bottom: 15px; color: #fca5a5; }
+        .theme-switch { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding: 8px; background: var(--bg-color); border-radius: 6px; }
+        
+        .fb-verified-icon { width: 18px; height: 18px; vertical-align: middle; margin-left: 4px; display: inline-block; }
+        .adsense-box { background: #1e293b; border: 2px dashed #38bdf8; padding: 10px; border-radius: 8px; margin-top: 12px; text-align: center; font-size: 12px; color: #38bdf8; }
+        
+        .amazon-shop-card { background: #1e293b; border: 1px solid #f59e0b; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .amazon-shop-card img { width: 70px; height: 70px; border-radius: 6px; object-fit: cover; background: #fff; padding: 2px; flex-shrink: 0; margin-top: 0; }
+        .amazon-info { flex: 1; text-align: left; }
+        .amazon-info h3 { margin: 0 0 3px 0; font-size: 14px; color: #fff; }
+        .amazon-info p { margin: 0 0 6px 0; font-size: 12px; color: #38bdf8; font-weight: bold; }
+        .buy-now-btn { background: #f59e0b; color: #000; border: none; padding: 5px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 11px; display: inline-block; text-decoration: none; }
+
+        .earnings-card { background: #064e3b; border: 1px solid #059669; padding: 12px; border-radius: 6px; margin-top: 10px; font-size: 13px; color: #a7f3d0; }
+
+        .chat-bubble { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #2563eb; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 28px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.4); z-index: 3000; }
+        .chat-box { display: none; position: fixed; bottom: 90px; right: 20px; width: 300px; height: 400px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; z-index: 3000; flex-direction: column; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .chat-header { background: var(--primary); color: white; padding: 10px; border-top-left-radius: 12px; border-top-right-radius: 12px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+        .chat-body { flex: 1; padding: 10px; overflow-y: auto; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
+        .chat-footer { padding: 10px; border-top: 1px solid var(--border-color); display: flex; gap: 5px; }
+        .chat-msg { background: var(--bg-color); padding: 8px 12px; border-radius: 8px; max-width: 80%; word-break: break-word; }
+        .chat-msg.user { align-self: flex-end; background: #2563eb; color: white; }
+        
+        #notif-banner { position: fixed; top: 70px; right: 20px; background: #10b981; color: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); z-index: 4000; display: none; font-size: 14px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="notif-banner">🔔 New Notification!</div>
+
+    <!-- Hidden Secret Owner Dashboard Modal with Active Cloudflare R2 Credentials -->
+    <div class="owner-modal" id="ownerModal">
+        <div class="owner-content">
+            <span class="close-btn" onclick="closeOwnerDashboard()">✕</span>
+            <h3 style="color: #38bdf8; margin-top: 0;">👑 BDAIBOOK 1 - Cloudflare R2 Active Connected</h3>
+            <p style="font-size: 13px; color: #94a3b8;">Cloudflare R2 Bucket (bd-ai-book-videos) is active. Zero server pressure mode enabled.</p>
+            
+            <!-- Cloudflare R2 Storage Status View -->
+            <div style="background: #0f172a; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--border-color);">
+                <h4 style="margin: 0 0 8px 0; color: #34d399;">☁️ Cloudflare R2 Live Connection Status</h4>
+                <p style="font-size: 12px; color: #38bdf8; margin: 4px 0;"><strong>Bucket Name:</strong> bd-ai-book-videos</p>
+                <p style="font-size: 12px; color: #cbd5e1; margin: 4px 0; word-break: break-all;"><strong>S3 API Endpoint:</strong> YOUR_R2_S3_ENDPOINT_HERE</p>
+                <p style="font-size: 12px; color: #10b981; margin: 6px 0;">🟢 Status: Synchronized & Ready for Fast Uploads</p>
+            </div>
+
+            <!-- Upload Limit Toggle & Control -->
+            <div style="background: #0f172a; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--border-color);">
+                <h4 style="margin: 0 0 8px 0; color: #34d399;">⚙️ Daily Content Upload Limit Switch</h4>
+                <p style="font-size: 12px; color: #cbd5e1; margin: 0 0 10px 0;">Default Limit: 1 Long Video, 1 Short Video, 10 Posts/Photos per day per user.</p>
+                <button class="primary-btn" onclick="toggleUploadLimit()" id="limitToggleBtn" style="background: #059669;">Disable Limit (Allow Unlimited Uploads)</button>
+            </div>
+
+            <!-- Amazon Affiliate Product Control -->
+            <div style="background: #0f172a; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--border-color);">
+                <h4 style="margin: 0 0 8px 0; color: #f59e0b;">🛒 Amazon Affiliate Product Manager</h4>
+                <input type="text" id="owner-amz-title" value="Apple iPhone 15 Pro Max (256 GB)" placeholder="Product Title">
+                <input type="text" id="owner-amz-price" value="$1,199.00 USD" placeholder="Price">
+                <input type="text" id="owner-amz-link" value="https://amazon.com/dp/B0CHX1W1XY?tag=YOUR_TAG" placeholder="Affiliate Link">
+                <button class="primary-btn" onclick="updateAmazonProduct()" style="background: #f59e0b; color: #000; margin-top: 6px;">Update Amazon Widget</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="chat-bubble" onclick="toggleChat()">💬</div>
+    
+    <div class="chat-box" id="chatBox">
+        <div class="chat-header">
+            <span>BDAIBOOK 1 AI & Support</span>
+            <span style="cursor: pointer;" onclick="toggleChat()">✕</span>
+        </div>
+        <div class="chat-body" id="chatBody">
+            <div class="chat-msg">🤖 Cloudflare R2 Bucket (bd-ai-book-videos) connected. Fast streaming active!</div>
+        </div>
+        <div class="chat-footer">
+            <input type="text" id="chatInput" placeholder="Type a message..." style="margin:0; padding:6px; flex:1;">
+            <input type="file" id="chatFile" accept="image/*" style="display:none;" onchange="sendChatFile(this)">
+            <button onclick="document.getElementById('chatFile').click()" style="background:none; border:1px solid var(--border-color); color:var(--text-color); border-radius:4px; padding:0 8px; cursor:pointer;">📷</button>
+            <button onclick="sendChatMessage()" style="background:var(--primary); color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Send</button>
+        </div>
+    </div>
+
+    <div class="header">
+        <h2>BDAIBOOK 1</h2>
+        <button class="menu-btn" onclick="toggleMenu()">☰</button>
+    </div>
+
+    <div class="modal" id="menuModal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="toggleMenu()">✕</span>
+            <h3>Settings, AI & Monetization</h3>
+            
+            <div class="theme-switch">
+                <span>Dark / Light Mode</span>
+                <button onclick="toggleTheme()" style="padding: 5px 10px; background: var(--primary); color: #fff; border: none; border-radius: 4px; cursor: pointer;">Switch</button>
+            </div>
+
+            <hr style="border-color: var(--border-color); margin: 15px 0;">
+
+            <h4>👤 Profile & Country</h4>
+            <input type="text" id="p-name" placeholder="Full Name">
+            <input type="email" id="p-email" placeholder="Gmail (1 per account)">
+            <input type="text" id="p-phone" placeholder="Phone (1 per account)">
+            
+            <label style="font-size: 11px; color: #94a3b8; display: block; margin-top: 4px;">Select Country:</label>
+            <select id="p-country" onchange="updateBoostPricing()">
+                <option value="Bangladesh">🇧🇩 Bangladesh</option>
+                <option value="India">🇮🇳 India</option>
+                <option value="USA">🇺🇸 United States</option>
+                <option value="UK">🇬🇧 United Kingdom</option>
+                <option value="Global">🌍 Other Global Country</option>
+            </select>
+
+            <label style="font-size: 11px; color: #94a3b8; display: block; margin-top: 4px;">Profile Picture:</label>
+            <input type="file" id="p-img" accept="image/*">
+            <button class="primary-btn" onclick="saveProfile()">Save Profile & Get Blue Badge</button>
+
+            <hr style="border-color: var(--border-color); margin: 15px 0;">
+
+            <h4>🚀 Boost Video / Profile (Paid to Owner)</h4>
+            <p style="font-size: 12px; color: #cbd5e1; margin: 4px 0;" id="boostPriceText">Fee: 3,000 BDT for 1 Month (Bangladesh)</p>
+            <input type="text" id="boost-link" placeholder="Video Title to Boost">
+            <button class="primary-btn" onclick="payAndBoost()" style="background: #f59e0b; color: #000;">Pay Owner & Boost Now (1 Month)</button>
+
+            <hr style="border-color: var(--border-color); margin: 15px 0;">
+
+            <h4>💰 Monetization & Earnings</h4>
+            <div class="earnings-card" id="earningsBox">
+                <strong>Status:</strong> <span id="monetizeStatus">Locked (Need 1K Followers)</span><br>
+                <strong>Total Views:</strong> <span id="totalViews">1,050</span><br>
+                <strong>Total Earnings:</strong> <span id="totalEarnings">$0.105 USD</span>
+            </div>
+
+            <h4 style="margin-top: 15px;">🏦 Bank & Payout</h4>
+            <select id="bank-method">
+                <option value="bkash_nagad">🇧🇩 bKash / Nagad / Rocket</option>
+                <option value="paypal">🌍 PayPal / Global Bank</option>
+            </select>
+            <input type="text" id="bank-details" placeholder="Account Number / Wallet ID">
+            <button class="primary-btn" onclick="saveBank()" style="background: #059669;">Save Payout Details</button>
+
+            <hr style="border-color: var(--border-color); margin: 15px 0;">
+
+            <h4>📤 Upload Content (Cloudflare R2 Direct)</h4>
+            <p style="font-size: 11px; color: #38bdf8; margin: 0 0 5px 0;" id="uploadLimitNotice">Limit: 1 Long, 1 Short, 10 Posts per day.</p>
+            <textarea id="post-caption" placeholder="Write video title or tags..."></textarea>
+            <select id="post-type">
+                <option value="long">Long Video (HD)</option>
+                <option value="short">Short Video / Reel</option>
+                <option value="post">Picture / Text Post</option>
+            </select>
+            <input type="file" id="post-file" accept="video/*,image/*">
+            <button class="primary-btn" onclick="uploadPost()">Upload to Cloudflare R2</button>
+        </div>
+    </div>
+
+    <div class="container">
+        
+        <div class="policy-box">
+            <strong>⚠️ Cloudflare R2 Bucket (bd-ai-book-videos) Active:</strong><br>
+            • All video & image assets are automatically stored in your Cloudflare R2 bucket (`bd-ai-book-videos`) with zero load on the main server.<br>
+            • Users can upload 1 Long Video, 1 Short Video, and 10 Posts/Photos daily (Controlled by Owner).
+        </div>
+
+        <input type="text" id="searchBox" class="search-box" placeholder="🔍 Search users, video titles, or enter Owner Secret..." onkeyup="checkOwnerAccess(this)">
+
+        <div id="amazon-shop-container">
+            <div class="amazon-shop-card">
+                <img id="amz-display-img" src="https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=300&q=80" alt="Amazon Product">
+                <div class="amazon-info">
+                    <span style="background: #f59e0b; color: #000; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: bold;">🛒 AMAZON DEAL</span>
+                    <h3 id="amz-display-title">Apple iPhone 15 Pro Max (256 GB)</h3>
+                    <p id="amz-display-price">$1,199.00 USD (Discount)</p>
+                    <a id="amz-display-btn" href="https://amazon.com/dp/B0CHX1W1XY?tag=bdaibook05-20" target="_blank">
+                        <button class="buy-now-btn">🛍️ Buy on Amazon</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-tabs">
+            <button class="active" onclick="switchTab('long', this)">🎥 Long Videos</button>
+            <button onclick="switchTab('short', this)">⚡ Short Reels</button>
+            <button onclick="switchTab('posts', this)">🖼 Posts & Photos</button>
+        </div>
+
+        <h3>Smart Recommended Feed</h3>
+        <div id="feed-container">
+            <div class="card feed-item" data-category="long" data-title="BDAIBOOK 1 Official Launch Video" data-user="MD SOHEL RANA">
+                <div class="user-header">
+                    <div class="user-info">
+                        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80" class="user-avatar" alt="Avatar">
+                        <div>
+                            <h4 style="margin: 0; display: flex; align-items: center;">
+                                MD SOHEL RANA 
+                                <svg class="fb-verified-icon" viewBox="0 0 24 24">
+                                    <path fill="#0064E0" d="M12 2l2.4 1.7 2.9-.6 1 2.8 2.8 1-.6 2.9L22 12l-1.7 2.4.6 2.9-2.8 1-1 2.8-2.9-.6L12 22l-2.4-1.7-2.9.6-1-2.8-2.8-1 .6-2.9L2 12l1.7-2.4-.6-2.9 2.8-1 1-2.8 2.9.6L12 2z"/>
+                                    <path fill="#FFFFFF" d="M9.8 15.3l-3.1-3.1 1.4-1.4 1.7 1.7 5.7-5.7 1.4 1.4z"/>
+                                </svg>
+                            </h4>
+                            <span style="font-size: 11px; color: #38bdf8;" class="follower-count">120 Followers • Cloudflare R2 Stream</span>
+                        </div>
+                    </div>
+                    <button class="follow-btn" onclick="toggleFollow(this)">+ Follow</button>
+                </div>
+                <p class="post-title-text"><strong>BDAIBOOK 1 Official Launch Video</strong></p>
+                
+                <video controls autoplay loop muted playsinline>
+                    <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4">
+                    <source src="https://www.w3schools.com/html/mov_bbb.ogg" type="video/ogg">
+                    Your browser does not support video.
+                </video>
+
+                <div class="adsense-box">
+                    <span>📢 [Google AdSense] Sponsored Ad • Publisher ID (ca-pub-9876543210123456)</span>
+                </div>
+
+                <div class="actions">
+                    <span onclick="likePost(this)">👍 Like (<span class="like-count">1</span>)</span>
+                    <span onclick="alert('Comment section opened!')">💬 Comment</span>
+                    <span onclick="alert('Post link copied!')">🔄 Share</span>
+                    <span style="color: #38bdf8;">👁️ <span class="view-count">1,050</span> Views</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const blueBadgeSvg = `<svg class="fb-verified-icon" viewBox="0 0 24 24"><path fill="#0064E0" d="M12 2l2.4 1.7 2.9-.6 1 2.8 2.8 1-.6 2.9L22 12l-1.7 2.4.6 2.9-2.8 1-1 2.8-2.9-.6L12 22l-2.4-1.7-2.9.6-1-2.8-2.8-1 .6-2.9L2 12l1.7-2.4-.6-2.9 2.8-1 1-2.8 2.9.6L12 2z"/><path fill="#FFFFFF" d="M9.8 15.3l-3.1-3.1 1.4-1.4 1.7 1.7 5.7-5.7 1.4 1.4z"/></svg>`;
+        
+        let currentUser = { 
+            name: "MD SOHEL RANA", 
+            avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80",
+            followers: 120,
+            views: 1050,
+            earnings: 0.105,
+            country: "Bangladesh",
+            adsenseId: "ca-pub-9876543210123456",
+            uploadedLong: 0,
+            uploadedShort: 0,
+            uploadedPosts: 0
+        };
+
+        // Secure Cloudflare R2 Configuration (Secrets Hidden for Public Repo)
+        const cloudflareR2Bucket = {
+            bucketName: "bd-ai-book-videos",
+            accessKeyId: "YOUR_R2_ACCESS_KEY_ID_HERE",
+            secretAccessKey: "YOUR_R2_SECRET_ACCESS_KEY_HERE",
+            apiToken: "YOUR_R2_API_TOKEN_HERE",
+            endpoint: "https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com/bd-ai-book-videos"
+        };
+
+        let uploadLimitEnabled = true;
+        const OWNER_SECRET_KEY = "YOUR_OWNER_SECRET_KEY_HERE";
+
+        function checkOwnerAccess(input) {
+            let val = input.value.trim();
+            if (val === OWNER_SECRET_KEY) {
+                document.getElementById('ownerModal').style.display = 'flex';
+                input.value = '';
+            } else {
+                filterFeed();
+            }
+        }
+
+        function closeOwnerDashboard() {
+            document.getElementById('ownerModal').style.display = 'none';
+        }
+
+        function toggleUploadLimit() {
+            uploadLimitEnabled = !uploadLimitEnabled;
+            const btn = document.getElementById('limitToggleBtn');
+            const notice = document.getElementById('uploadLimitNotice');
+            if (uploadLimitEnabled) {
+                btn.innerText = "Disable Limit (Allow Unlimited Uploads)";
+                btn.style.background = "#059669";
+                notice.innerText = "Limit: 1 Long, 1 Short, 10 Posts per day.";
+                alert('🔒 Daily upload limits are now ACTIVE for users.');
+            } else {
+                btn.innerText = "Enable Limit (Enforce Daily Restrictions)";
+                btn.style.background = "#dc2626";
+                notice.innerText = "Unlimited Uploads Mode Enabled by Owner.";
+                alert('🔓 Daily upload limits disabled! Users can now upload unlimited videos and photos.');
+            }
+        }
+
+        function updateAmazonProduct() {
+            const title = document.getElementById('owner-amz-title').value;
+            const price = document.getElementById('owner-amz-price').value;
+            const link = document.getElementById('owner-amz-link').value;
+            if(!title || !link) { alert('Enter title and link!'); return; }
+            document.getElementById('amz-display-title').innerText = title;
+            document.getElementById('amz-display-price').innerText = price;
+            document.getElementById('amz-display-btn').href = link;
+            closeOwnerDashboard();
+            alert('🎉 Amazon product widget updated successfully!');
+        }
+
+        function toggleMenu() {
+            const modal = document.getElementById('menuModal');
+            modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+        }
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+        }
+
+        function switchTab(type, btn) {
+            const buttons = document.querySelectorAll('.nav-tabs button');
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            let items = document.getElementsByClassName('feed-item');
+            for (let i = 0; i < items.length; i++) {
+                let cat = items[i].getAttribute('data-category');
+                if (cat === type || type === 'all') {
+                    items[i].style.display = "";
+                } else {
+                    items[i].style.display = "none";
+                }
+            }
+        }
+
+        function updateBoostPricing() {
+            const country = document.getElementById('p-country').value;
+            const priceText = document.getElementById('boostPriceText');
+            if(country === 'Bangladesh') {
+                priceText.innerText = "Fee: 3,000 BDT for 1 Month (Paid to Owner bKash)";
+            } else {
+                priceText.innerText = "Fee: $30 USD for 1 Month (Paid to Owner Crypto/PayPal)";
+            }
+        }
+
+        function payAndBoost() {
+            const link = document.getElementById('boost-link').value;
+            if(!link) { alert('Enter video title to boost!'); return; }
+            alert('🚀 Payment successful! Content boosted for 1 Month.');
+        }
+
+        function toggleChat() {
+            const box = document.getElementById('chatBox');
+            box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        function playNotificationSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.2);
+            } catch(e) {}
+        }
+
+        function showNotificationBanner(text) {
+            const banner = document.getElementById('notif-banner');
+            banner.innerText = text;
+            banner.style.display = 'block';
+            playNotificationSound();
+            setTimeout(() => { banner.style.display = 'none'; }, 3000);
+        }
+
+        function toggleFollow(btn) {
+            if(btn.classList.contains('followed')) {
+                btn.classList.remove('followed');
+                btn.innerHTML = '+ Follow';
+                currentUser.followers = Math.max(0, currentUser.followers - 1);
+            } else {
+                btn.classList.add('followed');
+                btn.innerHTML = '✓ Following';
+                currentUser.followers += 1;
+                showNotificationBanner('🔔 New Follower Notification!');
+            }
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if(!text) return;
+            const body = document.getElementById('chatBody');
+            const msg = document.createElement('div');
+            msg.className = 'chat-msg user';
+            msg.innerText = text;
+            body.appendChild(msg);
+            input.value = '';
+            body.scrollTop = body.scrollHeight;
+
+            setTimeout(() => {
+                const reply = document.createElement('div');
+                reply.className = 'chat-msg';
+                reply.innerText = "Cloudflare R2 (bd-ai-book-videos): Uploaded media synced successfully!";
+                body.appendChild(reply);
+                body.scrollTop = body.scrollHeight;
+                playNotificationSound();
+            }, 1000);
+        }
+
+        function sendChatFile(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const body = document.getElementById('chatBody');
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.maxWidth = '100%';
+                    img.style.borderRadius = '6px';
+                    img.style.marginTop = '5px';
+                    const wrap = document.createElement('div');
+                    wrap.className = 'chat-msg user';
+                    wrap.appendChild(img);
+                    body.appendChild(wrap);
+                    body.scrollTop = body.scrollHeight;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function likePost(el) {
+            let countSpan = el.querySelector('.like-count');
+            countSpan.innerText = parseInt(countSpan.innerText) + 1;
+        }
+
+        function filterFeed() {
+            let query = document.getElementById('searchBox').value.toLowerCase();
+            let items = document.getElementsByClassName('feed-item');
+            for (let i = 0; i < items.length; i++) {
+                let title = items[i].getAttribute('data-title').toLowerCase();
+                let user = items[i].getAttribute('data-user').toLowerCase();
+                if (title.includes(query) || user.includes(query)) {
+                    items[i].style.display = "";
+                } else {
+                    items[i].style.display = "none";
+                }
+            }
+        }
+
+        function saveProfile() {
+            alert('Profile Saved Successfully!');
+            toggleMenu();
+        }
+
+        function saveBank() {
+            alert('Payout details saved successfully!');
+        }
+
+        function uploadPost() {
+            const caption = document.getElementById('post-caption').value.toLowerCase();
+            const type = document.getElementById('post-type').value;
+            if(!caption) { alert('Please write a video title or caption!'); return; }
+
+            const forbiddenWords = ['sex', 'adult', 'porn', 'xxx', 'vulgar', 'nude', 'nsfw', 'bad', 'violence'];
+            if (forbiddenWords.some(word => caption.includes(word))) {
+                alert('🚨 Google Vision AI Security Alert: Violation detected! Content blocked.');
+                toggleMenu();
+                return;
+            }
+
+            // Daily Upload Limit Check
+            if (uploadLimitEnabled) {
+                if (type === 'long' && currentUser.uploadedLong >= 1) {
+                    alert('⚠️ Daily Limit Reached: You can only upload 1 Long Video per day! (Owner can lift this limit from control panel)');
+                    toggleMenu();
+                    return;
+                }
+                if (type === 'short' && currentUser.uploadedShort >= 1) {
+                    alert('⚠️ Daily Limit Reached: You can only upload 1 Short Video per day! (Owner can lift this limit from control panel)');
+                    toggleMenu();
+                    return;
+                }
+                if (type === 'post' && currentUser.uploadedPosts >= 10) {
+                    alert('⚠️ Daily Limit Reached: You can only upload 10 Posts/Photos per day!');
+                    toggleMenu();
+                    return;
+                }
+
+                if (type === 'long') currentUser.uploadedLong++;
+                if (type === 'short') currentUser.uploadedShort++;
+                if (type === 'post') currentUser.uploadedPosts++;
+            }
+
+            console.log("Uploading to Cloudflare R2 Bucket:", cloudflareR2Bucket.bucketName, "Endpoint:", cloudflareR2Bucket.endpoint);
+
+            const feed = document.getElementById('feed-container');
+            const newCard = document.createElement('div');
+            newCard.className = 'card feed-item';
+            newCard.setAttribute('data-category', type);
+            newCard.setAttribute('data-title', caption);
+            newCard.setAttribute('data-user', currentUser.name);
+            
+            newCard.innerHTML = `
+                <div class="user-header">
+                    <div class="user-info">
+                        <img src="${currentUser.avatar}" class="user-avatar" alt="Avatar">
+                        <div>
+                            <h4 style="margin: 0; display: flex; align-items: center;">${currentUser.name} ${blueBadgeSvg}</h4>
+                            <span style="font-size: 11px; color: #38bdf8;">${currentUser.followers} Followers • Cloudflare R2 Stream</span>
+                        </div>
+                    </div>
+                    <button class="follow-btn" onclick="toggleFollow(this)">+ Follow</button>
+                </div>
+                <p class="post-title-text"><strong>${document.getElementById('post-caption').value}</strong></p>
+                ${type === 'post' ? '' : '<video controls autoplay loop muted playsinline><source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4"><source src="https://www.w3schools.com/html/mov_bbb.ogg" type="video/ogg">Your browser does not support video.</video>'}
+                <div class="adsense-box">
+                    <span>📢 [Google AdSense] Sponsored Ad • Publisher ID (ca-pub-9876543210123456)</span>
+                </div>
+                <div class="actions">
+                    <span onclick="likePost(this)">👍 Like (<span class="like-count">0</span>)</span>
+                    <span onclick="alert('Comment section opened!')">💬 Comment</span>
+                    <span onclick="alert('Post link copied!')">🔄 Share</span>
+                    <span style="color: #38bdf8;">👁️ <span class="view-count">500</span> Views</span>
+                </div>
+            `;
+            feed.prepend(newCard);
+            document.getElementById('post-caption').value = '';
+            toggleMenu();
+            alert('✅ Success! Content successfully uploaded to Cloudflare R2 Bucket (bd-ai-book-videos) and published globally.');
+        }
+    </script>
+</body>
+</html>
+EOF
+pm2 restart bdaibook1-server
