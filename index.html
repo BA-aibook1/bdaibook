@@ -1,4 +1,4 @@
-let html = `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -111,16 +111,19 @@ let html = `<!DOCTYPE html>
 </div>
 
 <script>
+    // Global application variables
     let currentFilter = 'all', allMediaData = [], allUsersData = {}, globalSettings = {}, searchQuery = '';
 
+    // Format numbers for display (e.g. 1.2K, 3.4M)
     function formatNumber(num) {
         if (!num) return '0';
-        if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\\.0$/, '') + 'B';
-        if (num >= 1e6) return (num / 1e6).toFixed(1).replace(/\\.0$/, '') + 'M';
-        if (num >= 1e3) return (num / 1e3).toFixed(1).replace(/\\.0$/, '') + 'K';
+        if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+        if (num >= 1e6) return (num / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+        if (num >= 1e3) return (num / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
         return num.toString();
     }
 
+    // Theme toggle functionality (Dark/Light)
     function toggleTheme() {
         const current = document.body.getAttribute('data-theme');
         const next = current === 'dark' ? 'light' : 'dark';
@@ -131,12 +134,14 @@ let html = `<!DOCTYPE html>
         document.body.setAttribute('data-theme', localStorage.getItem('bdaibook_theme'));
     }
 
+    // Toggle menu modal visibility
     function toggleMenu() { 
         const modal = document.getElementById('menu-modal');
         modal.classList.toggle('hidden'); 
         renderMenuContent(); 
     }
 
+    // Render navigation/menu contents based on user login state and role
     function renderMenuContent() {
         const savedUser = localStorage.getItem('bdaibook_user'), menuBody = document.getElementById('menu-body');
         if (savedUser) {
@@ -150,57 +155,57 @@ let html = `<!DOCTYPE html>
                     let isSuspended = u.suspendedUntil && Date.now() < u.suspendedUntil;
                     let hasBlueTick = u.verified;
                     
-                    usersHtml += \`
+                    usersHtml += `
                         <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; margin-bottom:6px; border:1px solid var(--border-color); font-size:12px;">
-                            <div><b>\${u.name}</b> \${hasBlueTick ? '🔵' : ''} | <small>\${u.email}</small><br>
-                            <span style="color:#42b72a;">Followers: \${formatNumber(u.followers || 0)} | Earnings: $\${(u.earnings || 0).toFixed(4)}</span></div>
+                            <div><b>${u.name}</b> ${hasBlueTick ? '🔵' : ''} | <small>${u.email}</small><br>
+                            <span style="color:#42b72a;">Followers: ${formatNumber(u.followers || 0)} | Earnings: $${(u.earnings || 0).toFixed(4)}</span></div>
                             
                             <div style="display:flex; gap:4px; margin-top:6px; flex-wrap:wrap;">
-                                <button onclick="adminAction('verify', '\${u.email}')" style="padding:3px 6px;background:#1877f2;font-size:11px;width:auto;">\${hasBlueTick ? 'Remove Tick' : 'Verify 🔵'}</button>
-                                <button onclick="adminAction('\${isSuspended?'unsuspend':'suspend3m'}', '\${u.email}')" style="padding:3px 6px;background:\${isSuspended?'#42b72a':'#ff9900'};font-size:11px;width:auto;">\${isSuspended?'Unsuspend':'Suspend 🚫'}</button>
-                                <button onclick="adminAction('ban', '\${u.email}')" style="padding:3px 6px;background:#dc3545;font-size:11px;width:auto;">Ban ❌</button>
-                                <button onclick="adminAction('reset-balance', '\${u.email}')" style="padding:3px 6px;background:#28a745;font-size:11px;width:auto;">💸 Reset Balance</button>
+                                <button onclick="adminAction('verify', '${u.email}')" style="padding:3px 6px;background:#1877f2;font-size:11px;width:auto;">${hasBlueTick ? 'Remove Tick' : 'Verify 🔵'}</button>
+                                <button onclick="adminAction('${isSuspended?'unsuspend':'suspend3m'}', '${u.email}')" style="padding:3px 6px;background:${isSuspended?'#42b72a':'#ff9900'};font-size:11px;width:auto;">${isSuspended?'Unsuspend':'Suspend 🚫'}</button>
+                                <button onclick="adminAction('ban', '${u.email}')" style="padding:3px 6px;background:#dc3545;font-size:11px;width:auto;">Ban ❌</button>
+                                <button onclick="adminAction('reset-balance', '${u.email}')" style="padding:3px 6px;background:#28a745;font-size:11px;width:auto;">💸 Reset Balance</button>
                             </div>
-                        </div>\`;
+                        </div>`;
                 }
                 const isAdsenseActive = globalSettings.adsenseVerified;
                 const registrationOpen = globalSettings.registrationOpen !== false;
                 const customAdCode = globalSettings.customAdCode || '';
                 const dailyLimit = globalSettings.dailyLongVideoLimit || 1;
                 
-                menuBody.innerHTML = \`
+                menuBody.innerHTML = `
                     <h3 style="color: #1877f2; margin-top:0; font-size:16px;">🛡️ Owner Control Panel</h3>
                     <div style="background:rgba(24,119,242,0.1); padding:8px; border-radius:6px; margin-bottom:8px; font-size:13px;">
-                        👥 Total Users: <b>\${totalUsersCount}</b> | Reg: <b>\${registrationOpen ? 'Open ✅' : 'Closed 🚫'}</b>
+                        👥 Total Users: <b>${totalUsersCount}</b> | Reg: <b>${registrationOpen ? 'Open ✅' : 'Closed 🚫'}</b>
                     </div>
                     
-                    <button onclick="toggleRegistrationStatus()" class="\${registrationOpen ? 'btn-red' : 'btn-green'}" style="margin-bottom:6px; padding:8px;">
-                        \${registrationOpen ? '🔴 Close Registration' : '🟢 Open Registration'}
+                    <button onclick="toggleRegistrationStatus()" class="${registrationOpen ? 'btn-red' : 'btn-green'}" style="margin-bottom:6px; padding:8px;">
+                        ${registrationOpen ? '🔴 Close Registration' : '🟢 Open Registration'}
                     </button>
 
                     <div class="upload-section-box">
                         <h4 style="margin:0 0 4px 0; color:#1877f2; font-size:13px;">🎬 Daily Video Limit</h4>
                         <select id="admin-video-limit" style="margin:2px 0; padding:8px;">
-                            <option value="1" \${dailyLimit==1?'selected':''}>1 Video/Day</option>
-                            <option value="3" \${dailyLimit==3?'selected':''}>3 Videos/Day</option>
+                            <option value="1" ${dailyLimit==1?'selected':''}>1 Video/Day</option>
+                            <option value="3" ${dailyLimit==3?'selected':''}>3 Videos/Day</option>
                         </select>
                         <button onclick="updateVideoLimitSetting()" class="btn-green" style="margin-top:2px; padding:8px;">Save Limit</button>
                     </div>
 
-                    <button onclick="toggleAdsenseVerification()" class="\${isAdsenseActive ? 'btn-red' : 'btn-green'}" style="margin:6px 0; padding:8px;">
-                        \${isAdsenseActive ? '🔴 Disable AdSense' : '🟢 Activate AdSense'}
+                    <button onclick="toggleAdsenseVerification()" class="${isAdsenseActive ? 'btn-red' : 'btn-green'}" style="margin:6px 0; padding:8px;">
+                        ${isAdsenseActive ? '🔴 Disable AdSense' : '🟢 Activate AdSense'}
                     </button>
 
                     <div class="upload-section-box" style="border-color:#ff9900; background:rgba(255,153,0,0.04);">
                         <h4 style="margin:0 0 4px 0; color:#ff9900; font-size:13px;">📢 Custom Banner Ad HTML</h4>
-                        <textarea id="admin-custom-ad" rows="2" placeholder="Paste ad script...">\${customAdCode}</textarea>
+                        <textarea id="admin-custom-ad" rows="2" placeholder="Paste ad script...">${customAdCode}</textarea>
                         <button onclick="saveCustomAdScript()" class="btn-orange" style="margin-top:2px; padding:8px;">Save Ad</button>
                     </div>
 
                     <h4 style="margin:10px 0 6px 0; font-size:14px;">👥 User Database</h4>
-                    <div style="max-height:160px; overflow-y:auto; border:1px solid var(--border-color); padding:4px; border-radius:6px;">\${usersHtml || '<p style="text-align:center;">No users.</p>'}</div>
+                    <div style="max-height:160px; overflow-y:auto; border:1px solid var(--border-color); padding:4px; border-radius:6px;">${usersHtml || '<p style="text-align:center;">No users.</p>'}</div>
                     <button onclick="logoutUser()" class="btn-red" style="margin-top: 10px; padding:8px;">Log Out</button>
-                \`;
+                `;
             } else {
                 let userFollowers = user.followers || 0;
                 let canRequestMonetization = userFollowers >= 1000;
@@ -223,67 +228,67 @@ let html = `<!DOCTYPE html>
                     userPosts.forEach(p => {
                         let targetV = p.type === 'long' ? 1000 : (p.type === 'short' ? 2000 : 4000);
                         let pEarn = p.type === 'long' ? (p.views/1000)*0.10 : (p.type === 'short' ? (p.views/2000)*0.10 : (p.views/4000)*0.10);
-                        postsListHtml += \`
+                        postsListHtml += `
                             <div style="background:rgba(255,255,255,0.03); padding:6px 8px; border-radius:50px; margin-bottom:4px; border:1px solid var(--border-color); font-size:11px; display:flex; justify-content:space-between; align-items:center;">
-                                <span style="font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:55%;">\${p.title || 'Post'}</span>
-                                <span style="color:#1877f2;">👀 \${p.views || 0}/\${targetV}</span>
-                                <span style="color:#42b72a; font-weight:bold;">$\${pEarn.toFixed(3)}</span>
+                                <span style="font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:55%;">${p.title || 'Post'}</span>
+                                <span style="color:#1877f2;">👀 ${p.views || 0}/${targetV}</span>
+                                <span style="color:#42b72a; font-weight:bold;">$${pEarn.toFixed(3)}</span>
                             </div>
-                        \`;
+                        `;
                     });
                 } else {
                     postsListHtml = '<p style="text-align:center; font-size:11px; opacity:0.6; margin:4px 0;">No posts yet.</p>';
                 }
 
-                menuBody.innerHTML = \`
+                menuBody.innerHTML = `
                     <div style="text-align:center; display:flex; align-items:center; gap:12px; background:rgba(24,119,242,0.06); padding:10px; border-radius:8px; margin-bottom:10px;">
-                        <img src="\${user.avatar}" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #1877f2;">
+                        <img src="${user.avatar}" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #1877f2;">
                         <div style="text-align:left;">
-                            <b style="font-size:15px;">\${user.name}</b> \${hasBlueTick ? '<span class="verified-badge"></span>' : ''}<br>
-                            <small style="opacity:0.7;">ID: \${user.userId} | Followers: <b>\${formatNumber(userFollowers)}</b></small><br>
-                            <span style="font-size:14px; font-weight:bold; color:#42b72a;">💰 Balance: $\${(user.earnings || 0).toFixed(4)}</span>
+                            <b style="font-size:15px;">${user.name}</b> ${hasBlueTick ? '<span class="verified-badge"></span>' : ''}<br>
+                            <small style="opacity:0.7;">ID: ${user.userId} | Followers: <b>${formatNumber(userFollowers)}</b></small><br>
+                            <span style="font-size:14px; font-weight:bold; color:#42b72a;">💰 Balance: $${(user.earnings || 0).toFixed(4)}</span>
                         </div>
                     </div>
 
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:10px;">
                         <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; border:1px solid var(--border-color); text-align:center;">
                             <small style="opacity:0.7; font-size:11px;">Total Views</small>
-                            <div style="font-weight:bold; color:#1877f2; font-size:14px;">👀 \${formatNumber(totalUserViews)}</div>
+                            <div style="font-weight:bold; color:#1877f2; font-size:14px;">👀 ${formatNumber(totalUserViews)}</div>
                         </div>
                         <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; border:1px solid var(--border-color); text-align:center;">
                             <small style="opacity:0.7; font-size:11px;">Est. Earnings</small>
-                            <div style="font-weight:bold; color:#42b72a; font-size:14px;">$\${totalEstimatedEarnings.toFixed(3)}</div>
+                            <div style="font-weight:bold; color:#42b72a; font-size:14px;">$${totalEstimatedEarnings.toFixed(3)}</div>
                         </div>
                     </div>
 
                     <details style="background:rgba(24,119,242,0.04); border:1px solid var(--border-color); border-radius:6px; padding:6px 10px; margin-bottom:8px; font-size:12px;">
                         <summary style="font-weight:bold; cursor:pointer; color:#1877f2;">📊 View All Post-wise Views & Earnings</summary>
-                        <div style="max-height:110px; overflow-y:auto; margin-top:6px;">\${postsListHtml}</div>
+                        <div style="max-height:110px; overflow-y:auto; margin-top:6px;">${postsListHtml}</div>
                     </details>
 
                     <details style="background:rgba(255,153,0,0.04); border:1px solid #ff9900; border-radius:6px; padding:6px 10px; margin-bottom:8px; font-size:12px;">
-                        <summary style="font-weight:bold; cursor:pointer; color:#ff9900;">📢 Official Monetization Notice (\${progressPercent}%)</summary>
+                        <summary style="font-weight:bold; cursor:pointer; color:#ff9900;">📢 Official Monetization Notice (${progressPercent}%)</summary>
                         <p style="margin:6px 0 4px 0; opacity:0.9; line-height:1.3;">Site monetization is under review. Company will automatically pay based on views after reaching 1,000 followers!</p>
                         <div style="width:100%; background:#333; height:5px; border-radius:3px; overflow:hidden;">
-                            <div style="width:\${progressPercent}%; background:#ff9900; height:100%;"></div>
+                            <div style="width:${progressPercent}%; background:#ff9900; height:100%;"></div>
                         </div>
                     </details>
 
                     <div class="upload-section-box">
                         <h4 style="margin:0 0 4px 0; color:#1877f2; font-size:13px;">🆔 Blue Tick Verification</h4>
-                        <input type="text" id="orig-fullname" placeholder="Legal Full Name" value="\${user.name || ''}">
-                        <input type="text" id="orig-phone" placeholder="Mobile Number / Wallet" value="\${user.walletInfo || ''}">
+                        <input type="text" id="orig-fullname" placeholder="Legal Full Name" value="${user.name || ''}">
+                        <input type="text" id="orig-phone" placeholder="Mobile Number / Wallet" value="${user.walletInfo || ''}">
                         <button onclick="applyForBlueTick()" class="btn-green" style="padding:8px;">Submit for Blue Tick 🔵</button>
                     </div>
 
-                    \${canRequestMonetization ? \`
+                    ${canRequestMonetization ? `
                     <div class="upload-section-box" style="border-color:#42b72a; background:rgba(66,183,42,0.04);">
                         <h4 style="margin:0 0 4px 0; color:#42b72a; font-size:13px;">🎉 Request Payout</h4>
                         <button onclick="requestPayout()" class="btn-green" style="padding:8px;">Send Payout Request</button>
-                    </div>\` : \`
+                    </div>` : `
                     <div style="font-size:11px; text-align:center; padding:6px; opacity:0.7; border:1px dashed var(--border-color); border-radius:6px; margin-bottom:8px;">
                         🔒 Demo Mode (Unlock Payout at 1K Followers)
-                    </div>\`}
+                    </div>`}
 
                     <details class="upload-section-box" style="margin-bottom:8px;">
                         <summary style="font-weight:bold; cursor:pointer; color:#1877f2; font-size:13px;">💎 Update Profile Picture</summary>
@@ -301,7 +306,7 @@ let html = `<!DOCTYPE html>
                         <summary style="font-weight:bold; cursor:pointer; color:#1877f2; font-size:13px;">🚀 Upload Media to R2</summary>
                         <input type="text" id="upload-title" placeholder="Post Title..." style="margin-top:6px;">
                         <select id="upload-type" style="padding:6px;">
-                            <option value="long">Long Video (Max \${dailyLimit}/day)</option>
+                            <option value="long">Long Video (Max ${dailyLimit}/day)</option>
                             <option value="short">Short Reel</option>
                             <option value="image">Image Post</option>
                         </select>
@@ -315,10 +320,10 @@ let html = `<!DOCTYPE html>
                     </details>
 
                     <button onclick="logoutUser()" class="btn-red" style="margin-top: 10px; padding:8px;">Log Out</button>
-                \`;
+                `;
             }
         } else {
-            menuBody.innerHTML = \`
+            menuBody.innerHTML = `
                 <div style="display:flex; gap:10px; margin-bottom:10px;">
                     <button onclick="switchAuthTab('login')" style="padding:8px;">Log In</button>
                     <button onclick="switchAuthTab('signup')" class="btn-green" style="padding:8px;">Sign Up</button>
@@ -351,10 +356,11 @@ let html = `<!DOCTYPE html>
                         <button onclick="submitNewPassword()" class="btn-green" style="padding:8px;">Update Password</button>
                     </div>
                 </div>
-            \`;
+            `;
         }
     }
 
+    // Switch between login, signup, and password recovery tabs
     function switchAuthTab(tab) {
         document.getElementById('auth-login-box').classList.add('hidden');
         document.getElementById('auth-signup-box').classList.add('hidden');
@@ -365,6 +371,7 @@ let html = `<!DOCTYPE html>
         else if(tab === 'forgot') document.getElementById('auth-forgot-box').classList.remove('hidden');
     }
 
+    // Request password reset OTP
     async function requestPasswordOtp() {
         const email = document.getElementById('forgot-email').value;
         if(!email) { alert('Enter your email first!'); return; }
@@ -378,6 +385,7 @@ let html = `<!DOCTYPE html>
         }
     }
 
+    // Submit new password with OTP verification
     async function submitNewPassword() {
         const email = document.getElementById('forgot-email').value;
         const otp = document.getElementById('forgot-otp').value;
@@ -394,6 +402,7 @@ let html = `<!DOCTYPE html>
         }
     }
 
+    // Register a new user account
     async function registerUser() {
         const name = document.getElementById('reg-name').value, email = document.getElementById('reg-email').value, password = document.getElementById('reg-password').value;
         if(!name || !email || !password) { alert('Fill all fields!'); return; }
@@ -402,6 +411,7 @@ let html = `<!DOCTYPE html>
         if(data.success) { localStorage.setItem('bdaibook_user', JSON.stringify(data.user)); alert('Registered!'); toggleMenu(); loadFeed(); } else { alert(data.message); }
     }
 
+    // Login user
     async function loginUser() {
         const email = document.getElementById('login-email').value, password = document.getElementById('login-password').value;
         const res = await fetch('/api/auth/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ email, password }) });
@@ -409,8 +419,10 @@ let html = `<!DOCTYPE html>
         if(data.success) { localStorage.setItem('bdaibook_user', JSON.stringify(data.user)); alert('Login successful!'); toggleMenu(); loadFeed(); } else { alert(data.message); }
     }
 
+    // Logout user
     function logoutUser() { localStorage.removeItem('bdaibook_user'); alert('Logged out.'); toggleMenu(); loadFeed(); }
 
+    // Apply for verified blue tick badge
     async function applyForBlueTick() {
         const fullname = document.getElementById('orig-fullname').value;
         const phone = document.getElementById('orig-phone').value;
@@ -436,6 +448,7 @@ let html = `<!DOCTYPE html>
         }
     }
 
+    // Request earnings payout
     async function requestPayout() {
         const savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
         const res = await fetch('/api/user/payout-request', {
@@ -447,6 +460,7 @@ let html = `<!DOCTYPE html>
         alert(data.message);
     }
 
+    // Upload profile avatar to cloud storage
     async function uploadUserAvatar() {
         const fileInput = document.getElementById('user-avatar-input'), savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
         if(!fileInput.files.length) { alert('Select image'); return; }
@@ -457,6 +471,7 @@ let html = `<!DOCTYPE html>
         if(data.success) { savedUser.avatar = data.avatar; localStorage.setItem('bdaibook_user', JSON.stringify(savedUser)); alert(data.message); toggleMenu(); loadFeed(); } else { alert(data.message); }
     }
 
+    // Publish a text-only post
     async function publishTextPost() {
         const content = document.getElementById('text-post-content').value, savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
         if(!savedUser.email) { alert('Please login first!'); return; }
@@ -477,6 +492,7 @@ let html = `<!DOCTYPE html>
         }
     }
 
+    // Toggle user registration status (Admin feature)
     async function toggleRegistrationStatus() {
         const newState = !(globalSettings.registrationOpen !== false);
         const formData = new FormData(); 
@@ -489,6 +505,7 @@ let html = `<!DOCTYPE html>
         if(data.success) { alert('Registration status updated!'); toggleMenu(); loadFeed(); }
     }
 
+    // Update daily long video upload limit (Admin feature)
     async function updateVideoLimitSetting() {
         const limitVal = document.getElementById('admin-video-limit').value;
         const formData = new FormData();
@@ -501,6 +518,7 @@ let html = `<!DOCTYPE html>
         if(data.success) { alert('Limit updated to ' + limitVal + '!'); toggleMenu(); loadFeed(); }
     }
 
+    // Toggle AdSense verification status (Admin feature)
     async function toggleAdsenseVerification() {
         const newState = !globalSettings.adsenseVerified;
         const formData = new FormData(); 
@@ -513,6 +531,7 @@ let html = `<!DOCTYPE html>
         if(data.success) { alert('AdSense updated!'); toggleMenu(); loadFeed(); }
     }
 
+    // Save custom HTML advertisement script (Admin feature)
     async function saveCustomAdScript() {
         const customAdCode = document.getElementById('admin-custom-ad').value;
         const formData = new FormData();
@@ -526,12 +545,14 @@ let html = `<!DOCTYPE html>
         if(data.success) { alert('Ad script saved!'); toggleMenu(); loadFeed(); } else { alert('Failed!'); }
     }
 
+    // Perform administrative actions on user accounts
     async function adminAction(action, email) {
         const res = await fetch('/api/admin/action', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ action, email }) });
         const data = await res.json();
         if(data.success) { allUsersData = data.users; alert('Done!'); renderMenuContent(); loadFeed(); }
     }
 
+    // Upload media files directly with progress bar tracking
     function uploadContentDirect() {
         const title = document.getElementById('upload-title').value, type = document.getElementById('upload-type').value;
         const fileInput = document.getElementById('upload-file'), savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
@@ -561,7 +582,7 @@ let html = `<!DOCTYPE html>
                 const percentComplete = Math.round((e.loaded / e.total) * 100);
                 progressBar.style.width = percentComplete + '%';
                 progressBar.innerText = percentComplete + '%';
-                statusText.innerText = \`Uploading... \${percentComplete}%\`;
+                statusText.innerText = `Uploading... ${percentComplete}%`;
             }
         };
 
@@ -602,6 +623,7 @@ let html = `<!DOCTYPE html>
         xhr.send(formData);
     }
 
+    // Load main content feed from server
     async function loadFeed() {
         try {
             const res = await fetch('/api/feed'); 
@@ -620,9 +642,13 @@ let html = `<!DOCTYPE html>
         }
     }
 
+    // Filter feed items by category
     function filterFeed(type, btn) { currentFilter = type; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderFilteredFeed(); }
+    
+    // Handle search query filtering
     function handleSearch(q) { searchQuery = q.toLowerCase(); renderFilteredFeed(); }
 
+    // Toggle like status on a media post
     async function toggleLike(mediaId) {
         const savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
         if(!savedUser.email) { alert('Please log in!'); return; }
@@ -630,10 +656,11 @@ let html = `<!DOCTYPE html>
         loadFeed();
     }
 
+    // Add comment to a media post
     async function addComment(mediaId) {
         const savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
         if(!savedUser.email) { alert('Please log in!'); return; }
-        const inputField = document.getElementById(\`comment-input-\${mediaId}\`);
+        const inputField = document.getElementById(`comment-input-${mediaId}`);
         const commentText = inputField.value.trim();
         if(!commentText) return;
 
@@ -651,6 +678,7 @@ let html = `<!DOCTYPE html>
         }
     }
 
+    // Delete a media post
     async function deleteMediaPost(mediaId) {
         if(!confirm('Delete this post?')) return;
         const savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
@@ -659,6 +687,7 @@ let html = `<!DOCTYPE html>
         if(data.success) { alert(data.message); loadFeed(); } else { alert(data.message || 'Failed'); }
     }
 
+    // Toggle follow status for creators
     async function toggleFollow(authorEmail, btn) {
         const savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
         if(!savedUser.email) { alert('Please log in!'); return; }
@@ -667,6 +696,7 @@ let html = `<!DOCTYPE html>
         if(data.success) { btn.classList.toggle('following', data.isFollowing); btn.innerText = data.isFollowing ? '✓ Following' : '+ Follow'; loadFeed(); }
     }
 
+    // Open social sharing modal dialog
     function openShareModal(url, title) {
         const siteUrl = window.location.origin;
         const shareUrl = url && url.startsWith('http') ? url : siteUrl;
@@ -676,16 +706,19 @@ let html = `<!DOCTYPE html>
         document.getElementById('og-title').setAttribute('content', title);
         document.getElementById('og-image').setAttribute('content', url && url.startsWith('http') ? url : siteUrl + '/bd-ai-book-logo.jpg');
 
-        document.getElementById('share-buttons-container').innerHTML = \`
-            <a href="https://www.facebook.com/sharer/sharer.php?u=\${encUrl}&quote=\${encTitle}" target="_blank" style="padding:8px; background:#1877f2; color:#fff; border-radius:6px; font-weight:bold; text-decoration:none; text-align:center;">📘 Facebook</a>
-            <a href="https://t.me/share/url?url=\${encUrl}&text=\${encTitle}" target="_blank" style="padding:8px; background:#229ed9; color:#fff; border-radius:6px; font-weight:bold; text-decoration:none; text-align:center;">✈️ Telegram</a>
-            <a href="https://api.whatsapp.com/send?text=\${encTitle}%20\${encUrl}" target="_blank" style="padding:8px; background:#25d366; color:#fff; border-radius:6px; font-weight:bold; text-decoration:none; text-align:center;">💬 WhatsApp</a>
-            <button onclick="navigator.clipboard.writeText('\${shareUrl}'); alert('Copied!'); closeShareModal();" style="padding:8px; background:#6c757d; color:#fff; border-radius:6px; font-weight:bold;">📋 Copy Link</button>
-        \`;
+        document.getElementById('share-buttons-container').innerHTML = `
+            <a href="https://www.facebook.com/sharer/sharer.php?u=${encUrl}&quote=${encTitle}" target="_blank" style="padding:8px; background:#1877f2; color:#fff; border-radius:6px; font-weight:bold; text-decoration:none; text-align:center;">📘 Facebook</a>
+            <a href="https://t.me/share/url?url=${encUrl}&text=${encTitle}" target="_blank" style="padding:8px; background:#229ed9; color:#fff; border-radius:6px; font-weight:bold; text-decoration:none; text-align:center;">✈️ Telegram</a>
+            <a href="https://api.whatsapp.com/send?text=${encTitle}%20${encUrl}" target="_blank" style="padding:8px; background:#25d366; color:#fff; border-radius:6px; font-weight:bold; text-decoration:none; text-align:center;">💬 WhatsApp</a>
+            <button onclick="navigator.clipboard.writeText('${shareUrl}'); alert('Copied!'); closeShareModal();" style="padding:8px; background:#6c757d; color:#fff; border-radius:6px; font-weight:bold;">📋 Copy Link</button>
+        `;
         document.getElementById('share-modal').classList.remove('hidden');
     }
+    
+    // Close sharing modal dialog
     function closeShareModal() { document.getElementById('share-modal').classList.add('hidden'); }
 
+    // Render filtered posts in the timeline feed
     function renderFilteredFeed() {
         let filtered = currentFilter === 'all' ? allMediaData : allMediaData.filter(i => (currentFilter === 'text' ? i.type === 'text' : i.type === currentFilter));
         filtered = filtered.filter(i => i.paymentStatus === 'Approved');
@@ -697,19 +730,19 @@ let html = `<!DOCTYPE html>
         
         let adsenseBox = '';
         if (globalSettings.adsenseVerified) {
-            adsenseBox += \`<div class="ad-banner">📢 Sponsored AdSense Ad: Monetize Your Content on BDAIBOOK 1</div>\`;
+            adsenseBox += `<div class="ad-banner">📢 Sponsored AdSense Ad: Monetize Your Content on BDAIBOOK 1</div>`;
         }
         if (globalSettings.customAdCode && globalSettings.customAdCode.trim() !== '') {
-            adsenseBox += \`<div class="ad-banner custom-ad-box" style="border-color:#1877f2; background:#111;">\${globalSettings.customAdCode}</div>\`;
+            adsenseBox += `<div class="ad-banner custom-ad-box" style="border-color:#1877f2; background:#111;">${globalSettings.customAdCode}</div>`;
         }
 
         let html = '';
         filtered.forEach(item => {
             let mediaEl = '';
             if (item.type === 'image') {
-                mediaEl = \`<img src="\${item.mediaUrl}" style="width:100%; border-radius:6px; margin-top:6px;">\`;
+                mediaEl = `<img src="${item.mediaUrl}" style="width:100%; border-radius:6px; margin-top:6px;">`;
             } else if (item.type === 'long' || item.type === 'short') {
-                mediaEl = \`<video controls style="width:100%; border-radius:6px; margin-top:6px;" src="\${item.mediaUrl}"></video>\`;
+                mediaEl = `<video controls style="width:100%; border-radius:6px; margin-top:6px;" src="${item.mediaUrl}"></video>`;
             } else {
                 mediaEl = ''; 
             }
@@ -721,52 +754,52 @@ let html = `<!DOCTYPE html>
             let realViewsCount = formatNumber(item.views || 0);
             
             let canDelete = savedUser.isOwner || (savedUser.email && savedUser.email === item.userEmail);
-            let deleteBtnHtml = canDelete ? \`<button class="delete-btn" onclick="deleteMediaPost('\${item.mediaId}')">🗑️ Delete Post</button>\` : '';
+            let deleteBtnHtml = canDelete ? `<button class="delete-btn" onclick="deleteMediaPost('${item.mediaId}')">🗑️ Delete Post</button>` : '';
 
             let commentsHtml = '';
             if (item.comments && item.comments.length > 0) {
                 item.comments.forEach(c => {
-                    commentsHtml += \`<div class="comment-item"><b>\${c.authorName || 'User'}</b>: \${c.text}</div>\`;
+                    commentsHtml += `<div class="comment-item"><b>${c.authorName || 'User'}</b>: ${c.text}</div>`;
                 });
             } else {
-                commentsHtml += \`<div style="font-size:12px; opacity:0.6; padding:2px 0;">No comments yet.</div>\`;
+                commentsHtml += `<div style="font-size:12px; opacity:0.6; padding:2px 0;">No comments yet.</div>`;
             }
 
-            html += \`
+            html += `
                 <div class="card">
                     <div class="feed-header">
                         <div class="author-info">
-                            <img src="\${item.authorAvatar}" class="avatar">
-                            <div><b>\${item.authorName}</b> \${authorData.verified ? '<span class="verified-badge"></span>' : ''}<br><small style="opacity:0.7;">Followers: \${realFollowersCount} | Views: \${realViewsCount}</small></div>
+                            <img src="${item.authorAvatar}" class="avatar">
+                            <div><b>${item.authorName}</b> ${authorData.verified ? '<span class="verified-badge"></span>' : ''}<br><small style="opacity:0.7;">Followers: ${realFollowersCount} | Views: ${realViewsCount}</small></div>
                         </div>
-                        <button class="follow-btn \${isFollowing ? 'following' : ''}" onclick="toggleFollow('\${item.userEmail}', this)">\${isFollowing ? '✓ Following' : '+ Follow'}</button>
+                        <button class="follow-btn ${isFollowing ? 'following' : ''}" onclick="toggleFollow('${item.userEmail}', this)">${isFollowing ? '✓ Following' : '+ Follow'}</button>
                     </div>
-                    <p style="font-weight:bold; margin-bottom:4px; font-size:14px;">\${item.title}</p>
-                    \${mediaEl}
-                    \${adsenseBox}
+                    <p style="font-weight:bold; margin-bottom:4px; font-size:14px;">${item.title}</p>
+                    ${mediaEl}
+                    ${adsenseBox}
                     <div class="action-bar">
-                        <button class="action-btn" onclick="toggleLike('\${item.mediaId}')" style="color:\${userLiked ? '#1877f2' : 'inherit'};">👍 Like (\${formatNumber(item.likes || 0)})</button>
-                        <button class="action-btn" onclick="document.getElementById('comment-section-\${item.mediaId}').classList.toggle('hidden')">💬 Comment (\${item.comments ? item.comments.length : 0})</button>
-                        <button class="action-btn" onclick="openShareModal('\${item.mediaUrl || ''}', '\${item.title.replace(/'/g, "\\\\'")}')">↗️ Share</button>
+                        <button class="action-btn" onclick="toggleLike('${item.mediaId}')" style="color:${userLiked ? '#1877f2' : 'inherit'};">👍 Like (${formatNumber(item.likes || 0)})</button>
+                        <button class="action-btn" onclick="document.getElementById('comment-section-${item.mediaId}').classList.toggle('hidden')">💬 Comment (${item.comments ? item.comments.length : 0})</button>
+                        <button class="action-btn" onclick="openShareModal('${item.mediaUrl || ''}', '${item.title.replace(/'/g, "\\'")}')">↗️ Share</button>
                     </div>
 
-                    <div id="comment-section-\${item.mediaId}" class="comments-section hidden">
-                        <div style="max-height: 120px; overflow-y: auto;">\${commentsHtml}</div>
+                    <div id="comment-section-${item.mediaId}" class="comments-section hidden">
+                        <div style="max-height: 120px; overflow-y: auto;">${commentsHtml}</div>
                         <div class="comment-box-input">
-                            <input type="text" id="comment-input-\${item.mediaId}" placeholder="Write a comment...">
-                            <button onclick="addComment('\${item.mediaId}')" class="btn-green">Post</button>
+                            <input type="text" id="comment-input-${item.mediaId}" placeholder="Write a comment...">
+                            <button onclick="addComment('${item.mediaId}')" class="btn-green">Post</button>
                         </div>
                     </div>
 
-                    \${deleteBtnHtml}
+                    ${deleteBtnHtml}
                 </div>
-            \`;
+            `;
         });
         document.getElementById('feed-container').innerHTML = html;
     }
 
+    // Initial feed load on page startup
     loadFeed();
 </script>
 </body>
-</html>`;
-
+</html>
