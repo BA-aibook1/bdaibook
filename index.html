@@ -1,1 +1,778 @@
+cd /root/video-platform && cat << 'EOF' > fix-media-display.js
+const fs = require('fs');
 
+let html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BDAIBOOK 1 - Global Video Platform</title>
+    <meta property="og:title" id="og-title" content="BDAIBOOK 1 - Global Video Platform">
+    <meta property="og:description" content="Watch and share amazing long videos, short reels, and text posts on BDAIBOOK 1.">
+    <meta property="og:image" id="og-image" content="https://pub-0e1e987c6fd240bcb4cdec3133f8445f.r2.dev/bd-ai-book-logo.jpg">
+    <meta property="og:url" content="https://bdaibook1.com">
+    <meta property="og:type" content="website">
+
+    <style>
+        :root { --bg-color: #18191a; --card-bg: #242526; --text-color: #e4e6eb; --header-bg: #242526; --border-color: #3a3b3c; }
+        [data-theme="light"] { --bg-color: #f0f2f5; --card-bg: #ffffff; --text-color: #050505; --header-bg: #ffffff; --border-color: #ccd0d5; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-color); color: var(--text-color); margin: 0; padding: 0; transition: background 0.3s, color 0.3s; }
+        
+        header { background: var(--header-bg); color: var(--text-color); padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-bottom: 1px solid var(--border-color); }
+        .logo-area { display: flex; align-items: center; gap: 10px; }
+        .header-logo-img { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid #1877f2; background: #fff; }
+        .brand-title { font-size: 18px; font-weight: 900; background: linear-gradient(45deg, #1877f2, #42b72a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .container { max-width: 680px; margin: 15px auto; padding: 0 10px; }
+        .card { background: var(--card-bg); border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.2); padding: 15px; margin-bottom: 15px; border: 1px solid var(--border-color); }
+        .hidden { display: none !important; }
+        
+        input, select, textarea, button { width: 100%; padding: 10px; margin: 6px 0; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; font-size: 14px; background: var(--card-bg); color: var(--text-color); }
+        button { background: #1877f2; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button:hover { background: #165fe5; }
+        .btn-green { background: #42b72a; } .btn-red { background: #dc3545; } .btn-orange { background: #ff9900; }
+        
+        .verified-badge { display: inline-block; width: 15px; height: 15px; margin-left: 4px; vertical-align: -2px; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%231877f2" d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/><path fill="%23ffffff" d="M10.2 15.7l-3.5-3.5 1.4-1.4 2.1 2.1 5.3-5.3 1.4 1.4-6.7 6.7z"/></svg>'); background-size: contain; background-repeat: no-repeat; }
+        
+        .feed-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .author-info { display: flex; align-items: center; gap: 10px; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #1877f2; }
+        .follow-btn { background: #3a3b3c; color: #e4e6eb; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; width: auto; }
+        .follow-btn.following { background: #1877f2; color: white; }
+        
+        .action-bar { display: flex; justify-content: space-around; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 8px 0; margin: 10px 0; }
+        .action-btn { background: none; border: none; color: var(--text-color); font-weight: 600; cursor: pointer; padding: 5px 10px; width: auto; }
+        
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 10px; box-sizing: border-box; }
+        .modal-content { background: var(--card-bg); color: var(--text-color); padding: 20px 15px; border-radius: 12px; width: 100%; max-width: 440px; position: relative; border: 1px solid var(--border-color); max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
+        .close-btn { position: absolute; top: 12px; right: 12px; font-size: 18px; cursor: pointer; font-weight: bold; color: #fff; background: #dc3545; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 2010; }
+        
+        .filter-tabs { display: flex; gap: 6px; margin-bottom: 15px; overflow-x: auto; }
+        .filter-btn { flex: 1; padding: 9px 12px; background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 6px; cursor: pointer; font-weight: bold; text-align: center; white-space: nowrap; font-size: 13px; }
+        .filter-btn.active { background: #1877f2; color: white; border-color: #1877f2; }
+        
+        .search-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+        .upload-section-box { background: rgba(24,119,242,0.06); border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; margin-top: 10px; }
+        
+        .ad-banner { background: #1a1a1a; border: 1px dashed #ff9900; color: #ff9900; text-align: center; padding: 8px 10px; font-size: 12px; border-radius: 6px; margin-top: 8px; font-weight: bold; word-break: break-all; max-height: 50px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .custom-ad-box { border-color: #1877f2; background: #111; max-height: none !important; padding: 6px !important; }
+
+        .delete-btn { background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; margin-top: 6px; width: auto; }
+        
+        .comments-section { margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 8px; }
+        .comment-item { font-size: 13px; background: rgba(255,255,255,0.03); padding: 6px 10px; border-radius: 5px; margin-bottom: 4px; }
+        .comment-box-input { display: flex; gap: 6px; margin-top: 8px; }
+        .comment-box-input input { margin: 0; padding: 8px; font-size: 13px; }
+        .comment-box-input button { width: auto; padding: 8px 14px; margin: 0; font-size: 13px; }
+
+        #progress-container { width: 100%; background: #3a3b3c; border-radius: 6px; overflow: hidden; margin-top: 8px; display: none; }
+        #progress-bar { width: 0%; height: 20px; background: #42b72a; text-align: center; color: white; font-weight: bold; font-size: 12px; line-height: 20px; transition: width 0.1s; }
+    </style>
+</head>
+<body data-theme="dark">
+
+<header>
+    <div class="logo-area">
+        <img id="header-logo" src="https://pub-0e1e987c6fd240bcb4cdec3133f8445f.r2.dev/bd-ai-book-logo.jpg" class="header-logo-img" alt="Logo">
+        <div class="brand-title">BDAIBOOK 1</div>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+        <button onclick="toggleTheme()" style="background:#3a3b3c; padding:8px 12px; border-radius:6px; font-size:14px; width:auto;">🌓 Theme</button>
+        <button onclick="toggleMenu()" style="background:#1877f2; padding:8px 14px; border-radius:6px; font-size:18px; width:auto;" title="Menu">⋮</button>
+    </div>
+</header>
+
+<div id="menu-modal" class="modal hidden">
+    <div class="modal-content">
+        <span class="close-btn" onclick="toggleMenu()">&times;</span>
+        <div id="menu-body" style="margin-top: 5px;"></div>
+    </div>
+</div>
+
+<div id="share-modal" class="modal hidden">
+    <div class="modal-content" style="max-width: 380px; text-align: center;">
+        <span class="close-btn" onclick="closeShareModal()">&times;</span>
+        <h3 style="color: #1877f2; margin-top: 10px;">🌐 Share to Social Platforms</h3>
+        <div id="share-buttons-container" style="display:flex; flex-direction:column; gap:8px; margin-top:15px;"></div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="search-bar">
+        <input type="text" id="search-input" placeholder="🔍 Search posts, creators..." oninput="handleSearch(this.value)">
+    </div>
+
+    <div class="filter-tabs">
+        <button class="filter-btn active" onclick="filterFeed('all', this)">🌐 All Feed</button>
+        <button class="filter-btn" onclick="filterFeed('long', this)">🎬 Videos</button>
+        <button class="filter-btn" onclick="filterFeed('short', this)">📱 Reels</button>
+        <button class="filter-btn" onclick="filterFeed('image', this)">🖼️ Images</button>
+        <button class="filter-btn" onclick="filterFeed('text', this)">✍️ Posts</button>
+    </div>
+
+    <div id="feed-container">Loading feed...</div>
+</div>
+
+<script>
+    let currentFilter = 'all', allMediaData = [], allUsersData = {}, globalSettings = {}, searchQuery = '';
+
+    function formatNumber(num) {
+        if (!num) return '0';
+        if (num >= 1e9) return (num / 1e9).toFixed(1).replace(/\\.0$/, '') + 'B';
+        if (num >= 1e6) return (num / 1e6).toFixed(1).replace(/\\.0$/, '') + 'M';
+        if (num >= 1e3) return (num / 1e3).toFixed(1).replace(/\\.0$/, '') + 'K';
+        return num.toString();
+    }
+
+    function toggleTheme() {
+        const current = document.body.getAttribute('data-theme');
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.body.setAttribute('data-theme', next);
+        localStorage.setItem('bdaibook_theme', next);
+    }
+    if(localStorage.getItem('bdaibook_theme')) {
+        document.body.setAttribute('data-theme', localStorage.getItem('bdaibook_theme'));
+    }
+
+    function toggleMenu() { 
+        const modal = document.getElementById('menu-modal');
+        modal.classList.toggle('hidden'); 
+        renderMenuContent(); 
+    }
+
+    function renderMenuContent() {
+        const savedUser = localStorage.getItem('bdaibook_user'), menuBody = document.getElementById('menu-body');
+        if (savedUser) {
+            const user = JSON.parse(savedUser);
+            if(user.isOwner) {
+                let usersHtml = '', totalUsersCount = 0;
+                for(let email in allUsersData) {
+                    let u = allUsersData[email];
+                    if(u.isOwner) continue;
+                    totalUsersCount++;
+                    let isSuspended = u.suspendedUntil && Date.now() < u.suspendedUntil;
+                    let hasBlueTick = u.verified;
+                    
+                    usersHtml += \`
+                        <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; margin-bottom:6px; border:1px solid var(--border-color); font-size:12px;">
+                            <div><b>\${u.name}</b> \${hasBlueTick ? '🔵' : ''} | <small>\${u.email}</small><br>
+                            <span style="color:#42b72a;">Followers: \${formatNumber(u.followers || 0)} | Earnings: $\${(u.earnings || 0).toFixed(4)}</span></div>
+                            
+                            <div style="display:flex; gap:4px; margin-top:6px; flex-wrap:wrap;">
+                                <button onclick="adminAction('verify', '\${u.email}')" style="padding:3px 6px;background:#1877f2;font-size:11px;width:auto;">\${hasBlueTick ? 'Remove Tick' : 'Verify 🔵'}</button>
+                                <button onclick="adminAction('\${isSuspended?'unsuspend':'suspend3m'}', '\${u.email}')" style="padding:3px 6px;background:\${isSuspended?'#42b72a':'#ff9900'};font-size:11px;width:auto;">\${isSuspended?'Unsuspend':'Suspend 🚫'}</button>
+                                <button onclick="adminAction('ban', '\${u.email}')" style="padding:3px 6px;background:#dc3545;font-size:11px;width:auto;">Ban ❌</button>
+                                <button onclick="adminAction('reset-balance', '\${u.email}')" style="padding:3px 6px;background:#28a745;font-size:11px;width:auto;">💸 Reset Balance</button>
+                            </div>
+                        </div>\`;
+                }
+                const isAdsenseActive = globalSettings.adsenseVerified;
+                const registrationOpen = globalSettings.registrationOpen !== false;
+                const customAdCode = globalSettings.customAdCode || '';
+                const dailyLimit = globalSettings.dailyLongVideoLimit || 1;
+                
+                menuBody.innerHTML = \`
+                    <h3 style="color: #1877f2; margin-top:0; font-size:16px;">🛡️ Owner Control Panel</h3>
+                    <div style="background:rgba(24,119,242,0.1); padding:8px; border-radius:6px; margin-bottom:8px; font-size:13px;">
+                        👥 Total Users: <b>\${totalUsersCount}</b> | Reg: <b>\${registrationOpen ? 'Open ✅' : 'Closed 🚫'}</b>
+                    </div>
+                    
+                    <button onclick="toggleRegistrationStatus()" class="\${registrationOpen ? 'btn-red' : 'btn-green'}" style="margin-bottom:6px; padding:8px;">
+                        \${registrationOpen ? '🔴 Close Registration' : '🟢 Open Registration'}
+                    </button>
+
+                    <div class="upload-section-box">
+                        <h4 style="margin:0 0 4px 0; color:#1877f2; font-size:13px;">🎬 Daily Video Limit</h4>
+                        <select id="admin-video-limit" style="margin:2px 0; padding:8px;">
+                            <option value="1" \${dailyLimit==1?'selected':''}>1 Video/Day</option>
+                            <option value="3" \${dailyLimit==3?'selected':''}>3 Videos/Day</option>
+                        </select>
+                        <button onclick="updateVideoLimitSetting()" class="btn-green" style="margin-top:2px; padding:8px;">Save Limit</button>
+                    </div>
+
+                    <button onclick="toggleAdsenseVerification()" class="\${isAdsenseActive ? 'btn-red' : 'btn-green'}" style="margin:6px 0; padding:8px;">
+                        \${isAdsenseActive ? '🔴 Disable AdSense' : '🟢 Activate AdSense'}
+                    </button>
+
+                    <div class="upload-section-box" style="border-color:#ff9900; background:rgba(255,153,0,0.04);">
+                        <h4 style="margin:0 0 4px 0; color:#ff9900; font-size:13px;">📢 Custom Banner Ad HTML</h4>
+                        <textarea id="admin-custom-ad" rows="2" placeholder="Paste ad script...">\${customAdCode}</textarea>
+                        <button onclick="saveCustomAdScript()" class="btn-orange" style="margin-top:2px; padding:8px;">Save Ad</button>
+                    </div>
+
+                    <h4 style="margin:10px 0 6px 0; font-size:14px;">👥 User Database</h4>
+                    <div style="max-height:160px; overflow-y:auto; border:1px solid var(--border-color); padding:4px; border-radius:6px;">\${usersHtml || '<p style="text-align:center;">No users.</p>'}</div>
+                    <button onclick="logoutUser()" class="btn-red" style="margin-top: 10px; padding:8px;">Log Out</button>
+                \`;
+            } else {
+                let userFollowers = user.followers || 0;
+                let canRequestMonetization = userFollowers >= 1000;
+                let hasBlueTick = user.verified;
+                let dailyLimit = globalSettings.dailyLongVideoLimit || 1;
+                let progressPercent = Math.min(100, (userFollowers / 1000) * 100).toFixed(1);
+
+                let userPosts = allMediaData.filter(i => i.userEmail === user.email);
+                let totalUserViews = userPosts.reduce((sum, i) => sum + (i.views || 0), 0);
+                let totalEstimatedEarnings = 0;
+                userPosts.forEach(i => {
+                    let v = i.views || 0;
+                    if(i.type === 'long') totalEstimatedEarnings += (v / 1000) * 0.10;
+                    else if(i.type === 'short') totalEstimatedEarnings += (v / 2000) * 0.10;
+                    else if(i.type === 'image') totalEstimatedEarnings += (v / 4000) * 0.10;
+                });
+
+                let postsListHtml = '';
+                if(userPosts.length > 0) {
+                    userPosts.forEach(p => {
+                        let targetV = p.type === 'long' ? 1000 : (p.type === 'short' ? 2000 : 4000);
+                        let pEarn = p.type === 'long' ? (p.views/1000)*0.10 : (p.type === 'short' ? (p.views/2000)*0.10 : (p.views/4000)*0.10);
+                        postsListHtml += \`
+                            <div style="background:rgba(255,255,255,0.03); padding:6px 8px; border-radius:50px; margin-bottom:4px; border:1px solid var(--border-color); font-size:11px; display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:55%;">\${p.title || 'Post'}</span>
+                                <span style="color:#1877f2;">👀 \${p.views || 0}/\${targetV}</span>
+                                <span style="color:#42b72a; font-weight:bold;">$\${pEarn.toFixed(3)}</span>
+                            </div>
+                        \`;
+                    });
+                } else {
+                    postsListHtml = '<p style="text-align:center; font-size:11px; opacity:0.6; margin:4px 0;">No posts yet.</p>';
+                }
+
+                menuBody.innerHTML = \`
+                    <div style="text-align:center; display:flex; align-items:center; gap:12px; background:rgba(24,119,242,0.06); padding:10px; border-radius:8px; margin-bottom:10px;">
+                        <img src="\${user.avatar}" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #1877f2;">
+                        <div style="text-align:left;">
+                            <b style="font-size:15px;">\${user.name}</b> \${hasBlueTick ? '<span class="verified-badge"></span>' : ''}<br>
+                            <small style="opacity:0.7;">ID: \${user.userId} | Followers: <b>\${formatNumber(userFollowers)}</b></small><br>
+                            <span style="font-size:14px; font-weight:bold; color:#42b72a;">💰 Balance: $\${(user.earnings || 0).toFixed(4)}</span>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:10px;">
+                        <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; border:1px solid var(--border-color); text-align:center;">
+                            <small style="opacity:0.7; font-size:11px;">Total Views</small>
+                            <div style="font-weight:bold; color:#1877f2; font-size:14px;">👀 \${formatNumber(totalUserViews)}</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.03); padding:8px; border-radius:6px; border:1px solid var(--border-color); text-align:center;">
+                            <small style="opacity:0.7; font-size:11px;">Est. Earnings</small>
+                            <div style="font-weight:bold; color:#42b72a; font-size:14px;">$\${totalEstimatedEarnings.toFixed(3)}</div>
+                        </div>
+                    </div>
+
+                    <details style="background:rgba(24,119,242,0.04); border:1px solid var(--border-color); border-radius:6px; padding:6px 10px; margin-bottom:8px; font-size:12px;">
+                        <summary style="font-weight:bold; cursor:pointer; color:#1877f2;">📊 View All Post-wise Views & Earnings</summary>
+                        <div style="max-height:110px; overflow-y:auto; margin-top:6px;">\${postsListHtml}</div>
+                    </details>
+
+                    <details style="background:rgba(255,153,0,0.04); border:1px solid #ff9900; border-radius:6px; padding:6px 10px; margin-bottom:8px; font-size:12px;">
+                        <summary style="font-weight:bold; cursor:pointer; color:#ff9900;">📢 Official Monetization Notice (\${progressPercent}%)</summary>
+                        <p style="margin:6px 0 4px 0; opacity:0.9; line-height:1.3;">Site monetization is under review. Company will automatically pay based on views after reaching 1,000 followers!</p>
+                        <div style="width:100%; background:#333; height:5px; border-radius:3px; overflow:hidden;">
+                            <div style="width:\${progressPercent}%; background:#ff9900; height:100%;"></div>
+                        </div>
+                    </details>
+
+                    <div class="upload-section-box">
+                        <h4 style="margin:0 0 4px 0; color:#1877f2; font-size:13px;">🆔 Blue Tick Verification</h4>
+                        <input type="text" id="orig-fullname" placeholder="Legal Full Name" value="\${user.name || ''}">
+                        <input type="text" id="orig-phone" placeholder="Mobile Number / Wallet" value="\${user.walletInfo || ''}">
+                        <button onclick="applyForBlueTick()" class="btn-green" style="padding:8px;">Submit for Blue Tick 🔵</button>
+                    </div>
+
+                    \${canRequestMonetization ? \`
+                    <div class="upload-section-box" style="border-color:#42b72a; background:rgba(66,183,42,0.04);">
+                        <h4 style="margin:0 0 4px 0; color:#42b72a; font-size:13px;">🎉 Request Payout</h4>
+                        <button onclick="requestPayout()" class="btn-green" style="padding:8px;">Send Payout Request</button>
+                    </div>\` : \`
+                    <div style="font-size:11px; text-align:center; padding:6px; opacity:0.7; border:1px dashed var(--border-color); border-radius:6px; margin-bottom:8px;">
+                        🔒 Demo Mode (Unlock Payout at 1K Followers)
+                    </div>\`}
+
+                    <details class="upload-section-box" style="margin-bottom:8px;">
+                        <summary style="font-weight:bold; cursor:pointer; color:#1877f2; font-size:13px;">💎 Update Profile Picture</summary>
+                        <input type="file" id="user-avatar-input" accept="image/*" style="margin-top:6px;">
+                        <button onclick="uploadUserAvatar()" style="padding:6px;">Save Avatar to R2</button>
+                    </details>
+
+                    <details class="upload-section-box" style="margin-bottom:8px;">
+                        <summary style="font-weight:bold; cursor:pointer; color:#1877f2; font-size:13px;">✍️ Create Text Post</summary>
+                        <textarea id="text-post-content" rows="2" placeholder="What's on your mind?" style="margin-top:6px;"></textarea>
+                        <button onclick="publishTextPost()" class="btn-green" style="padding:6px;">Publish Post</button>
+                    </details>
+
+                    <details class="upload-section-box" style="margin-bottom:8px;">
+                        <summary style="font-weight:bold; cursor:pointer; color:#1877f2; font-size:13px;">🚀 Upload Media to R2</summary>
+                        <input type="text" id="upload-title" placeholder="Post Title..." style="margin-top:6px;">
+                        <select id="upload-type" style="padding:6px;">
+                            <option value="long">Long Video (Max \${dailyLimit}/day)</option>
+                            <option value="short">Short Reel</option>
+                            <option value="image">Image Post</option>
+                        </select>
+                        <input type="file" id="upload-file">
+                        <button id="publish-btn" onclick="uploadContentDirect()" class="btn-green" style="padding:8px;">Publish Media</button>
+                        
+                        <div id="progress-container">
+                            <div id="progress-bar">0%</div>
+                        </div>
+                        <p id="upload-status-text" style="font-size: 11px; text-align: center; margin-top: 4px; font-weight: bold;"></p>
+                    </details>
+
+                    <button onclick="logoutUser()" class="btn-red" style="margin-top: 10px; padding:8px;">Log Out</button>
+                \`;
+            }
+        } else {
+            menuBody.innerHTML = \`
+                <div style="display:flex; gap:10px; margin-bottom:10px;">
+                    <button onclick="switchAuthTab('login')" style="padding:8px;">Log In</button>
+                    <button onclick="switchAuthTab('signup')" class="btn-green" style="padding:8px;">Sign Up</button>
+                </div>
+                
+                <div id="auth-login-box">
+                    <input type="email" id="login-email" placeholder="Email Address">
+                    <input type="password" id="login-password" placeholder="Password">
+                    <button onclick="loginUser()" style="padding:8px;">Log In</button>
+                    <div style="text-align:right; margin-top:4px;">
+                        <a href="#" onclick="switchAuthTab('forgot')" style="font-size:12px; color:#1877f2; text-decoration:none;">Forgot Password?</a>
+                    </div>
+                </div>
+
+                <div id="auth-signup-box" class="hidden">
+                    <input type="text" id="reg-name" placeholder="Full Name">
+                    <input type="email" id="reg-email" placeholder="Gmail Address">
+                    <input type="password" id="reg-password" placeholder="Password">
+                    <button onclick="registerUser()" class="btn-green" style="padding:8px;">Register Account</button>
+                </div>
+
+                <div id="auth-forgot-box" class="hidden">
+                    <h4 style="margin:0 0 6px 0; color:#1877f2; font-size:14px;">🔑 Reset Password</h4>
+                    <input type="email" id="forgot-email" placeholder="Enter registered email">
+                    <button onclick="requestPasswordOtp()" class="btn-orange" style="padding:8px;">Send OTP Code</button>
+                    
+                    <div id="otp-verify-section" class="hidden" style="margin-top:8px;">
+                        <input type="text" id="forgot-otp" placeholder="6-digit OTP code">
+                        <input type="password" id="new-password" placeholder="New Password">
+                        <button onclick="submitNewPassword()" class="btn-green" style="padding:8px;">Update Password</button>
+                    </div>
+                </div>
+            \`;
+        }
+    }
+
+    function switchAuthTab(tab) {
+        document.getElementById('auth-login-box').classList.add('hidden');
+        document.getElementById('auth-signup-box').classList.add('hidden');
+        document.getElementById('auth-forgot-box').classList.add('hidden');
+
+        if(tab === 'login') document.getElementById('auth-login-box').classList.remove('hidden');
+        else if(tab === 'signup') document.getElementById('auth-signup-box').classList.remove('hidden');
+        else if(tab === 'forgot') document.getElementById('auth-forgot-box').classList.remove('hidden');
+    }
+
+    async function requestPasswordOtp() {
+        const email = document.getElementById('forgot-email').value;
+        if(!email) { alert('Enter your email first!'); return; }
+        const res = await fetch('/api/auth/forgot', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ email }) });
+        const data = await res.json();
+        if(data.success) {
+            alert('OTP Generated! (Demo Code: ' + data.otp + ')');
+            document.getElementById('otp-verify-section').classList.remove('hidden');
+        } else {
+            alert(data.message);
+        }
+    }
+
+    async function submitNewPassword() {
+        const email = document.getElementById('forgot-email').value;
+        const otp = document.getElementById('forgot-otp').value;
+        const newPassword = document.getElementById('new-password').value;
+        if(!otp || !newPassword) { alert('Enter OTP and new password!'); return; }
+
+        const res = await fetch('/api/auth/reset-password', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ email, otp, newPassword }) });
+        const data = await res.json();
+        if(data.success) {
+            alert('Password reset successful! Please log in.');
+            switchAuthTab('login');
+        } else {
+            alert(data.message);
+        }
+    }
+
+    async function registerUser() {
+        const name = document.getElementById('reg-name').value, email = document.getElementById('reg-email').value, password = document.getElementById('reg-password').value;
+        if(!name || !email || !password) { alert('Fill all fields!'); return; }
+        const res = await fetch('/api/auth/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name, email, password }) });
+        const data = await res.json();
+        if(data.success) { localStorage.setItem('bdaibook_user', JSON.stringify(data.user)); alert('Registered!'); toggleMenu(); loadFeed(); } else { alert(data.message); }
+    }
+
+    async function loginUser() {
+        const email = document.getElementById('login-email').value, password = document.getElementById('login-password').value;
+        const res = await fetch('/api/auth/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ email, password }) });
+        const data = await res.json();
+        if(data.success) { localStorage.setItem('bdaibook_user', JSON.stringify(data.user)); alert('Login successful!'); toggleMenu(); loadFeed(); } else { alert(data.message); }
+    }
+
+    function logoutUser() { localStorage.removeItem('bdaibook_user'); alert('Logged out.'); toggleMenu(); loadFeed(); }
+
+    async function applyForBlueTick() {
+        const fullname = document.getElementById('orig-fullname').value;
+        const phone = document.getElementById('orig-phone').value;
+        const savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
+        if(!fullname || !phone) { alert('Please enter name and wallet/phone!'); return; }
+        
+        const res = await fetch('/api/user/apply-bluetick', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email: savedUser.email, name: fullname, walletInfo: phone })
+        });
+        const data = await res.json();
+        if(data.success) {
+            savedUser.name = data.user.name;
+            savedUser.walletInfo = data.user.walletInfo;
+            savedUser.verified = data.user.verified;
+            localStorage.setItem('bdaibook_user', JSON.stringify(savedUser));
+            alert('Submitted successfully! Blue Tick verified 🔵');
+            toggleMenu();
+            loadFeed();
+        } else {
+            alert(data.message);
+        }
+    }
+
+    async function requestPayout() {
+        const savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
+        const res = await fetch('/api/user/payout-request', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email: savedUser.email })
+        });
+        const data = await res.json();
+        alert(data.message);
+    }
+
+    async function uploadUserAvatar() {
+        const fileInput = document.getElementById('user-avatar-input'), savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
+        if(!fileInput.files.length) { alert('Select image'); return; }
+        const formData = new FormData(); formData.append('avatar', fileInput.files[0]); formData.append('email', savedUser.email);
+        alert('Uploading to R2...');
+        const res = await fetch('/api/user/update-avatar', { method: 'POST', body: formData });
+        const data = await res.json();
+        if(data.success) { savedUser.avatar = data.avatar; localStorage.setItem('bdaibook_user', JSON.stringify(savedUser)); alert(data.message); toggleMenu(); loadFeed(); } else { alert(data.message); }
+    }
+
+    async function publishTextPost() {
+        const content = document.getElementById('text-post-content').value, savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
+        if(!savedUser.email) { alert('Please login first!'); return; }
+        if(!content.trim()) { alert('Write something!'); return; }
+        
+        const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ title: content, type: 'text', userEmail: savedUser.email })
+        });
+        const data = await res.json();
+        if(data.success) {
+            alert('Post published!');
+            toggleMenu();
+            loadFeed();
+        } else {
+            alert('Failed: ' + (data.message || 'Error'));
+        }
+    }
+
+    async function toggleRegistrationStatus() {
+        const newState = !(globalSettings.registrationOpen !== false);
+        const formData = new FormData(); 
+        formData.append('registrationOpen', newState);
+        formData.append('adsenseVerified', globalSettings.adsenseVerified);
+        formData.append('dailyLongVideoLimit', globalSettings.dailyLongVideoLimit || 1);
+        formData.append('customAdCode', globalSettings.customAdCode || '');
+        const res = await fetch('/api/admin/update-settings', { method: 'POST', body: formData });
+        const data = await res.json();
+        if(data.success) { alert('Registration status updated!'); toggleMenu(); loadFeed(); }
+    }
+
+    async function updateVideoLimitSetting() {
+        const limitVal = document.getElementById('admin-video-limit').value;
+        const formData = new FormData();
+        formData.append('dailyLongVideoLimit', limitVal);
+        formData.append('registrationOpen', globalSettings.registrationOpen !== false);
+        formData.append('adsenseVerified', globalSettings.adsenseVerified);
+        formData.append('customAdCode', globalSettings.customAdCode || '');
+        const res = await fetch('/api/admin/update-settings', { method: 'POST', body: formData });
+        const data = await res.json();
+        if(data.success) { alert('Limit updated to ' + limitVal + '!'); toggleMenu(); loadFeed(); }
+    }
+
+    async function toggleAdsenseVerification() {
+        const newState = !globalSettings.adsenseVerified;
+        const formData = new FormData(); 
+        formData.append('adsenseVerified', newState);
+        formData.append('registrationOpen', globalSettings.registrationOpen !== false);
+        formData.append('dailyLongVideoLimit', globalSettings.dailyLongVideoLimit || 1);
+        formData.append('customAdCode', globalSettings.customAdCode || '');
+        const res = await fetch('/api/admin/update-settings', { method: 'POST', body: formData });
+        const data = await res.json();
+        if(data.success) { alert('AdSense updated!'); toggleMenu(); loadFeed(); }
+    }
+
+    async function saveCustomAdScript() {
+        const customAdCode = document.getElementById('admin-custom-ad').value;
+        const formData = new FormData();
+        formData.append('adsenseVerified', globalSettings.adsenseVerified);
+        formData.append('registrationOpen', globalSettings.registrationOpen !== false);
+        formData.append('dailyLongVideoLimit', globalSettings.dailyLongVideoLimit || 1);
+        formData.append('customAdCode', customAdCode);
+        
+        const res = await fetch('/api/admin/update-settings', { method: 'POST', body: formData });
+        const data = await res.json();
+        if(data.success) { alert('Ad script saved!'); toggleMenu(); loadFeed(); } else { alert('Failed!'); }
+    }
+
+    async function adminAction(action, email) {
+        const res = await fetch('/api/admin/action', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ action, email }) });
+        const data = await res.json();
+        if(data.success) { allUsersData = data.users; alert('Done!'); renderMenuContent(); loadFeed(); }
+    }
+
+    function uploadContentDirect() {
+        const title = document.getElementById('upload-title').value, type = document.getElementById('upload-type').value;
+        const fileInput = document.getElementById('upload-file'), savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
+        if(!savedUser.email) { alert('Please login first!'); return; }
+        if(!fileInput.files.length) { alert('Select media file!'); return; }
+        
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]); 
+        formData.append('title', title); 
+        formData.append('type', type); 
+        formData.append('userEmail', savedUser.email);
+        
+        const progContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const statusText = document.getElementById('upload-status-text');
+        const publishBtn = document.getElementById('publish-btn');
+
+        progContainer.style.display = 'block';
+        publishBtn.disabled = true;
+        publishBtn.style.opacity = '0.6';
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/upload', true);
+
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) {
+                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = percentComplete + '%';
+                progressBar.innerText = percentComplete + '%';
+                statusText.innerText = \`Uploading... \${percentComplete}%\`;
+            }
+        };
+
+        xhr.onload = () => {
+            publishBtn.disabled = false;
+            publishBtn.style.opacity = '1';
+            if(xhr.status === 200) {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if(data.success) {
+                        statusText.innerText = 'Upload Successful! 🎉';
+                        alert('Media uploaded directly to R2!');
+                        toggleMenu();
+                        loadFeed();
+                    } else {
+                        statusText.innerText = 'Failed!';
+                        alert('Failed: ' + data.message);
+                    }
+                } catch(e) {
+                    statusText.innerText = 'Success!';
+                    alert('Uploaded to R2!');
+                    toggleMenu();
+                    loadFeed();
+                }
+            } else {
+                statusText.innerText = 'Failed!';
+                alert('Upload failed.');
+            }
+        };
+
+        xhr.onerror = () => {
+            publishBtn.disabled = false;
+            publishBtn.style.opacity = '1';
+            statusText.innerText = 'Network Error!';
+            alert('Network error.');
+        };
+
+        xhr.send(formData);
+    }
+
+    async function loadFeed() {
+        try {
+            const res = await fetch('/api/feed'); 
+            const data = await res.json();
+            if(data.success) { 
+                allMediaData = data.media; 
+                allUsersData = data.users; 
+                globalSettings = data.settings; 
+                if(document.getElementById('header-logo')) {
+                    document.getElementById('header-logo').src = globalSettings.headerLogo; 
+                }
+                renderFilteredFeed(); 
+            }
+        } catch(e) {
+            document.getElementById('feed-container').innerHTML = '<p style="text-align:center; padding:20px; color:#dc3545;">Failed to load feed.</p>';
+        }
+    }
+
+    function filterFeed(type, btn) { currentFilter = type; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderFilteredFeed(); }
+    function handleSearch(q) { searchQuery = q.toLowerCase(); renderFilteredFeed(); }
+
+    async function toggleLike(mediaId) {
+        const savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
+        if(!savedUser.email) { alert('Please log in!'); return; }
+        await fetch('/api/media/like', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ mediaId, userEmail: savedUser.email }) });
+        loadFeed();
+    }
+
+    async function addComment(mediaId) {
+        const savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
+        if(!savedUser.email) { alert('Please log in!'); return; }
+        const inputField = document.getElementById(\`comment-input-\${mediaId}\`);
+        const commentText = inputField.value.trim();
+        if(!commentText) return;
+
+        const res = await fetch('/api/media/comment', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ mediaId, userEmail: savedUser.email, text: commentText })
+        });
+        const data = await res.json();
+        if(data.success) {
+            inputField.value = '';
+            loadFeed();
+        } else {
+            alert(data.message || 'Failed.');
+        }
+    }
+
+    async function deleteMediaPost(mediaId) {
+        if(!confirm('Delete this post?')) return;
+        const savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
+        const res = await fetch('/api/media/delete', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ mediaId, userEmail: savedUser.email }) });
+        const data = await res.json();
+        if(data.success) { alert(data.message); loadFeed(); } else { alert(data.message || 'Failed'); }
+    }
+
+    async function toggleFollow(authorEmail, btn) {
+        const savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
+        if(!savedUser.email) { alert('Please log in!'); return; }
+        const res = await fetch('/api/user/follow', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ followerEmail: savedUser.email, targetEmail: authorEmail }) });
+        const data = await res.json();
+        if(data.success) { btn.classList.toggle('following', data.isFollowing); btn.innerText = data.isFollowing ? '✓ Following' : '+ Follow'; loadFeed(); }
+    }
+
+    function openShareModal(url, title) {
+        const siteUrl = window.location.origin;
+        const shareUrl = url && url.startsWith('http') ? url : siteUrl;
+        const encUrl = encodeURIComponent(shareUrl);
+        const encTitle = encodeURIComponent('BDAIBOOK 1 - ' + title);
+
+        document.getElementById('og-title').setAttribute('content', title);
+        document.getElementById('og-image').setAttribute('content', url && url.startsWith('http') ? url : siteUrl + '/bd-ai-book-logo.jpg');
+
+        document.getElementById('share-buttons-container').innerHTML = \`
+            <a href="https://www.facebook.com/sharer/sharer.php?u=\${encUrl}&quote=\${encTitle}" target="_blank" style="padding:8px; background:#1877f2; color:#fff; border-radius:6px; font-weight:bold; text-decoration:none; text-align:center;">📘 Facebook</a>
+            <a href="https://t.me/share/url?url=\${encUrl}&text=\${encTitle}" target="_blank" style="padding:8px; background:#229ed9; color:#fff; border-radius:6px; font-weight:bold; text-decoration:none; text-align:center;">✈️ Telegram</a>
+            <a href="https://api.whatsapp.com/send?text=\${encTitle}%20\${encUrl}" target="_blank" style="padding:8px; background:#25d366; color:#fff; border-radius:6px; font-weight:bold; text-decoration:none; text-align:center;">💬 WhatsApp</a>
+            <button onclick="navigator.clipboard.writeText('\${shareUrl}'); alert('Copied!'); closeShareModal();" style="padding:8px; background:#6c757d; color:#fff; border-radius:6px; font-weight:bold;">📋 Copy Link</button>
+        \`;
+        document.getElementById('share-modal').classList.remove('hidden');
+    }
+    function closeShareModal() { document.getElementById('share-modal').classList.add('hidden'); }
+
+    function renderFilteredFeed() {
+        let filtered = currentFilter === 'all' ? allMediaData : allMediaData.filter(i => (currentFilter === 'text' ? i.type === 'text' : i.type === currentFilter));
+        filtered = filtered.filter(i => i.paymentStatus === 'Approved');
+        if(searchQuery) { filtered = filtered.filter(i => i.title.toLowerCase().includes(searchQuery) || i.authorName.toLowerCase().includes(searchQuery)); }
+
+        if(!filtered.length) { document.getElementById('feed-container').innerHTML = '<p style="text-align:center; padding:20px;">No content found.</p>'; return; }
+        
+        const savedUser = JSON.parse(localStorage.getItem('bdaibook_user') || '{}');
+        
+        let adsenseBox = '';
+        if (globalSettings.adsenseVerified) {
+            adsenseBox += \`<div class="ad-banner">📢 Sponsored AdSense Ad: Monetize Your Content on BDAIBOOK 1</div>\`;
+        }
+        if (globalSettings.customAdCode && globalSettings.customAdCode.trim() !== '') {
+            adsenseBox += \`<div class="ad-banner custom-ad-box" style="border-color:#1877f2; background:#111;">\${globalSettings.customAdCode}</div>\`;
+        }
+
+        let html = '';
+        filtered.forEach(item => {
+            let mediaEl = '';
+            if (item.type === 'image') {
+                mediaEl = \`<img src="\${item.mediaUrl}" style="width:100%; border-radius:6px; margin-top:6px;">\`;
+            } else if (item.type === 'long' || item.type === 'short') {
+                mediaEl = \`<video controls style="width:100%; border-radius:6px; margin-top:6px;" src="\${item.mediaUrl}"></video>\`;
+            } else {
+                mediaEl = ''; 
+            }
+
+            let isFollowing = item.followersList && item.followersList.includes(savedUser.email);
+            let userLiked = item.likesList && item.likesList.includes(savedUser.email);
+            let authorData = allUsersData[item.userEmail] || {};
+            let realFollowersCount = formatNumber(authorData.followers || 0);
+            let realViewsCount = formatNumber(item.views || 0);
+            
+            let canDelete = savedUser.isOwner || (savedUser.email && savedUser.email === item.userEmail);
+            let deleteBtnHtml = canDelete ? \`<button class="delete-btn" onclick="deleteMediaPost('\${item.mediaId}')">🗑️ Delete Post</button>\` : '';
+
+            let commentsHtml = '';
+            if (item.comments && item.comments.length > 0) {
+                item.comments.forEach(c => {
+                    commentsHtml += \`<div class="comment-item"><b>\${c.authorName || 'User'}</b>: \${c.text}</div>\`;
+                });
+            } else {
+                commentsHtml += \`<div style="font-size:12px; opacity:0.6; padding:2px 0;">No comments yet.</div>\`;
+            }
+
+            html += \`
+                <div class="card">
+                    <div class="feed-header">
+                        <div class="author-info">
+                            <img src="\${item.authorAvatar}" class="avatar">
+                            <div><b>\${item.authorName}</b> \${authorData.verified ? '<span class="verified-badge"></span>' : ''}<br><small style="opacity:0.7;">Followers: \${realFollowersCount} | Views: \${realViewsCount}</small></div>
+                        </div>
+                        <button class="follow-btn \${isFollowing ? 'following' : ''}" onclick="toggleFollow('\${item.userEmail}', this)">\${isFollowing ? '✓ Following' : '+ Follow'}</button>
+                    </div>
+                    <p style="font-weight:bold; margin-bottom:4px; font-size:14px;">\${item.title}</p>
+                    \${mediaEl}
+                    \${adsenseBox}
+                    <div class="action-bar">
+                        <button class="action-btn" onclick="toggleLike('\${item.mediaId}')" style="color:\${userLiked ? '#1877f2' : 'inherit'};">👍 Like (\${formatNumber(item.likes || 0)})</button>
+                        <button class="action-btn" onclick="document.getElementById('comment-section-\${item.mediaId}').classList.toggle('hidden')">💬 Comment (\${item.comments ? item.comments.length : 0})</button>
+                        <button class="action-btn" onclick="openShareModal('\${item.mediaUrl || ''}', '\${item.title.replace(/'/g, "\\\\'")}')">↗️ Share</button>
+                    </div>
+
+                    <div id="comment-section-\${item.mediaId}" class="comments-section hidden">
+                        <div style="max-height: 120px; overflow-y: auto;">\${commentsHtml}</div>
+                        <div class="comment-box-input">
+                            <input type="text" id="comment-input-\${item.mediaId}" placeholder="Write a comment...">
+                            <button onclick="addComment('\${item.mediaId}')" class="btn-green">Post</button>
+                        </div>
+                    </div>
+
+                    \${deleteBtnHtml}
+                </div>
+            \`;
+        });
+        document.getElementById('feed-container').innerHTML = html;
+    }
+
+    loadFeed();
+</script>
+</body>
+</html>`;
+
+fs.writeFileSync('public/index.html', html);
+console.log('Media display restored and ad box optimized successfully!');
+EOF
